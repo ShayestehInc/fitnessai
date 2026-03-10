@@ -3283,3 +3283,102 @@ class TrainerRoutingRule(models.Model):
 
     def __str__(self) -> str:
         return f"RoutingRule({self.trainer_id}, {self.rule_type})"
+
+
+# ---------------------------------------------------------------------------
+# Program Import Draft (v6.5 Step 12)
+# ---------------------------------------------------------------------------
+
+
+class ProgramImportDraft(models.Model):
+    """
+    Stores a parsed program import for trainer review before confirmation.
+    Two-phase workflow: upload → review draft → confirm.
+    """
+
+    class Status(models.TextChoices):
+        PENDING_REVIEW = 'pending_review', 'Pending Review'
+        CONFIRMED = 'confirmed', 'Confirmed'
+        REJECTED = 'rejected', 'Rejected'
+        EXPIRED = 'expired', 'Expired'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='import_drafts',
+        limit_choices_to={'role__in': ['TRAINER', 'ADMIN']},
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='import_drafts_received',
+        limit_choices_to={'role': 'TRAINEE'},
+        help_text="Target trainee for this import.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING_REVIEW,
+    )
+    plan_name = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text="Name for the resulting TrainingPlan.",
+    )
+    goal = models.CharField(
+        max_length=50,
+        blank=True,
+        default='strength',
+    )
+
+    # Raw uploaded content
+    raw_csv = models.TextField(
+        help_text="Original CSV content uploaded by the trainer.",
+    )
+
+    # Parsed structure
+    parsed_data = models.JSONField(
+        default=dict,
+        help_text="Parsed plan structure: weeks → sessions → slots.",
+    )
+    validation_errors = models.JSONField(
+        default=list,
+        help_text="List of validation errors found during parsing.",
+    )
+    validation_warnings = models.JSONField(
+        default=list,
+        help_text="Non-blocking warnings.",
+    )
+
+    # Stats
+    total_weeks = models.PositiveSmallIntegerField(default=0)
+    total_sessions = models.PositiveSmallIntegerField(default=0)
+    total_slots = models.PositiveSmallIntegerField(default=0)
+
+    # Result
+    training_plan = models.ForeignKey(
+        'workouts.TrainingPlan',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='import_draft',
+        help_text="The created TrainingPlan (set after confirmation).",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'program_import_drafts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainer', '-created_at']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self) -> str:
+        return f"ImportDraft({self.plan_name or 'Unnamed'}, {self.status})"
