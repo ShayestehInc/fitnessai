@@ -2806,3 +2806,233 @@ class ProgressionEvent(models.Model):
 
     def __str__(self) -> str:
         return f"ProgressionEvent({self.event_type}, slot={self.plan_slot_id})"
+
+
+class ActiveSession(models.Model):
+    """
+    Tracks an in-progress workout session for a trainee.
+    Linked to a PlanSession (the template) and contains ActiveSetLog entries
+    for each prescribed set. Only one active (in_progress) session per trainee
+    is allowed, enforced by a partial unique constraint.
+    """
+
+    class Status(models.TextChoices):
+        NOT_STARTED = 'not_started', 'Not Started'
+        IN_PROGRESS = 'in_progress', 'In Progress'
+        COMPLETED = 'completed', 'Completed'
+        ABANDONED = 'abandoned', 'Abandoned'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='active_sessions',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    plan_session = models.ForeignKey(
+        PlanSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='active_sessions',
+        help_text="The PlanSession template this session was started from. "
+                  "SET_NULL so sessions survive plan deletion.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NOT_STARTED,
+    )
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the trainee started the session.",
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the session was completed or abandoned.",
+    )
+    abandon_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        help_text="Reason for abandonment (e.g., 'auto_abandoned_stale', user-provided).",
+    )
+    current_slot_index = models.PositiveIntegerField(
+        default=0,
+        help_text="Zero-based index of the current slot in the session.",
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'active_sessions'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', 'status']),
+            models.Index(fields=['trainee', '-created_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee'],
+                condition=models.Q(status='in_progress'),
+                name='unique_active_session_per_trainee',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        label = self.plan_session.label if self.plan_session else 'unknown'
+        return f"ActiveSession({self.status}, {label})"
+
+
+class ActiveSetLog(models.Model):
+    """
+    Per-set tracking entry within an active session.
+    Pre-populated from PlanSlot prescriptions when a session starts.
+    Each row represents one prescribed set — trainee fills in actual performance.
+    Completed entries are copied to LiftSetLog on session completion.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        COMPLETED = 'completed', 'Completed'
+        SKIPPED = 'skipped', 'Skipped'
+
+    class LoadUnit(models.TextChoices):
+        LB = 'lb', 'Pounds'
+        KG = 'kg', 'Kilograms'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    active_session = models.ForeignKey(
+        ActiveSession,
+        on_delete=models.CASCADE,
+        related_name='set_logs',
+    )
+    plan_slot = models.ForeignKey(
+        PlanSlot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='active_set_logs',
+        help_text="The PlanSlot this set belongs to. SET_NULL to survive plan changes.",
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='active_set_logs',
+        help_text="Denormalized from PlanSlot for faster reads.",
+    )
+    set_number = models.PositiveSmallIntegerField(
+        help_text="1-based set number within this slot.",
+    )
+
+    # Prescription (filled on session start from progression engine)
+    prescribed_reps_min = models.PositiveIntegerField(
+        help_text="Minimum reps prescribed.",
+    )
+    prescribed_reps_max = models.PositiveIntegerField(
+        help_text="Maximum reps prescribed.",
+    )
+    prescribed_load = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Prescribed load value (null if no prescription / bodyweight).",
+    )
+    prescribed_load_unit = models.CharField(
+        max_length=5,
+        choices=LoadUnit.choices,
+        default=LoadUnit.LB,
+    )
+
+    # Actual performance (filled by trainee during session)
+    completed_reps = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Reps actually completed (can be 0 for failed attempt).",
+    )
+    completed_load_value = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Actual load used.",
+    )
+    completed_load_unit = models.CharField(
+        max_length=5,
+        choices=LoadUnit.choices,
+        default=LoadUnit.LB,
+    )
+    rpe = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        help_text="Rate of Perceived Exertion (1-10).",
+    )
+
+    # Rest
+    rest_prescribed_seconds = models.PositiveIntegerField(
+        default=90,
+        help_text="Prescribed rest duration in seconds.",
+    )
+    rest_actual_seconds = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Actual rest taken by trainee (tracked by client timer).",
+    )
+
+    # Timing
+    set_started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the trainee started this set.",
+    )
+    set_completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the trainee finished this set.",
+    )
+
+    # Status
+    status = models.CharField(
+        max_length=10,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    skip_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+    )
+    notes = models.TextField(
+        blank=True,
+        default='',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'active_set_logs'
+        ordering = ['plan_slot__order', 'set_number']
+        indexes = [
+            models.Index(fields=['active_session', 'status']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['active_session', 'plan_slot', 'set_number'],
+                name='unique_set_per_slot_per_session',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"ActiveSetLog(set={self.set_number}, "
+            f"exercise={self.exercise_id}, status={self.status})"
+        )
