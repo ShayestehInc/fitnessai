@@ -4,6 +4,7 @@ Workout and nutrition models for Fitness AI platform.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from django.contrib.postgres.fields import ArrayField
@@ -2197,3 +2198,324 @@ class WorkloadFactTemplate(models.Model):
 
     def __str__(self) -> str:
         return f"WorkloadFact({self.scope}, priority={self.priority}): {self.template_text[:60]}"
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Step 5: Training Generator Pipeline + Swap System
+# Relational plan hierarchy replacing flat Program.schedule JSON.
+# ---------------------------------------------------------------------------
+
+
+class SplitTemplate(models.Model):
+    """
+    Reusable split definition: defines how training days are organized.
+    System templates (is_system=True) are available to all trainers.
+    Trainers can create custom templates for their trainees.
+    """
+
+    class GoalType(models.TextChoices):
+        BUILD_MUSCLE = 'build_muscle', 'Build Muscle'
+        FAT_LOSS = 'fat_loss', 'Fat Loss'
+        STRENGTH = 'strength', 'Strength'
+        ENDURANCE = 'endurance', 'Endurance'
+        RECOMP = 'recomp', 'Recomposition'
+        GENERAL_FITNESS = 'general_fitness', 'General Fitness'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    days_per_week = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(7)],
+        help_text="Number of training days per week.",
+    )
+    session_definitions = models.JSONField(
+        help_text=(
+            "Ordered list of session blueprints. Each entry: "
+            "{label: str, muscle_groups: [str], pattern_focus: [str]}. "
+            "Length must equal days_per_week."
+        ),
+    )
+    goal_type = models.CharField(
+        max_length=20,
+        choices=GoalType.choices,
+        blank=True,
+        default='',
+        help_text="Primary goal this split is designed for (blank = general).",
+    )
+    is_system = models.BooleanField(
+        default=False,
+        help_text="True for platform-wide defaults (PPL, Upper/Lower, etc.).",
+    )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='split_templates',
+        help_text="Trainer who created this template (null = system).",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'split_templates'
+        ordering = ['days_per_week', 'name']
+        indexes = [
+            models.Index(fields=['days_per_week', 'goal_type']),
+            models.Index(fields=['is_system']),
+        ]
+
+    def __str__(self) -> str:
+        return f"SplitTemplate({self.name}, {self.days_per_week}d/wk)"
+
+
+class TrainingPlan(models.Model):
+    """
+    Top-level container for a periodized training plan.
+    Replaces the flat Program.schedule JSON with a relational hierarchy:
+    TrainingPlan → PlanWeek → PlanSession → PlanSlot.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        ACTIVE = 'active', 'Active'
+        COMPLETED = 'completed', 'Completed'
+        ARCHIVED = 'archived', 'Archived'
+
+    class GoalType(models.TextChoices):
+        BUILD_MUSCLE = 'build_muscle', 'Build Muscle'
+        FAT_LOSS = 'fat_loss', 'Fat Loss'
+        STRENGTH = 'strength', 'Strength'
+        ENDURANCE = 'endurance', 'Endurance'
+        RECOMP = 'recomp', 'Recomposition'
+        GENERAL_FITNESS = 'general_fitness', 'General Fitness'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='training_plans',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    goal = models.CharField(max_length=20, choices=GoalType.choices)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    split_template = models.ForeignKey(
+        SplitTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='training_plans',
+        help_text="The split template used to generate this plan.",
+    )
+    difficulty = models.CharField(
+        max_length=20,
+        choices=Exercise.DifficultyLevel.choices,
+        default='intermediate',
+    )
+    duration_weeks = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(52)],
+    )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_training_plans',
+        help_text="Trainer or admin who created this plan.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'training_plans'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', 'status']),
+            models.Index(fields=['created_by']),
+        ]
+
+    def __str__(self) -> str:
+        return f"TrainingPlan({self.name}) for {self.trainee_id}"
+
+
+class PlanWeek(models.Model):
+    """
+    A single week within a TrainingPlan.
+    Contains modifiers for intensity/volume and deload flag.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    plan = models.ForeignKey(
+        TrainingPlan,
+        on_delete=models.CASCADE,
+        related_name='weeks',
+    )
+    week_number = models.PositiveIntegerField()
+    is_deload = models.BooleanField(default=False)
+    intensity_modifier = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0.30')), MaxValueValidator(Decimal('2.00'))],
+        help_text="Multiplier for load/intensity (0.30–2.00).",
+    )
+    volume_modifier = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal('1.00'),
+        validators=[MinValueValidator(Decimal('0.30')), MaxValueValidator(Decimal('2.00'))],
+        help_text="Multiplier for total volume (0.30–2.00).",
+    )
+    notes = models.TextField(blank=True, default='')
+
+    class Meta:
+        db_table = 'plan_weeks'
+        ordering = ['week_number']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['plan', 'week_number'],
+                name='unique_week_per_plan',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        deload = " (deload)" if self.is_deload else ""
+        return f"PlanWeek({self.plan_id}, wk{self.week_number}{deload})"
+
+
+class PlanSession(models.Model):
+    """
+    A single training session within a PlanWeek.
+    Represents one training day (e.g., "Upper A", "Push Day").
+    """
+
+    class DayOfWeek(models.IntegerChoices):
+        MONDAY = 0, 'Monday'
+        TUESDAY = 1, 'Tuesday'
+        WEDNESDAY = 2, 'Wednesday'
+        THURSDAY = 3, 'Thursday'
+        FRIDAY = 4, 'Friday'
+        SATURDAY = 5, 'Saturday'
+        SUNDAY = 6, 'Sunday'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    week = models.ForeignKey(
+        PlanWeek,
+        on_delete=models.CASCADE,
+        related_name='sessions',
+    )
+    day_of_week = models.IntegerField(
+        choices=DayOfWeek.choices,
+        help_text="0=Monday … 6=Sunday.",
+    )
+    label = models.CharField(
+        max_length=100,
+        help_text="Human-readable label, e.g., 'Upper A', 'Push Day'.",
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order within the week.",
+    )
+
+    class Meta:
+        db_table = 'plan_sessions'
+        ordering = ['order', 'day_of_week']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['week', 'day_of_week'],
+                name='unique_session_per_day_per_week',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"PlanSession({self.label}, day={self.day_of_week})"
+
+
+class PlanSlot(models.Model):
+    """
+    An individual exercise slot within a PlanSession.
+    Holds the exercise assignment, set/rep prescription, and cached swap options.
+    """
+
+    class SlotRole(models.TextChoices):
+        PRIMARY_COMPOUND = 'primary_compound', 'Primary Compound'
+        SECONDARY_COMPOUND = 'secondary_compound', 'Secondary Compound'
+        ACCESSORY = 'accessory', 'Accessory'
+        ISOLATION = 'isolation', 'Isolation'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        PlanSession,
+        on_delete=models.CASCADE,
+        related_name='slots',
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.PROTECT,
+        related_name='plan_slots',
+        help_text="The assigned exercise for this slot.",
+    )
+    order = models.PositiveIntegerField(
+        help_text="Display order within the session (1-based).",
+    )
+    slot_role = models.CharField(
+        max_length=25,
+        choices=SlotRole.choices,
+        help_text="Role of this slot in the session structure.",
+    )
+    sets = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+    )
+    reps_min = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text="Minimum reps in the prescribed rep range.",
+    )
+    reps_max = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text="Maximum reps in the prescribed rep range.",
+    )
+    rest_seconds = models.PositiveIntegerField(
+        default=90,
+        validators=[MinValueValidator(0), MaxValueValidator(600)],
+    )
+    load_prescription_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Percentage of Training Max to prescribe (e.g., 80.00).",
+    )
+    notes = models.TextField(blank=True, default='')
+    swap_options_cache = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Pre-computed swap candidates: "
+            "{same_muscle: [id, ...], same_pattern: [id, ...], explore: [id, ...]}."
+        ),
+    )
+
+    class Meta:
+        db_table = 'plan_slots'
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['session', 'order'],
+                name='unique_slot_order_per_session',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['session', 'order']),
+            models.Index(fields=['exercise']),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"PlanSlot(order={self.order}, {self.slot_role}, "
+            f"exercise={self.exercise_id})"
+        )

@@ -16,9 +16,12 @@ from .views import (
     NutritionGoalViewSet,
     NutritionTemplateAssignmentViewSet,
     NutritionTemplateViewSet,
+    PlanSlotViewSet,
     ProgressionSuggestionViewSet,
     ProgressPhotoViewSet,
     ProgramViewSet,
+    SplitTemplateViewSet,
+    TrainingPlanViewSet,
     WeightCheckInViewSet,
     WorkloadFactTemplateViewSet,
     WorkloadViewSet,
@@ -49,6 +52,9 @@ router.register(r'lift-set-logs', LiftSetLogViewSet, basename='liftsetlog')
 router.register(r'lift-maxes', LiftMaxViewSet, basename='liftmax')
 router.register(r'workload-facts', WorkloadFactTemplateViewSet, basename='workloadfacttemplate')
 router.register(r'workload', WorkloadViewSet, basename='workload')
+router.register(r'training-plans', TrainingPlanViewSet, basename='trainingplan')
+router.register(r'plan-slots', PlanSlotViewSet, basename='planslot')
+router.register(r'split-templates', SplitTemplateViewSet, basename='splittemplate')
 
 urlpatterns = [
     path('', include(router.urls)),

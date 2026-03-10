@@ -1,96 +1,140 @@
-# Ship Decision: Pipeline 61 — Workload Engine
+# Ship Decision: Training Generator Pipeline + Swap System (v6.5 Step 5)
 
 ## Verdict: SHIP
+
 ## Confidence: HIGH
-## Quality Score: 8/10
+
+## Quality Score: 9/10
 
 ## Summary
-All 17 acceptance criteria are met. All 3 critical and 5 of 6 major review issues have been fixed. Row-level security is correctly implemented across all endpoints. Django system checks pass with zero issues. The implementation is production-ready.
+
+All 5 critical issues (C1-C5) and all 8 major issues (M1-M8) from the code review have been verified as fixed in the actual code. The security audit's primary concern (swap exercise privacy) was addressed. The architecture review gave 9/10 APPROVE. Every acceptance criterion passes. The implementation is well-structured, fully transactional, and follows all project conventions.
 
 ---
 
 ## Acceptance Criteria Verification
 
-| # | Criterion | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | WorkloadFactTemplate model | PASS | models.py:2144-2199 — UUID PK, scope enum, template_text, condition_rules JSONField, priority, is_active, created_by FK, composite index |
-| 2 | WorkloadAggregationService with exercise/session/weekly | PASS | workload_service.py:91-476 — three compute methods with proper ORM aggregation |
-| 3 | Workload-by-muscle-group distribution using muscle_contribution_map | PASS | workload_service.py:447-458 — uses muscle_contribution_map, falls back to primary_muscle_group, then 'unclassified' |
-| 4 | Workload-by-pattern distribution using pattern_tags | PASS | workload_service.py:461-465 — splits workload evenly across pattern_tags |
-| 5 | WorkloadTrendService with ACWR (7d/28d) | PASS | workload_service.py:483-562 — rolling_7_day / (rolling_28_day / 4), null if < 28 days data |
-| 6 | Spike/dip detection with configurable thresholds | PASS | workload_service.py:489-492 — class constants SPIKE_ACWR_THRESHOLD=1.3, DIP_ACWR_THRESHOLD=0.8 |
-| 7 | Week-over-week delta computation | PASS | workload_service.py:578-608 — `_get_weekly_deltas` with percentage changes |
-| 8 | WorkloadFactService with deterministic template selection | PASS | workload_service.py:615-739 — priority-ordered, first match wins, regex-based rendering |
-| 9 | Comparable session/exercise matching for delta comparisons | PASS | workload_service.py:199-239 — finds last exposure, computes percentage delta |
-| 10 | API: exercise workload endpoint | PASS | views.py:3725-3772 — GET /workload/exercise/ with exercise_id, session_date params |
-| 11 | API: session workload summary with top exercises and week-to-date | PASS | views.py:3774-3819 — includes top_exercises, week_to_date_workload |
-| 12 | API: weekly workload with muscle-group and pattern breakdowns | PASS | views.py:3821-3858 — by_muscle_group, by_pattern in response |
-| 13 | API: trends endpoint with ACWR, spike/dip flags | PASS | views.py:3860-3893 — acute_chronic_ratio, spike_flag, dip_flag |
-| 14 | API: CRUD for WorkloadFactTemplate | PASS | views.py:3636-3685 — full ModelViewSet with create/update/delete permission guards |
-| 15 | Row-level security on all endpoints | PASS | `_resolve_trainee()` enforces trainee=self, trainer=own trainees, admin=all; `get_queryset()` scopes fact templates similarly |
-| 16 | All service methods return dataclasses, not dicts | PASS | ExerciseWorkload, SessionWorkload, WeeklyWorkload, WorkloadTrend — all frozen dataclasses |
-| 17 | Only workload_eligible sets included | PASS | workload_service.py:121 — `workload_eligible=True` filter in `_get_eligible_sets` |
+### Models
 
-## Edge Case Verification
+| #   | Criterion                                                                                           | Status | Evidence                                                                                                                                                           |
+| --- | --------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | TrainingPlan model with trainee FK, name, goal, status, created_by                                  | PASS   | models.py:2271-2343 — UUID PK, Status TextChoices, GoalType TextChoices, trainee FK with CASCADE, split_template FK, indexes on (trainee, status) and (created_by) |
+| 2   | PlanWeek model with plan FK, week_number, is_deload, modifiers                                      | PASS   | models.py:2346-2388 — UUID PK, intensity/volume DecimalFields with 0.30-2.00 validators, unique_week_per_plan constraint                                           |
+| 3   | PlanSession model with week FK, day_of_week, label, order                                           | PASS   | models.py:2391-2436 — UUID PK, DayOfWeek IntegerChoices, unique_session_per_day_per_week constraint                                                                |
+| 4   | PlanSlot model with all prescription fields + swap cache                                            | PASS   | models.py:2439-2521 — UUID PK, SlotRole TextChoices, sets/reps/rest with validators, swap_options_cache JSONField, PROTECT on exercise FK                          |
+| 5   | SplitTemplate model with name, days_per_week, session_definitions, goal_type, is_system, created_by | PASS   | models.py:2209-2268 — UUID PK, GoalType TextChoices, session_definitions JSONField, indexes on (days_per_week, goal_type) and (is_system)                          |
+| 6   | All models use UUID primary keys                                                                    | PASS   | All 5 new models use `UUIDField(primary_key=True, default=uuid.uuid4, editable=False)`                                                                             |
+| 7   | Proper unique constraints and indexes                                                               | PASS   | 3 unique constraints + 6 indexes across all models                                                                                                                 |
 
-| # | Edge Case | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | No sets logged — return zero workload | PASS | Aggregates default to Decimal('0') via `or Decimal('0')` pattern |
-| 2 | All sets workload_eligible=False — return zero | PASS | Filtered out by `_get_eligible_sets` |
-| 3 | Mixed units — flag mixed | PASS | `_detect_mixed_units()` checks distinct units, `mixed_units` bool in dataclasses and responses |
-| 4 | No muscle_contribution_map — use primary_muscle_group | PASS | workload_service.py:452-454 |
-| 5 | No pattern_tags — skip pattern attribution | PASS | workload_service.py:461 — `if tags:` guard |
-| 6 | No prior comparable session — delta = null | PASS | workload_service.py:222-223 returns None, None |
-| 7 | < 28 days of data — ACWR = null | PASS | workload_service.py:521-524 checks earliest date |
-| 8 | Week boundary Monday-Sunday | PASS | workload_service.py:287 — `session_date.weekday()` (Monday=0) |
-| 9 | Trainee with zero history — empty/null | PASS | All aggregates return zero/empty, no errors thrown |
+### Generator Pipeline
 
-## Review Issues — Fix Status
+| #   | Criterion                              | Status | Evidence                                                                                           |
+| --- | -------------------------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| 8   | A1: SELECT_PROGRAM_LENGTH              | PASS   | training_generator_service.py:303-327 — user-specified or goal-default                             |
+| 9   | A2: SELECT_SPLIT_TEMPLATE              | PASS   | training_generator_service.py:330-398 — explicit ID or auto-select by days/goal                    |
+| 10  | A3: BUILD_WEEKLY_SLOT_SKELETON         | PASS   | training_generator_service.py:401-492 — creates PlanWeek, PlanSession, and SlotSpec (not PlanSlot) |
+| 11  | A4: ASSIGN_SLOT_ROLE                   | PASS   | training_generator_service.py:495-530 — position-based role assignment                             |
+| 12  | A5: SET_SET_STRUCTURE                  | PASS   | training_generator_service.py:533-573 — 24-combo scheme table                                      |
+| 13  | A6: SELECT_EXERCISE                    | PASS   | training_generator_service.py:576-662 — per-week used_ids, progressive fallback                    |
+| 14  | A7: BUILD_SWAP_RECOMMENDATIONS         | PASS   | training_generator_service.py:665-745 — fully in-memory, zero per-slot queries                     |
+| 15  | Each step creates DecisionLog          | PASS   | 7 `_log_decision()` calls, all IDs collected in `decision_log_ids`                                 |
+| 16  | Pipeline is transactional              | PASS   | `transaction.atomic()` wrapping entire pipeline (line 787)                                         |
+| 17  | Pipeline returns complete TrainingPlan | PASS   | `GeneratePlanResult` frozen dataclass with plan_id, counts, log IDs                                |
 
-| Issue | Severity | Status | Fix |
-|-------|----------|--------|-----|
-| C1: Fact template scoping | Critical | FIXED | `select_and_render()` accepts `trainer_id`, filters `Q(created_by__isnull=True) \| Q(created_by_id=trainer_id)`. Call sites pass `trainee.parent_trainer_id`. |
-| C2: Template injection via format_map | Critical | FIXED | Replaced with `re.compile(r'\{(\w+)\}')` regex substitution. No attribute access possible. |
-| C3: Unbounded template iteration | Critical | FIXED | `MAX_TEMPLATES_EVALUATED = 50`, queryset sliced with `[:50]`. |
-| M1: Mixed units flag | Major | FIXED | `mixed_units: bool` field added to dataclasses, `_detect_mixed_units()` method, exposed in API responses. |
-| M2: Single-pass distributions | Major | FIXED | `_compute_distributions()` computes both muscle and pattern in one iteration. |
-| M3: serializer.instance | Major | FIXED | `perform_update` uses `serializer.instance` (line 3674). |
-| M4: parent_trainer guard | Major | FIXED | Trainees without parent_trainer see only system defaults (line 3662). |
-| M5: rest_framework_dataclasses serializers | Major | NOT FIXED | Views still use manual dict construction. Convention violation but not a functional or security issue. |
-| M6: weeks_back bounds | Major | FIXED | `max(1, min(int(weeks_str), 52))` on line 3874. |
+### Swap System
 
-## Security Verification
+| #   | Criterion                                        | Status | Evidence                                                             |
+| --- | ------------------------------------------------ | ------ | -------------------------------------------------------------------- |
+| 18  | Same Muscle tab                                  | PASS   | swap_service.py:112-126 — cached + dynamic fallback                  |
+| 19  | Same Pattern tab                                 | PASS   | swap_service.py:129-145 — pattern_tags overlap query                 |
+| 20  | Explore All tab                                  | PASS   | swap_service.py:148-160 — all exercises with privacy filter          |
+| 21  | Swap execution with DecisionLog + UndoSnapshot   | PASS   | swap_service.py:188-315 — both created in transaction                |
+| 22  | Swap preserves set/rep prescription              | PASS   | Line 251: prescription intentionally preserved                       |
+| 23  | Pre-computed swap_seed_ids with dynamic fallback | PASS   | Lines 704-726: checks seed_data first, falls back to in-memory pools |
 
-- Template injection mitigated with regex-only substitution — VERIFIED
-- Fact templates scoped by trainer — VERIFIED
-- Template iteration bounded at 50 — VERIFIED
-- Row-level security on WorkloadViewSet (`_resolve_trainee`) — VERIFIED
-- Row-level security on WorkloadFactTemplateViewSet (`get_queryset`) — VERIFIED
-- Create/update/delete restricted to trainers+admins — VERIFIED
-- Trainers can only edit/delete their own templates — VERIFIED
-- No secrets or credentials in code — VERIFIED
+### API Endpoints
 
-## Django System Checks
+| #   | Criterion                               | Status | Evidence                                        |
+| --- | --------------------------------------- | ------ | ----------------------------------------------- |
+| 24  | CRUD for TrainingPlan with nested reads | PASS   | views.py:3919-4058, urls.py:55                  |
+| 25  | POST generate/                          | PASS   | views.py:4000-4034                              |
+| 26  | GET swap-options/                       | PASS   | views.py:4091-4142                              |
+| 27  | POST swap/                              | PASS   | views.py:4144-4179                              |
+| 28  | CRUD for SplitTemplate                  | PASS   | views.py:4182-4230, urls.py:57                  |
+| 29  | Row-level security on all endpoints     | PASS   | All 3 ViewSets filter by role in get_queryset() |
 
-```
-System check identified no issues (0 silenced).
-```
+### Conventions
 
-## Remaining Concerns (non-blocking)
+| #   | Criterion                              | Status | Evidence                                                                            |
+| --- | -------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
+| 30  | Services return dataclasses, not dicts | PASS   | GeneratePlanResult, SwapOptions, SwapResult, SwapCandidate — all frozen dataclasses |
+| 31  | Business logic in services/            | PASS   | Generator pipeline and swap logic fully in service modules                          |
+| 32  | Type hints on all functions            | PASS   | Verified throughout both services and views                                         |
+| 33  | No raw queries                         | PASS   | Django ORM exclusively                                                              |
+| 34  | Proper prefetching                     | PASS   | List vs detail queryset split, annotated weeks_count                                |
 
-1. **M5 not addressed** — WorkloadViewSet actions use manual dict serialization instead of `rest_framework_dataclasses`. This is a convention violation per `.claude/rules/datatypes.md`. Not blocking because: (a) responses are correctly structured, (b) no security risk, (c) can be refactored in a follow-up.
-2. **N+1 in weekly_deltas** — `_get_weekly_deltas` with weeks_back=52 triggers 53 DB queries. Acceptable per ticket ("optimize later") and bounded by the max(1, min(52)) guard.
-3. **condition_rules validation** — No whitelist validation on allowed keys in condition_rules JSONField. Invalid keys silently pass through. Low severity.
+---
+
+## Critical Review Issues (C1-C5) — All Fixed
+
+| Issue | Description                                                 | Status | Verification                                                                                                               |
+| ----- | ----------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| C1    | PlanSlot.exercise FK null in skeleton                       | FIXED  | SlotSpec dataclass used during A3-A5, PlanSlot created only after A6 via `_specs_to_plan_slots()` with explicit null check |
+| C2    | used_ids global across all weeks                            | FIXED  | `used_ids: set[int] = set()` reset per week in `_a6_select_exercises()` (line 604)                                         |
+| C3    | IDOR on SplitTemplate for trainees with null parent_trainer | FIXED  | `if user.parent_trainer_id is not None` guard in get_queryset (line 4202)                                                  |
+| C4    | Trainee can create/update/delete SplitTemplates             | FIXED  | `PermissionDenied` raised in perform_create (4208), perform_update (4217), perform_destroy (4226)                          |
+| C5    | Cached swap IDs bypass privacy filter                       | FIXED  | `privacy_q` applied on all three cached ID queries (lines 116-117, 131-132, 150-151)                                       |
+
+## Major Review Issues (M1-M8) — All Fixed
+
+| Issue | Description                                   | Status | Verification                                                                                                                        |
+| ----- | --------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| M1    | N+1 on weeks_count in list serializer         | FIXED  | `annotate(weeks_count=Count('weeks'))` on list queryset (line 3943-3944), `IntegerField(read_only=True)` in serializer (line 1429)  |
+| M2    | Overfetching on list endpoint                 | FIXED  | `self.action == 'list'` check in get_queryset (line 3940), lightweight select_related + annotate for list, full prefetch for detail |
+| M3    | A7 fires N queries per slot                   | FIXED  | In-memory pools built from `all_exercises` list (lines 682-691), zero DB queries in A7 loop                                         |
+| M4    | perform_create response broken                | FIXED  | `create()` overridden to return `TrainingPlanSerializer(plan).data` (line 3980)                                                     |
+| M5    | Deep FK traversal without guaranteed prefetch | FIXED  | View passes plan_id/week_id/session_id explicitly to service (lines 4166-4168)                                                      |
+| M6    | Exercise pool fetched twice                   | FIXED  | Single `_prefetch_exercise_pool()` call shared between A6 and A7 (lines 818-823)                                                    |
+| M7    | Activate sets old plans to ARCHIVED           | FIXED  | Changed to `COMPLETED` (line 4045) with semantic comment                                                                            |
+| M8    | session_definitions length not validated      | FIXED  | Cross-field `validate()` method in SplitTemplateSerializer (lines 1509-1521)                                                        |
+
+## Security Audit Verification
+
+| Issue                                       | Severity | Status                                                                                                                 |
+| ------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Swap exercise privacy (execute_swap)        | Medium   | FIXED — `trainer_id` parameter + `privacy_q` filter in execute_swap (lines 208-213)                                    |
+| Split template privacy on explicit ID in A2 | Low      | NOT FIXED — bare `SplitTemplate.objects.get(pk=...)`. Acceptable: UUID unpredictability makes exploitation impractical |
+| No secrets in code                          | N/A      | PASS                                                                                                                   |
+| No injection vectors                        | N/A      | PASS                                                                                                                   |
+| Auth on all endpoints                       | N/A      | PASS — `IsAuthenticated` on all 3 ViewSets                                                                             |
+| Row-level security                          | N/A      | PASS — get_queryset filters by role on all ViewSets                                                                    |
+
+## Architecture Review
+
+- Score: 9/10, Recommendation: APPROVE
+- Layered architecture followed correctly
+- Bulk operations throughout (3 bulk_create calls)
+- Proper transactional boundaries
+- Frozen dataclasses at service boundaries
+- Pattern-consistent with existing codebase
+
+## Remaining Concerns (Non-Blocking)
+
+1. `_is_compound()` uses naive string matching — could misclassify exercises (minor m1)
+2. `_a2_select_split_template` does not privacy-filter explicit template ID (low risk — UUIDs)
+3. `split_template_id` type is `str | None` instead of `uuid.UUID | None` (minor m5)
+4. No endpoint-specific rate limiting on generate/ (low risk — global throttle applies)
+5. Manual dict construction in swap_options response instead of serializer (minor m2)
+6. `unique_session_per_day_per_week` prevents AM/PM splits — deliberate limitation for v1 (minor m4)
 
 ---
 
 ## What Was Built
 
-**Workload Engine — Aggregation, Trends, and Facts (v6.5 Step 4)**
+**Training Generator Pipeline + Swap System (v6.5 Step 5)**
 
-- **WorkloadFactTemplate model** — Deterministic "cool fact" templates with UUID PK, scope (exercise/session), priority ordering, condition rules (JSONField), trainer ownership (created_by FK), and composite index for efficient queries.
-- **WorkloadAggregationService** — Exercise-level, session-level, and weekly workload aggregation from LiftSetLog data. Muscle-group distribution via muscle_contribution_map with primary_muscle_group fallback. Pattern distribution via pattern_tags with even splitting. Mixed-unit detection. Comparable exercise/session matching with percentage deltas. Week-to-date tracking. Top exercises by workload.
-- **WorkloadTrendService** — Acute:chronic workload ratio (7-day / 28-day weekly average), spike/dip detection with configurable thresholds, trend direction (rising/stable/declining), week-over-week delta history.
-- **WorkloadFactService** — Deterministic fact selection: templates filtered by scope and trainer, sorted by priority, first condition match wins. Safe regex-based rendering prevents template injection. Bounded evaluation (max 50 templates).
-- **REST API** — Four read-only workload endpoints (exercise, session, weekly, trends) with row-level security. Full CRUD for fact templates with trainer/admin permission guards. Input validation on all query parameters.
-- **Security** — Tenant-isolated fact templates (system defaults + trainer's own). Safe template rendering (regex-only, no attribute access). Bounded iteration. Row-level security on all endpoints.
+- **5 new models** — SplitTemplate, TrainingPlan, PlanWeek, PlanSession, PlanSlot — forming a relational plan hierarchy with UUID PKs, proper constraints, and indexes. Replaces flat Program.schedule JSON.
+- **7-step deterministic pipeline** (A1-A7) — Selects program length, picks split template, builds skeleton, assigns slot roles, sets rep/set scheme, selects exercises with per-week variety, and pre-computes swap candidates. Fully transactional with complete DecisionLog audit trail.
+- **Three-tab swap system** — Same Muscle, Same Pattern, Explore All tabs with pre-computed cache + dynamic fallback. Swap execution creates DecisionLog + UndoSnapshot, preserves prescription, prevents duplicates in session, enforces privacy.
+- **REST API** — Full CRUD for TrainingPlan (with nested reads) and SplitTemplate. Generate endpoint, swap-options endpoint, swap execution endpoint. Pagination, role-based access control, and row-level security on all endpoints.
+- **Security** — Privacy-filtered exercise queries (cached and dynamic), trainee blocked from template mutations, IDOR prevention on SplitTemplate, transactional swap with undo support.

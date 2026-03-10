@@ -40,6 +40,11 @@ from .models import (
     LiftMax,
     LiftSetLog,
     MacroPreset,
+    PlanSession,
+    PlanSlot,
+    PlanWeek,
+    SplitTemplate,
+    TrainingPlan,
     WorkloadFactTemplate,
     MealLog,
     MealLogEntry,
@@ -103,10 +108,18 @@ from .serializers import (
     WorkloadFactTemplateSerializer,
     FoodItemCreateSerializer,
     FoodItemSerializer,
+    GeneratePlanSerializer,
     MealLogEntrySerializer,
     MealLogSerializer,
     MealLogSummarySerializer,
+    PlanSlotSerializer,
+    PlanSlotWriteSerializer,
     QuickAddEntrySerializer,
+    SplitTemplateSerializer,
+    SwapExecuteSerializer,
+    TrainingPlanCreateSerializer,
+    TrainingPlanListSerializer,
+    TrainingPlanSerializer,
 )
 from core.permissions import IsTrainer as IsTrainerPerm
 
@@ -3891,3 +3904,327 @@ class WorkloadViewSet(viewsets.ViewSet):
             'dip_flag': result.dip_flag,
             'weekly_deltas': result.weekly_deltas,
         })
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Step 5: Training Generator + Swap System
+# ---------------------------------------------------------------------------
+
+
+class TrainingPlanPagination(PageNumberPagination):
+    page_size = 20
+    max_page_size = 50
+
+
+class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
+    """
+    CRUD for TrainingPlans with nested hierarchy.
+    Trainers see plans for their trainees. Trainees see their own. Admins see all.
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = TrainingPlanPagination
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action == 'list':
+            return TrainingPlanListSerializer
+        if self.action in ('create',):
+            return TrainingPlanCreateSerializer
+        return TrainingPlanSerializer
+
+    def get_queryset(self) -> QuerySet[TrainingPlan]:
+        from django.db.models import Count
+
+        user = self.request.user
+
+        # List: lightweight query with annotated weeks_count, no deep prefetch
+        if self.action == 'list':
+            qs = TrainingPlan.objects.select_related(
+                'trainee', 'split_template',
+            ).annotate(
+                weeks_count=Count('weeks'),
+            )
+        else:
+            # Detail: full hierarchy prefetch for nested serializer
+            qs = TrainingPlan.objects.select_related(
+                'trainee', 'split_template', 'created_by',
+            ).prefetch_related(
+                'weeks__sessions__slots__exercise',
+            )
+
+        if user.role == 'ADMIN':
+            return qs
+        elif user.role == 'TRAINER':
+            return qs.filter(trainee__parent_trainer=user)
+        else:
+            return qs.filter(trainee=user)
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Create a plan manually (not via generator). Returns detail serializer."""
+        serializer = TrainingPlanCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        trainee = self._resolve_trainee(data['trainee_id'])
+
+        plan = TrainingPlan.objects.create(
+            trainee=trainee,
+            name=data['name'],
+            description=data.get('description', ''),
+            goal=data['goal'],
+            difficulty=data['difficulty'],
+            duration_weeks=data['duration_weeks'],
+            split_template_id=data.get('split_template_id'),
+            created_by=request.user if request.user.role in ('TRAINER', 'ADMIN') else None,
+        )
+
+        response_serializer = TrainingPlanSerializer(plan)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    def _resolve_trainee(self, trainee_id: int) -> User:
+        """Resolve and authorize access to the trainee."""
+        user = self.request.user
+        try:
+            trainee = User.objects.get(pk=trainee_id, role='TRAINEE')
+        except User.DoesNotExist:
+            raise PermissionDenied("Trainee not found.")
+
+        if user.role == 'TRAINEE':
+            if trainee.pk != user.pk:
+                raise PermissionDenied("Cannot access other trainees' data.")
+        elif user.role == 'TRAINER':
+            if trainee.parent_trainer_id != user.pk:
+                raise PermissionDenied("This trainee is not assigned to you.")
+
+        return trainee
+
+    @action(detail=False, methods=['post'], url_path='generate')
+    def generate(self, request: Request) -> Response:
+        """Generate a training plan using the 7-step pipeline."""
+        from .services.training_generator_service import (
+            GeneratePlanRequest,
+            generate_training_plan,
+        )
+
+        serializer = GeneratePlanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        trainee = self._resolve_trainee(data['trainee_id'])
+
+        gen_request = GeneratePlanRequest(
+            trainee_id=trainee.pk,
+            goal=data['goal'],
+            difficulty=data['difficulty'],
+            days_per_week=data['days_per_week'],
+            duration_weeks=data.get('duration_weeks'),
+            split_template_id=str(data['split_template_id']) if data.get('split_template_id') else None,
+            trainer_id=request.user.pk if request.user.role in ('TRAINER', 'ADMIN') else None,
+            training_day_indices=data.get('training_day_indices', []),
+        )
+
+        result = generate_training_plan(gen_request)
+
+        return Response({
+            'plan_id': result.plan_id,
+            'plan_name': result.plan_name,
+            'weeks_count': result.weeks_count,
+            'sessions_count': result.sessions_count,
+            'slots_count': result.slots_count,
+            'decision_log_ids': result.decision_log_ids,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='activate')
+    def activate(self, request: Request, pk: str | None = None) -> Response:
+        """Set plan status to active. Completes other active plans for the trainee."""
+        plan = self.get_object()
+
+        # Complete other active plans for this trainee (not archive — they were used)
+        TrainingPlan.objects.filter(
+            trainee=plan.trainee,
+            status=TrainingPlan.Status.ACTIVE,
+        ).exclude(pk=plan.pk).update(status=TrainingPlan.Status.COMPLETED)
+
+        plan.status = TrainingPlan.Status.ACTIVE
+        plan.save(update_fields=['status', 'updated_at'])
+
+        return Response({'status': 'active', 'plan_id': str(plan.pk)})
+
+    @action(detail=True, methods=['post'], url_path='archive')
+    def archive(self, request: Request, pk: str | None = None) -> Response:
+        """Archive a plan."""
+        plan = self.get_object()
+        plan.status = TrainingPlan.Status.ARCHIVED
+        plan.save(update_fields=['status', 'updated_at'])
+        return Response({'status': 'archived', 'plan_id': str(plan.pk)})
+
+
+class PlanSlotViewSet(
+    viewsets.GenericViewSet[PlanSlot],
+    viewsets.mixins.RetrieveModelMixin,
+    viewsets.mixins.UpdateModelMixin,
+):
+    """
+    Retrieve and update plan slots. Supports swap operations.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = PlanSlotSerializer
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action in ('update', 'partial_update'):
+            return PlanSlotWriteSerializer
+        return PlanSlotSerializer
+
+    def get_queryset(self) -> QuerySet[PlanSlot]:
+        user = self.request.user
+        qs = PlanSlot.objects.select_related(
+            'exercise',
+            'session__week__plan__trainee',
+        )
+
+        if user.role == 'ADMIN':
+            return qs
+        elif user.role == 'TRAINER':
+            return qs.filter(session__week__plan__trainee__parent_trainer=user)
+        else:
+            return qs.filter(session__week__plan__trainee=user)
+
+    @action(detail=True, methods=['get'], url_path='swap-options')
+    def swap_options(self, request: Request, pk: str | None = None) -> Response:
+        """Get three-tab swap options for this slot."""
+        from .services.swap_service import get_swap_options
+
+        slot = self.get_object()
+        trainer_id = (
+            request.user.pk
+            if request.user.role in ('TRAINER', 'ADMIN')
+            else slot.session.week.plan.trainee.parent_trainer_id
+        )
+
+        options = get_swap_options(slot=slot, trainer_id=trainer_id)
+
+        return Response({
+            'slot_id': options.slot_id,
+            'current_exercise_id': options.current_exercise_id,
+            'current_exercise_name': options.current_exercise_name,
+            'same_muscle': [
+                {
+                    'exercise_id': c.exercise_id,
+                    'exercise_name': c.exercise_name,
+                    'primary_muscle_group': c.primary_muscle_group,
+                    'pattern_tags': c.pattern_tags,
+                    'difficulty_level': c.difficulty_level,
+                    'equipment_required': c.equipment_required,
+                }
+                for c in options.same_muscle
+            ],
+            'same_pattern': [
+                {
+                    'exercise_id': c.exercise_id,
+                    'exercise_name': c.exercise_name,
+                    'primary_muscle_group': c.primary_muscle_group,
+                    'pattern_tags': c.pattern_tags,
+                    'difficulty_level': c.difficulty_level,
+                    'equipment_required': c.equipment_required,
+                }
+                for c in options.same_pattern
+            ],
+            'explore_all': [
+                {
+                    'exercise_id': c.exercise_id,
+                    'exercise_name': c.exercise_name,
+                    'primary_muscle_group': c.primary_muscle_group,
+                    'pattern_tags': c.pattern_tags,
+                    'difficulty_level': c.difficulty_level,
+                    'equipment_required': c.equipment_required,
+                }
+                for c in options.explore_all
+            ],
+        })
+
+    @action(detail=True, methods=['post'], url_path='swap')
+    def swap(self, request: Request, pk: str | None = None) -> Response:
+        """Execute an exercise swap on this slot."""
+        from .services.swap_service import execute_swap
+
+        slot = self.get_object()
+        serializer = SwapExecuteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # Resolve trainer_id for privacy check
+        swap_trainer_id = (
+            request.user.pk
+            if request.user.role in ('TRAINER', 'ADMIN')
+            else slot.session.week.plan.trainee.parent_trainer_id
+        )
+
+        result = execute_swap(
+            slot=slot,
+            new_exercise_id=data['new_exercise_id'],
+            actor_id=request.user.pk,
+            reason=data.get('reason', ''),
+            plan_id=str(slot.session.week.plan_id),
+            week_id=str(slot.session.week_id),
+            session_id=str(slot.session_id),
+            trainer_id=swap_trainer_id,
+        )
+
+        return Response({
+            'slot_id': result.slot_id,
+            'old_exercise_id': result.old_exercise_id,
+            'old_exercise_name': result.old_exercise_name,
+            'new_exercise_id': result.new_exercise_id,
+            'new_exercise_name': result.new_exercise_name,
+            'decision_log_id': result.decision_log_id,
+        })
+
+
+class SplitTemplateViewSet(viewsets.ModelViewSet[SplitTemplate]):
+    """
+    CRUD for split templates.
+    Trainers see system templates + their own. Admins see all.
+    Trainees: read-only access to system + their trainer's templates.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = SplitTemplateSerializer
+
+    def get_queryset(self) -> QuerySet[SplitTemplate]:
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return SplitTemplate.objects.all()
+        elif user.role == 'TRAINER':
+            return SplitTemplate.objects.filter(
+                Q(is_system=True) | Q(created_by=user)
+            )
+        else:
+            # Trainees: system templates + their trainer's (if trainer exists)
+            q = Q(is_system=True)
+            if user.parent_trainer_id is not None:
+                q |= Q(created_by_id=user.parent_trainer_id)
+            return SplitTemplate.objects.filter(q)
+
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot create split templates.")
+        if user.role == 'ADMIN':
+            serializer.save(is_system=True, created_by=user)
+        else:
+            serializer.save(is_system=False, created_by=user)
+
+    def perform_update(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot modify split templates.")
+        instance = serializer.instance
+        if instance and instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot modify system split templates.")
+        serializer.save()
+
+    def perform_destroy(self, instance: SplitTemplate) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot delete split templates.")
+        if instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot delete system split templates.")
+        instance.delete()

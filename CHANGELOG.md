@@ -4,9 +4,42 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 62: v6.5 Step 5 (Training Generator Pipeline + Swap System)
+
+### Added
+
+- Backend: Relational plan hierarchy — TrainingPlan → PlanWeek → PlanSession → PlanSlot (replaces flat Program.schedule JSON)
+- Backend: SplitTemplate model — reusable split definitions with session_definitions JSON, cross-field validation
+- Backend: 7-step deterministic generator pipeline (A1-A7) with DecisionLog at each step
+- Backend: SlotSpec in-memory specification pattern — no premature DB writes during pipeline construction
+- Backend: Per-week exercise variety (used_ids resets per week, not globally)
+- Backend: In-memory swap recommendation computation (zero per-slot DB queries in A7)
+- Backend: Exercise pool shared between A6 and A7 (single prefetch)
+- Backend: 3-tab swap system — Same Muscle, Same Pattern, Explore All with pre-computed candidates
+- Backend: Swap execution with DecisionLog + UndoSnapshot for audit trail and undo support
+- Backend: Plan lifecycle: draft → active → completed/archived with single-active enforcement
+- Backend: API endpoints: training-plans CRUD, generate, activate, archive; plan-slots retrieve/update/swap-options/swap; split-templates CRUD
+
+### Security
+
+- Privacy-filtered swap candidates (privacy_q applied even on cached IDs)
+- Privacy check on swap execution (new exercise must be public or trainer-owned)
+- Trainee write restriction on SplitTemplate CRUD
+- IDOR prevention: parent_trainer_id null guard on trainee SplitTemplate queryset
+- Row-level security on all new ViewSets
+
+### Performance
+
+- List queryset: annotated weeks_count (no N+1), no deep prefetch
+- Detail queryset: full hierarchy prefetch for nested serializer
+- A7: fully in-memory swap computation from shared exercise pool
+
+---
+
 ## [2026-03-09] — Pipeline 61: v6.5 Step 4 (Workload Engine)
 
 ### Added
+
 - Backend: WorkloadAggregationService — computes exercise, session, and weekly workload totals from LiftSetLog data
 - Backend: Workload-by-muscle-group distribution using Exercise.muscle_contribution_map (single-pass with pattern distribution)
 - Backend: Workload-by-pattern distribution using Exercise.pattern_tags
@@ -18,6 +51,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Backend: API endpoints: exercise workload, session workload summary, weekly breakdown, trends with ACWR
 
 ### Security
+
 - Template injection prevention: regex-based substitution (no Python attribute access via format specs)
 - Fact templates scoped by trainer: system defaults + trainer's own (no cross-tenant leakage)
 - Bounded template evaluation (max 50) to prevent DoS
@@ -29,6 +63,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-09] — Pipeline 60: v6.5 Step 3 (LiftSetLog + LiftMax + Max/Load Engine)
 
 ### Added
+
 - Backend: LiftSetLog model — per-set performance tracking with UUID PK, auto-computed canonical load (per-hand entries doubled), auto-computed workload (load × reps), load entry modes (total/per-hand/bodyweight+external), RPE tracking, standardization pass gate
 - Backend: LiftMax model — per-exercise per-trainee cached e1RM and Training Max with history arrays (capped at 200 entries), unique constraint on (trainee, exercise)
 - Backend: MaxLoadService — e1RM estimation (conservative: lower of Epley/Brzycki), e1RM smoothing (max ±15%/10% per update), TM calculation (80-100% of e1RM), load prescription with equipment rounding, auto-update from qualifying sets with `select_for_update()` concurrency protection
@@ -38,6 +73,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Backend: Proper indexes — composite indexes on (trainee, session_date), (trainee, exercise), (exercise, session_date), unique constraint on (trainee, exercise, session_date, set_number)
 
 ### Security
+
 - Row-level security on all endpoints — trainees see own data, trainers see their trainees', admins see all
 - LiftSetLog is create+read only — no update/delete to prevent tampering with historical performance data
 - `standardization_pass` and `workload_eligible` are read-only in serializer — clients cannot bypass standardization gates
@@ -46,9 +82,10 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Trainer row-level check on prescribe — trainers can only prescribe for their own trainees
 
 ### Edge Cases Handled
+
 - 0 reps → e1RM = 0 (no update)
 - RPE=10 with 1 rep → weight IS the 1RM (no formula)
-- >15 reps → capped at 15 for estimation accuracy
+- > 15 reps → capped at 15 for estimation accuracy
 - Per-hand entry → canonical load doubled
 - Bodyweight+external → canonical is just external portion
 - No existing LiftMax → auto-created on first qualifying set
@@ -60,6 +97,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-09] — Pipeline 59: v6.5 Foundation (ExerciseCard Tags + DecisionLog + UndoSnapshot)
 
 ### Added
+
 - Backend: ExerciseCard v6.5 enrichment — 16 new fields on Exercise model: `pattern_tags`, `athletic_skill_tags`, `athletic_attribute_tags`, `muscle_contribution_map`, `primary_muscle_group`, `secondary_muscle_groups`, `stance`, `plane`, `rom_bias`, `equipment_required`, `equipment_optional`, `athletic_constraints`, `standardization_block`, `swap_seed_ids`, `aliases`, `version`
 - Backend: Full tag taxonomy from Trainer Packet v6.5 — 16 pattern tags, 19 athletic skill tags, 10 athletic attribute tags, 21 detailed muscle groups, 13 stances, 4 planes, 4 ROM biases
 - Backend: DecisionLog model — UUID PK, actor tracking, full decision trail (inputs_snapshot, constraints_applied, options_considered, final_choice, reason_codes), override tracking, undo support
@@ -72,6 +110,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Backend: Serializer validation — muscle_contribution_map sum-to-1.0, pattern/skill/attribute tag choices validation
 
 ### Security
+
 - Row-level security on DecisionLog — trainers see only their trainees' decisions, trainees see only their own
 - IDOR protection on undo endpoint — verifies decision is in user's queryset scope before allowing undo
 - Exercise creation restricted to trainers (custom) and admins (public) — trainees blocked
@@ -82,6 +121,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-09] — Pipeline 58: Progress Photos
 
 ### Added
+
 - Web: Full progress photos UI — photo grid with date grouping, category filter (All/Front/Side/Back/Other), pagination, upload dialog with drag-and-drop, photo detail dialog with delete confirmation, side-by-side comparison view with measurement diffs
 - Web: Progress photos tab on trainee detail page (trainer read-only view)
 - Web: Progress photos section on trainee progress page
@@ -94,6 +134,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - i18n: Progress photos translations for en/es/pt-BR
 
 ### Fixed
+
 - Auth bypass: trainers could previously create/update/delete photos via direct API calls
 - IDOR: trainers could view photos of trainees not assigned to them
 - Measurements encoding: mobile was sending `{waist: 75.0}` string instead of JSON
@@ -102,6 +143,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Web upload dialog memory leak (unreleased object URLs)
 
 ### Security
+
 - Added server-side file type/size validation (was frontend-only)
 - Added measurements JSON injection protection with key allowlist
 - Added notes length limit (was unbounded)
@@ -111,6 +153,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-08] — Pipeline 57: Trainee Dashboard Visual Redesign
 
 ### Added
+
 - Mobile: Premium dark-themed trainee home dashboard replacing 1,418-line monolith with 14 focused widget files
 - Mobile: `DashboardHeader` — "Hey, {name}!" greeting with date, avatar, coach badge, notification bell
 - Mobile: `WeekCalendarStrip` — horizontal 7-day strip with selected day highlight and workout dots
@@ -123,6 +166,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Mobile: `DashboardColors` — centralized dashboard color constants
 
 ### Changed
+
 - Mobile: `home_screen.dart` reduced from 1,418 to 109 lines (slim orchestrator pattern)
 - Mobile: All existing cards preserved (PendingCheckinBanner, ProgressionAlertCard, HabitsSummaryCard, QuickLogCard)
 - Mobile: Pull-to-refresh debounce guard prevents duplicate loads
@@ -132,6 +176,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-08] — Pipeline 56: Video Workout Layout End-to-End
 
 ### Added
+
 - Backend: `video` choice added to `WorkoutLayoutConfig.LayoutType` TextChoices with migration
 - Web: Layout config selector shows 4 options (Classic, Card, Minimal, Video) matching backend enum
 - Web: `ExerciseVideoPlayer` component — YouTube embed + native `<video>` fallback with sandbox, lazy loading, ARIA labels
@@ -140,6 +185,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - i18n: `trainees.layoutDescription` key in en/es/pt-BR
 
 ### Fixed
+
 - Web: Layout config values now match backend enum (`classic`/`card`/`minimal` not `default`/`compact`/`detailed`)
 - Web: Layout config field name corrected from `layout` to `layout_type`
 - Mobile: Video init race condition prevented via generation counter
@@ -152,6 +198,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 55: Web i18n String Extraction
 
 ### Added
+
 - Web: Extracted hardcoded English strings to i18n JSON message files across 150 components
 - Web: 728 `t()` translation calls replacing inline English text
 - Web: Expanded en.json, es.json, pt-BR.json from ~130 to ~580 translation keys each
@@ -160,6 +207,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Web: Spanish (es) and Portuguese (pt-BR) translations for all new keys
 
 ### Changed
+
 - Web: Nav link data files store i18n keys instead of English strings; sidebar components translate at render time
 
 ---
@@ -167,6 +215,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 54: Web Impersonation Spec Fix
 
 ### Fixed
+
 - PRODUCT_SPEC.md: Updated stale "Partial" status for web impersonation to "Done" -- the full token swap was completed in Pipeline 27 (2026-02-20) but the feature table and historical notes were not updated at the time
 
 ---
@@ -174,6 +223,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 53: TV Mode Gym Display
 
 ### Added
+
 - Mobile: Full TV Mode gym display replacing placeholder screen
 - Mobile: `tv_mode_provider.dart` — Riverpod StateNotifier for TV mode state (exercise tracking, set completion, rest timer, elapsed time)
 - Mobile: `tv_mode_screen.dart` — Main screen with loading/empty/error/rest-day/complete/active states
@@ -189,6 +239,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Mobile: Landscape-preferred orientation (supports portrait too)
 
 ### Changed
+
 - Mobile: `tv_screen.dart` converted from placeholder to barrel re-export
 - PRODUCT_SPEC: TV mode marked as Done
 
@@ -197,18 +248,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 52: i18n String Extraction (Phase B)
 
 ### Added
+
 - Mobile: 976 new ARB translation keys extracted from hardcoded English strings across 161 dart files
 - Mobile: Spanish (es) translations for all 1164 ARB keys
 - Mobile: Portuguese Brazil (pt-br) translations for all 1164 ARB keys
 - Mobile: l10n imports added to all modified feature/widget files
 
 ### Changed
+
 - Mobile: All user-facing strings in screens/widgets now use `context.l10n.keyName` pattern instead of hardcoded English
 - Mobile: `const` removed from widgets where runtime l10n values replaced compile-time string constants
 - Mobile: Total ARB keys expanded from 188 to 1164 (6x increase)
 - PRODUCT_SPEC: String extraction (Phase B - Flutter) marked as Done
 
 ### Not Changed
+
 - Web (Next.js) i18n infrastructure exists but component adoption deferred to separate pipeline
 - ~56 Flutter strings with Dart interpolation remain hardcoded (need ICU message format conversion)
 
@@ -217,12 +271,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 51: Churn Push Notifications via FCM
 
 ### Added
+
 - Backend: `_send_trainer_churn_push()` and `_send_trainee_re_engagement_push()` helpers in retention_notification_service — wire FCM delivery via core notification_service
 - Backend: `re_engagement` BooleanField on NotificationPreference model (default=True) with migration
 - Mobile: Deep link handling for `churn_alert` (navigates to trainer trainee detail) and `re_engagement` (navigates to home screen) in push_notification_service
 - Mobile: "Re-engagement Reminders" toggle in trainee notification preferences screen
 
 ### Changed
+
 - Backend: `create_churn_alerts()` now sends FCM pushes to trainers after creating TrainerNotification records
 - Backend: `send_re_engagement_pushes()` now sends FCM pushes to critical-risk trainees instead of just logging intent
 - Backend: NotificationPreference.VALID_CATEGORIES expanded from 10 to 11 categories
@@ -232,6 +288,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 50: Achievement Toast on New Badge
 
 ### Added
+
 - Backend: Weight check-in endpoint now returns `new_achievements` in 201 response
 - Backend: Nutrition confirm-and-save endpoint now returns `new_achievements` in response
 - Mobile: `AchievementCelebrationOverlay` — animated toast with elastic scale entrance, pulsing gold glow, backdrop blur, tap/swipe dismiss, 4-second auto-dismiss
@@ -242,12 +299,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Mobile: Accessibility semantics with liveRegion for screen reader announcement
 
 ### Changed
+
 - Mobile: Consolidated duplicated `achievementIconMap` — achievement_badge.dart now imports from celebration overlay
 - Mobile: `rootNavigatorKey` made public for global overlay access by toast service
 - Mobile: `OfflineSaveResult` gained `newAchievements` convenience accessor
 - Mobile: `LoggingState` gained `newAchievements` field for forwarding achievement data through the logging flow
 
 ### Fixed
+
 - Mobile: Overlay dispose safety — completer always completes even if widget is disposed during animation, preventing stuck queue
 
 ---
@@ -255,6 +314,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 49: Video Attachments on Community Posts
 
 ### Added
+
 - Backend: `PostVideo` model with FK to CommunityPost, FileField, ImageField thumbnail, duration, file_size, sort_order
 - Backend: `video_service.py` — 3-layer validation (extension + MIME type + magic bytes), ffprobe duration extraction, ffmpeg thumbnail generation
 - Backend: Migration `0007_add_post_video` with indexes on (post, sort_order) and (created_at)
@@ -272,6 +332,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Mobile: Enlarged touch targets on remove buttons (images + videos)
 
 ### Fixed
+
 - Negative duration guard in `formattedDuration` (returns empty for ≤0)
 - Double-tap race condition in video player (added `_isLoading` guard)
 - Bookmark queries now prefetch videos (N+1 fix)
@@ -283,6 +344,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 48: FCM Push Notifications for Community Events
 
 ### Added
+
 - Backend: 4 notification dispatch methods in EventService (created, updated, cancelled, reminder)
 - Backend: `send_event_reminders` management command for cron-based reminders (`*/5 * * * *`)
 - Backend: `community_event` notification preference category with migration
@@ -294,6 +356,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Auth: Push token deactivation on logout, account deletion, and impersonation identity switch
 
 ### Fixed
+
 - Duplicate reminder sends (narrowed cron window to 10-15 min matching 5-min interval)
 - Fragile local notification payload encoding (switched to JSON)
 - Firebase init error handling (graceful degradation with `_initialized` reset)
@@ -310,6 +373,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 47: Community Events — Trainer Create & Trainee RSVP
 
 ### Added
+
 - CommunityEventModel and RsvpStatus enum with full fromJson, copyWith, computed getters
 - EventRepository with trainee (list, detail, RSVP) and trainer (CRUD, status transition) endpoints
 - TraineeEventNotifier with optimistic RSVP updates and error rollback
@@ -327,6 +391,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - 5 new routes in app_router.dart
 
 ### Fixed
+
 - DateTime.tryParse with fallback for corrupt backend data
 - PATCH instead of PUT for partial event updates
 - Negative count guard in RSVP optimistic update
@@ -337,6 +402,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 46: Nutrition Phase 5 — Wire Template Assignment into Trainer Detail Screen
 
 ### Added
+
 - `_NutritionTemplateSection` widget in trainer's trainee detail Nutrition tab
 - "Assign Nutrition Template" button (no active assignment) and assignment summary card (active assignment)
 - `traineeActiveAssignmentProvider` with autoDispose.family for trainer-side lookup
@@ -349,6 +415,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Reassign confirmation dialog
 
 ### Fixed
+
 - setState after async gap now checks mounted first
 - Raw error strings replaced with user-friendly messages
 - autoDispose added to dayPlanProvider and weekPlansProvider to prevent memory growth
@@ -358,12 +425,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 45: Nutrition Phase 4 — Wire Plan Screens into Navigation
 
 ### Added
+
 - Meal plan card on trainee nutrition screen showing day type, template name, calorie target, P/C/F macros
 - Card tap navigates to DayPlanScreen with selected date
 - "View Week" button navigates to WeekPlanScreen
 - Card conditionally rendered only for trainees with active template assignments
 
 ### Fixed
+
 - Future.wait type safety in nutrition provider for typed repository returns
 - Template name overflow in meal plan card (Flexible + ellipsis)
 - Removed unused import in template_assignment_screen
@@ -373,6 +442,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 44: Nutrition Phase 3 — LBM Formula Engine & SHREDDED/MASSIVE Templates
 
 ### Added
+
 - LBM-based macro calculation engine with `calculate_shredded_macros()` and `calculate_massive_macros()`
 - SHREDDED template: 22% caloric deficit, 1.3g protein/lb LBM, 3 day types (low/medium/high carb)
 - MASSIVE template: 12% caloric surplus, 1.1g protein/lb LBM, 2 day types (training/rest)
@@ -388,11 +458,13 @@ All notable changes to the FitnessAI platform are documented in this file.
 - 40 unit tests for all formula functions and edge cases
 
 ### Fixed
+
 - 2 IDOR vulnerabilities on NutritionDayPlanViewSet list/week endpoints (trainer ownership check)
 - Provider error silencing — providers now throw on API errors instead of returning null/empty
 - Repository returns typed values instead of raw `Map<String, dynamic>`
 
 ### Security
+
 - Added trainer ownership validation on day plan list and week endpoints
 - Fixed error propagation chain: repository → provider → UI error state
 
@@ -401,6 +473,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-05] — Pipeline 43: Nutrition Phase 2 — FoodItem, MealLog, Fat Mode
 
 ### Added
+
 - `FoodItem` model with Exercise-pattern visibility (`is_public` + `created_by`), full macro fields, barcode support, auto-calculated calories
 - `MealLog` + `MealLogEntry` relational models replacing JSON blob nutrition logging
 - `FoodItemViewSet` with search, barcode lookup, recent foods, CRUD with ownership checks
@@ -415,6 +488,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Migration `0016_fooditem_meallog`
 
 ### Fixed
+
 - 3 IDOR vulnerabilities on summary, active_assignment, and barcode_lookup endpoints
 - N+1 query pattern in MealLogSerializer (4x `entries.all()` → cached)
 - Missing FoodItem access control in quick_add endpoint
@@ -427,6 +501,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-03-04] — Pipeline 42: Notification Preferences, Local Reminders & Dead UI Cleanup
 
 ### Added
+
 - Backend `NotificationPreference` model with 9 per-category boolean toggles
 - GET/PATCH API endpoint for notification preferences (`/api/users/notification-preferences/`)
 - Preference checking before sending FCM push notifications (single + group)
@@ -438,6 +513,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Help & Support tile in trainee settings
 
 ### Fixed
+
 - 7 dead "Coming Soon" buttons in Settings now navigate to real screens
 - Dead Message and Schedule buttons on trainee detail screen now functional
 - Removed ~30 debug `print()` statements from `api_client.dart` and `admin_repository.dart`
@@ -446,6 +522,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Duplicate notification icon on adjacent settings tiles
 
 ### Changed
+
 - All backend notification callers now pass `category` parameter for preference filtering
 - `send_push_to_group` supports category-based opt-out with batch query
 
@@ -454,6 +531,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-27] — Pipeline 41: Calendar Integration Completion
 
 ### Added
+
 - **CalendarEventsScreen** — Full event list with date grouping, provider filter chips (All/Google/Microsoft), pull-to-refresh sync, empty/no-connection states, shimmer loading placeholders
 - **TrainerAvailabilityScreen** — Availability CRUD with day-of-week grouping, add/edit/toggle/delete operations, adaptive time pickers (CupertinoDatePicker on iOS, showTimePicker on Android), optimistic toggle with rollback, swipe-to-delete with confirmation
 - **11 extracted widgets** — CalendarEventTile (with provider badge G/M), CalendarCard, AvailabilitySlotEditor, AvailabilitySlotTile, TimeTile, CalendarProviderFilter, CalendarNoConnectionView, CalendarConnectionHeader, CalendarActionsSection
@@ -461,6 +539,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Auto-pagination** — Mobile repository fetches all pages from paginated events endpoint (bounded at 10 pages / ~200 events)
 
 ### Fixed
+
 - **3 race conditions** — Filter revert, delete confirmation, and concurrent sync all raced against `ref.listen` clearing `state.error`; fixed with identity-based checks
 - **Initial frame flash** — Added `connectionsLoaded` flag to prevent "No calendar connected" flashing before connections load
 - **Field name bugs** — `is_all_day` → `all_day`, `external_event_id` → `external_id` in CalendarEventModel
@@ -469,6 +548,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Malformed time handling** — Empty/invalid time strings now show "--:--" or raw value instead of misleading "12:00 AM"
 
 ### Security
+
 - Input validation: `max_length`/`min_length` on OAuth `code`/`state` fields, `max_length` on event description/location/attendees
 - Provider URL parameter validation via `_validate_provider()` helper
 - Admin panel token fields excluded (`_access_token`, `_refresh_token`)
@@ -477,6 +557,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `CreateEventSerializer.validate()` ensures `end_time > start_time`
 
 ### Technical
+
 - CalendarConnectionScreen refactored from 524 to 222 lines with 6 extracted widgets
 - Typed `SyncResult` model replaces raw `Map<String, dynamic>` returns
 - `TrainerAvailabilityModel.copyWith()` for optimistic state updates
@@ -489,6 +570,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-27] — Pipeline 39: Trainee Retention & Churn Prevention Analytics
 
 ### Added
+
 - **Engagement scoring** — 0-100 per-trainee score based on workout consistency (30%), nutrition consistency (25%), goal adherence (25%), and recency (20%) over a 14-day rolling window
 - **Churn risk scoring** — 0-100 score with 4 risk tiers: Critical (>=75), High (>=50), Medium (>=25), Low (<25). Combines engagement deficit (40%), inactivity signal (30%), declining trend (20%), and low volume signal (10%)
 - **New trainee guard** — Trainees created within the lookback window with zero activity are capped at Medium risk (not flagged as churning)
@@ -501,6 +583,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Mobile retention UI** — RetentionAnalyticsScreen with summary card grid, risk tier badges, at-risk trainee tiles with engagement indicators
 
 ### Technical
+
 - Frozen dataclasses pattern (RetentionAnalyticsResult, RetentionSummary, TraineeEngagementItem, RetentionTrendPoint) following revenue_analytics_service.py
 - Single annotated queryset with select_related to avoid N+1
 - bulk_create for notifications with type-safe int casting for JSONB field lookups
@@ -512,6 +595,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-27] — Pipeline 40: Multi-Language Support (i18n — Spanish + Portuguese)
 
 ### Added
+
 - **Django i18n infrastructure** — `preferred_language` CharField on UserProfile (en/es/pt-br), `LocaleMiddleware`, `LANGUAGES`/`LOCALE_PATHS` settings, PO files for en/es/pt-BR (~20 API error strings)
 - **Flutter i18n infrastructure** — `flutter_localizations` + `gen_l10n` with ARB files (~200 strings each for en/es/pt), `LocaleProvider` (Riverpod StateNotifier + SharedPreferences persistence), `context.l10n` extension for concise access
 - **Next.js i18n infrastructure** — React context-based i18n with cookie persistence (`NEXT_LOCALE`), JSON message files (~130 strings each for en/es/pt-BR), `LocaleProvider` with `t()` function for dot-path key access
@@ -521,6 +605,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Translation glossary** — `translations/glossary.md` with standardized fitness terms (Trainer/Trainee/Workout/Exercise/Set/Rep/Macros/etc.) across en/es/pt-br with 7 consistency rules
 
 ### Technical
+
 - Cookie security: Secure flag for HTTPS, string-split getCookie (prevents ReDoS vs regex), SameSite=Lax
 - Synchronous locale initialization on web (reads cookie in useState initializer, no English flash)
 - html lang attribute synced on locale changes
@@ -532,6 +617,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-24] — Pipeline 38: Admin Dashboard Mobile Responsiveness
 
 ### Changed
+
 - **Responsive table columns** — 14 columns hidden on mobile (`hidden md:table-cell`) across admin tables: trainers (Trainees, Status, Joined), subscriptions (Tier, Start, Status), tiers (Price, Active, Subs), coupons (Type, Uses, Expires), users (Role, Status, Joined)
 - **Mobile-safe dialogs** — 9 admin dialogs updated with `max-h-[90dvh] overflow-y-auto` to prevent off-screen content on small viewports
 - **Full-width filter inputs** — 4 filter/search inputs made full-width on mobile for easier touch interaction
@@ -540,10 +626,12 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Layout dvh fix** — Replaced `100vh` with `100dvh` for Mobile Safari address bar compatibility
 
 ### Fixed
+
 - **3 missing error states** — Added error boundaries/states to admin pages that were missing them
 - **2 stale state bugs** — Fixed stale state in admin dialogs that persisted data between open/close cycles
 
 ### Technical
+
 - Completes the three-part web responsive sweep: P36 (Trainee Portal), P37 (Trainer Dashboard), P38 (Admin Dashboard)
 - All admin pages now fully usable on mobile devices (320px+)
 - Quality Score: 9/10 SHIP
@@ -554,6 +642,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-24] — Pipeline 37: Trainer Dashboard Mobile Responsiveness
 
 ### Changed
+
 - **DataTable responsive columns** — Hide less-important columns on mobile (`hidden md:table-cell`) across trainee list (Program, Joined), program list (Goal, Used, Created), invitation list (Program, Expires), activity tab (Carbs, Fat), revenue tables (Since, Type, Date)
 - **DataTable compact pagination** — `Page X of Y (Z total)` → `X/Y` on mobile, icon-only Previous/Next buttons with 44px touch targets
 - **Trainee detail page** — Header stacks vertically on mobile, action buttons use 2-column grid with 44px min-height, scrollable tabs at 320px
@@ -566,12 +655,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Progress charts** — Added `interval="preserveStartEnd"` and smaller font size to prevent XAxis label overlap on mobile
 
 ### Added
+
 - **Horizontal scroll hints** — `.table-scroll-hint` CSS class with gradient fade + JS scroll listener that hides when scrolled to edge; applied to DataTable and TraineeActivityTab
 - **Dialog overflow protection** — Added `max-h-[90dvh] overflow-y-auto` to 9 trainer dialogs (edit-goals, mark-missed-day, remove-trainee, change-program, exercise-picker, assign-program, create-invitation, announcement-form, create-feature-request)
 - **Compact notification/announcement pagination** — Icon-only Previous/Next buttons on mobile matching DataTable pattern
 - **Calendar event truncation** — Long event titles truncate properly at mobile widths
 
 ### Technical
+
 - TypeScript: zero errors, build passes
 - Security: 10/10 PASS — purely CSS/layout changes
 - Architecture: 9/10 APPROVE — CSS-first approach, consistent `md:` breakpoint usage
@@ -584,6 +675,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-24] — Pipeline 36: Trainee Web Mobile Responsiveness
 
 ### Changed
+
 - **Dynamic viewport height** — Replaced `h-screen` (100vh) with `h-dvh` (100dvh) in trainee and trainer dashboard layouts, fixing Mobile Safari address bar overlap
 - **Exercise log card** — Responsive 5-column grid that compresses gracefully at 320px, responsive "Wt" / "Weight" column header, numeric/decimal keyboard inputs (`inputMode`)
 - **Active workout** — Sticky bottom bar on mobile with timer, set counter, Finish/Discard buttons always reachable; header actions wrap on narrow screens; abbreviated button text
@@ -596,6 +688,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Announcements** — Header stacks vertically on mobile with proper gap
 
 ### Added
+
 - **iOS auto-zoom prevention** — `font-size: 16px !important` on inputs at mobile breakpoint (replaces WCAG-violating `maximumScale: 1`)
 - **Safe area insets** — `viewportFit: "cover"` + `env(safe-area-inset-*)` body padding for notched devices (iPhone X+)
 - **Number spinner removal** — Global CSS hiding `input[type="number"]` spinners to save horizontal space
@@ -604,12 +697,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Responsive page header** — `text-xl` on mobile, `text-2xl` on sm+
 
 ### Fixed
+
 - **Scrollbar color mismatch** — Changed `hsl(var(--border))` to `var(--border)` since CSS vars use oklch
 - **Deprecated `-moz-appearance`** — Replaced with standard `appearance: textfield`
 - **Invalid `role="timer"`** — Changed to `role="status"` (valid ARIA role)
 - **Exercise name overflow** — Added `truncate` with `title` attribute on long exercise names
 
 ### Technical
+
 - TypeScript: zero errors, build passes
 - Security: 10/10 PASS — purely CSS/layout changes, no auth/data/API modifications
 - Architecture: 9/10 APPROVE — CSS-first approach, JS only for Recharts imperative config
@@ -622,6 +717,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-24] — Pipeline 35: Trainee Web Nutrition Tracking Page
 
 ### Added
+
 - **Nutrition page** (`/trainee/nutrition`) — Full nutrition tracking for trainee web portal with AI-powered meal logging, daily macro tracking, date navigation, meal history, and macro presets
 - **AI meal logging** — Natural language input → parse → preview → confirm & save flow. Clarification handling when AI needs more details. Character count with progressive feedback (shows at 1800+)
 - **Macro tracking** — 4 progress bars (Calories, Protein, Carbs, Fat) with consumed/goal display, over-goal amber indicators showing excess amount (+N)
@@ -633,15 +729,18 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Date utilities** — `addDays()` and `formatDisplayDate()` extracted to `schedule-utils.ts`
 
 ### Changed
+
 - `trainee-nav-links.tsx` — Added "Nutrition" link with Apple icon between Progress and Messages
 - `nutrition-summary-card.tsx` — Replaced inline MacroBar with shared component import
 - `constants.ts` — Added 3 API URL constants for nutrition endpoints
 
 ### Fixed (Backend)
+
 - Added `IsTrainee` permission on `parse_natural_language` and `confirm_and_save` endpoints (previously only `IsAuthenticated`)
 - `delete_meal_entry` and `edit_meal_entry` now use their serializers instead of manual validation
 
 ### Technical
+
 - TypeScript: zero errors
 - Security: 8/10 CONDITIONAL PASS — 3 HIGH fixed, rate limiting deferred
 - Architecture: 9/10 APPROVE — follows all existing patterns
@@ -653,6 +752,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-23] — Pipeline 34: Trainee Web Trainer Branding
 
 ### Added
+
 - Trainee web portal now shows trainer's custom branding (app name, logo, primary color) in sidebar
 - New `useTraineeBranding()` hook with React Query caching (5-min staleTime)
 - Shared `BrandLogo` component with graceful image error fallback
@@ -660,12 +760,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `SheetDescription` for Radix Dialog accessibility compliance
 
 ### Changed
+
 - Trainee desktop sidebar displays trainer's logo, app name, and branded active link colors
 - Trainee mobile sidebar applies same branding treatment
 - `TraineeBranding` type moved to `types/branding.ts` (collocated with `TrainerBranding`)
 - `BrandLogo` extracted to shared component eliminating DRY violation
 
 ### Technical
+
 - TypeScript: zero errors
 - Security: PASS (9/10) — no XSS, no CSS injection, strict hex validation
 - Architecture: APPROVE (9/10) — proper layering, shared components, centralized types
@@ -676,6 +778,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-21] — Trainee Web Workout Logging & Progress Tracking (Pipeline 33)
 
 ### Added
+
 - **Weight check-in dialog** — Trainees can log weight from the dashboard card. Validates 20-500 kg range, no future dates, optional notes (500 char max). POST via React Query mutation with toast feedback and automatic cache invalidation of weight trend + latest weight queries.
 - **Active workout page** (`/trainee/workout`) — Full workout logging with real-time timer, exercise cards with editable sets/reps/weight, add/remove sets, native checkbox completion, `beforeunload` guard for unsaved work. ExerciseTarget snapshot pattern decouples from live program query. Discard button with confirmation dialog.
 - **Workout finish dialog** — Review summary before saving: workout name, duration, exercise count, sets completed/total, total volume with dynamic unit. Incomplete sets warning banner. Enter-key submission via `<form>`. Prevents dialog close during save.
@@ -688,6 +791,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **8 new trainee dashboard hooks** — `useTraineeTodayLog`, `useSaveWorkout`, `useTraineeWorkoutHistory`, `useTraineeWorkoutDetail`, plus existing hooks extended.
 
 ### Changed
+
 - `trainee-nav-links.tsx` — Added History and Progress navigation links (8 total nav items).
 - `weight-trend-card.tsx` — Added "Log Weight" button with `WeightCheckInDialog` integration.
 - `nutrition-summary-card.tsx` — Replaced duplicate `getToday()` with import from `schedule-utils`.
@@ -697,16 +801,19 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `trainee-dashboard.ts` (types) — Added `WorkoutHistoryItem`, `WorkoutHistoryResponse`, `WorkoutDetailData`, `SaveWorkoutPayload`, and related interfaces.
 
 ### Security
+
 - Added `encodeURIComponent()` for all date query parameters in hooks (XSS/injection prevention).
 - Input validation: reps 0-999, weight 0-9999, weight check-in 20-500 kg, notes 500 char max.
 - No `dangerouslySetInnerHTML`, no `localStorage` for sensitive data, generic error messages.
 
 ### Accessibility
+
 - 33 accessibility improvements across 9 files: `aria-busy` on skeletons, `aria-live="polite"` on dynamic content, `aria-label` on all interactive elements, `role="timer"` on workout timer, `role="region"` on summary sections, `role="alert"` on incomplete sets warning, `aria-hidden` on decorative icons, focus-visible styles on links.
 - Pagination changed from `<div>` to `<nav>` with proper `aria-label`.
 - Screen reader fallback lists for all chart data.
 
 ### Fixed
+
 - Bodyweight/isometric exercise inputs (weight=0, reps=0) now display "0" instead of blank.
 - Timezone-safe date parsing using `parseISO` from date-fns instead of `new Date()`.
 - Duplicate React keys in chart screen reader lists resolved with unique `_key` field.
@@ -717,6 +824,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-21] — Trainee Web Portal — Home Dashboard & Program Viewer (Pipeline 32)
 
 ### Added
+
 - **Trainee web login** — Standalone TRAINEE login via existing JWT auth. Auth provider now accepts TRAINEE role. Login page routes TRAINEE users directly to `/trainee/dashboard`. Middleware + layout double-guard with role-based routing.
 - **Trainee dashboard** — Home page with 4 independent stat cards: Today's Workout (exercises from active program, rest day, no-program states), Nutrition Macros (4 color-coded progress bars with CSS variable-driven colors), Weight Trend (neutral colors, kg-only, "since" context), Weekly Progress (animated bar with percentage). Each card has independent skeleton loading, error with retry, and empty states.
 - **Program viewer** — Full read-only program schedule display with tabbed week view (WAI-ARIA compliant keyboard navigation: Arrow keys, Home, End), day cards with exercise details (sets × reps @ weight, rest seconds), rest day badges, "No exercises scheduled" distinct from rest days, program switcher dropdown for multiple programs.
@@ -729,6 +837,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Progress component** — New `web/src/components/ui/progress.tsx` with `--progress-color` CSS variable support, ARIA progressbar role.
 
 ### Changed
+
 - `web/src/middleware.ts` — Added `isTraineeDashboardPath()`, TRAINEE routing to `/trainee/dashboard`, non-trainee guard for `/trainee/*` paths.
 - `web/src/providers/auth-provider.tsx` — TRAINEE role now allowed for standalone login (was previously rejected).
 - `web/src/app/(auth)/login/page.tsx` — TRAINEE role routes to `/trainee/dashboard` (was falling through to `/dashboard`).
@@ -738,6 +847,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `web/src/lib/constants.ts` — Added 9 trainee API URL constants.
 
 ### Deferred
+
 - **AC-19: Trainer branding** — `TRAINEE_BRANDING` API URL defined but branding colors/logo not applied to trainee dashboard. Tracked for next pipeline.
 
 ---
@@ -745,6 +855,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-21] — Smart Program Generator (Pipeline 31)
 
 ### Added
+
 - **Exercise difficulty classification** — `difficulty_level` (beginner/intermediate/advanced) and `category` fields on Exercise model with composite index on `(muscle_group, difficulty_level)`. Management command `classify_exercises` supports OpenAI GPT-4o batch classification and heuristic fallback mode.
 - **KILO exercise library** — 1,067 exercises seeded via `seed_kilo_exercises` management command with fixture data in `kilo_exercises.json`.
 - **Program generation service** (`backend/workouts/services/program_generator.py`) — Deterministic algorithm supporting 5 split types (PPL, Upper/Lower, Full Body, Bro Split, Custom), 3 difficulty levels, 6 training goals. Features exercise selection with difficulty fallback, sets/reps/rest schemes per goal×difficulty matrix, progressive overload (+1 set/3 weeks, +1 rep/2 weeks, capped at +3 sets/+5 reps), deload every 4th week, and goal-based nutrition templates.
@@ -756,12 +867,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **123 new backend tests** — Unit tests for compound detection, progressive overload, exercise pool, deload weeks. Integration tests for all 5 split types, nutrition templates, schedule format. API endpoint tests for auth, validation, IDOR security. All 18 goal/difficulty combinations smoke-tested.
 
 ### Changed
+
 - `WorkoutExercise.reps` changed from `int` to `String` in Flutter to support rep ranges (e.g., "8-10") from the generator. Backward-compatible `fromJson` handles both formats. Updated across 5 mobile files.
 - All 4 program providers in `program_provider.dart` now throw `Exception` on API failure instead of silently returning empty lists (consistency with exercise provider fix).
 - `ExerciseFilter.hashCode` changed from XOR-based to `Object.hash()` for better collision resistance.
 - Extracted `ExercisePickerSheet` and `StepIndicator` into separate widget files from larger screens.
 
 ### Security
+
 - Fixed IDOR vulnerability where `_get_exercises_for_muscle_group` exposed all exercises when `trainer_id=None`. Now correctly scopes to `is_public=True` only.
 - `trainer_id` sourced from `request.user.id`, not request body, preventing exercise pool manipulation.
 
@@ -770,6 +883,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-21] — Macro Preset Management for Web Trainer Dashboard (Pipeline 30)
 
 ### Added
+
 - **Macro presets section** on trainee detail Overview tab — trainers can create, edit, delete, and copy nutrition presets (e.g. Training Day, Rest Day) per trainee. Responsive card grid with name, 4 macro values, frequency badge, default star icon.
 - **React Query hooks** (`web/src/hooks/use-macro-presets.ts`) — 5 hooks: `useMacroPresets` (query with 5min staleTime), `useCreateMacroPreset`, `useUpdateMacroPreset`, `useDeleteMacroPreset`, `useCopyMacroPreset` (all with proper cache invalidation).
 - **Preset form dialog** (`web/src/components/trainees/preset-form-dialog.tsx`) — Reusable create/edit dialog with name, calories, protein, carbs, fat fields. Frequency selector (1-7x/week). Default checkbox. Client-side validation matching backend rules. `Math.round()` on all numeric values. Calorie mismatch warning when macros don't add up.
@@ -780,6 +894,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`MacroPreset` TypeScript interface** with all 16 fields matching the API response.
 
 ### Changed
+
 - Trainee Overview tab layout wrapped in outer `space-y-6` container to accommodate full-width Macro Presets section below the 2-column grid.
 - `PresetCard` extracted to separate file for component separation (architecture audit).
 
@@ -788,6 +903,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-21] — CSV Data Export for Trainer Dashboard (Pipeline 29)
 
 ### Added
+
 - **3 CSV export endpoints** — `GET /api/trainer/export/payments/?days=N`, `/export/subscribers/`, `/export/trainees/` returning downloadable CSV files with `Content-Disposition: attachment` headers and `Cache-Control: no-store`.
 - **Export service** (`backend/trainer/services/export_service.py`) — Frozen `CsvExportResult` dataclass. Uses `csv.writer` with `StringIO`. Amounts always 2 decimal places. Dates ISO 8601 formatted. Empty data returns valid header-only CSV.
 - **CSV injection protection** — `_sanitize_csv_value()` prefixes cells starting with `=`, `+`, `-`, `@`, `\t`, `\r` with single-quote per OWASP recommendation.
@@ -798,6 +914,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Shared utility** (`backend/trainer/utils.py`) — Extracted `parse_days_param` function used by both `views.py` and `export_views.py`.
 
 ### Changed
+
 - Trainee export query uses `annotate(last_log_date=Max("daily_logs__date"))` and filtered `Prefetch` for active programs instead of unbounded prefetch.
 - Revenue section header wraps (`flex-wrap`) on narrow viewports to prevent horizontal overflow.
 
@@ -806,6 +923,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-20] — Trainer Revenue & Subscription Analytics (Pipeline 28)
 
 ### Added
+
 - **Revenue analytics API** -- `GET /api/trainer/analytics/revenue/?days=N` returns MRR, total period revenue, active subscriber count, average revenue per subscriber, 12-month revenue breakdown, subscriber list, and recent payments. Service layer with frozen dataclasses. `[IsAuthenticated, IsTrainer]` permissions with row-level security.
 - **Revenue section on analytics page** -- New `RevenueSection` component below the existing Progress section with:
   - 4 stat cards: MRR (DollarSign), Period Revenue (TrendingUp), Active Subscribers (Users), Avg/Subscriber (UserCheck)
@@ -817,6 +935,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Database indexes** on `TraineePayment.paid_at` and composite `(trainer, status, paid_at)` for query performance.
 
 ### Changed
+
 - `useAdherenceAnalytics` and `useAdherenceTrends` hooks now use `keepPreviousData` to prevent flash-to-skeleton when switching periods (also applied to new `useRevenueAnalytics`).
 - `DataTable` component now accepts `rowAriaLabel` prop for screen reader context on clickable rows.
 - `formatCurrency` includes NaN guard for defensive rendering.
@@ -827,12 +946,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-20] — Full Trainer→Trainee Impersonation (Pipeline 27)
 
 ### Added
+
 - **Trainer→trainee token swap** -- "View as Trainee" button now performs a real token swap: saves trainer tokens to sessionStorage, sets trainee JWT tokens, sets TRAINEE role cookie, and hard-navigates to a new `/trainee-view` page. Previously the button was a no-op that redirected to `/dashboard`.
 - **Trainer impersonation banner** -- Amber banner at the top of the trainee view showing "Viewing as {name}" with Read-Only badge and "End Impersonation" button. End impersonation restores trainer tokens and redirects back to the trainee detail page.
 - **Read-only trainee view page** -- New `(trainee-view)` route group with 4 data cards: Profile Summary, Active Program (with today's exercises), Today's Nutrition (macro progress bars), and Recent Weight (last 5 check-ins with trend indicator). All cards have loading skeletons, empty states, and error states with retry.
 - **TRAINEE middleware routing** -- Middleware now routes TRAINEE role cookie to `/trainee-view` and redirects TRAINEE users away from trainer/admin/ambassador paths.
 
 ### Changed
+
 - Auth provider now allows TRAINEE role when trainer impersonation state exists in sessionStorage.
 - Dashboard layout now redirects TRAINEE role to `/trainee-view` (defense-in-depth).
 - Added 4 trainee-facing API URL constants: `TRAINEE_PROGRAMS`, `TRAINEE_NUTRITION_SUMMARY`, `TRAINEE_WEIGHT_CHECKINS`.
@@ -842,12 +963,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-20] — Advanced Trainer Analytics (Pipeline 26)
 
 ### Added
+
 - **Calorie goal hit rate** -- 4th stat card on the trainer analytics page showing the percentage of days trainees hit their calorie goals. Uses the existing `hit_calorie_goal` field from `TraineeActivitySummary` which was previously unused.
 - **Adherence trend chart** -- New `AdherenceTrendChart` component showing daily adherence rates (food, workout, protein, calorie) as a Recharts AreaChart over the selected period. Includes custom tooltip with all 4 rates + trainee count, legend, `sr-only` data list, and responsive layout.
 - **Adherence trends API** -- `GET /api/trainer/analytics/adherence/trends/?days=N` returns per-day adherence rates for all metrics. Single annotated query with O(days) response. Authenticated + IsTrainer.
 - **21 new backend tests** -- 5 for calorie_goal_rate in existing adherence endpoint, 16 for the new trends endpoint (calculation, sorting, auth, isolation, parameter validation, edge cases).
 
 ### Changed
+
 - `AdherenceAnalyticsView` now returns `calorie_goal_rate` alongside existing food/workout/protein rates.
 - Analytics stat cards grid updated from 3 columns to `sm:grid-cols-2 lg:grid-cols-4` for the 4th card.
 - Skeleton state updated to show 4 card skeletons + 2 chart skeletons.
@@ -860,6 +983,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-20] — Ambassador Dashboard Enhancement (Pipeline 25)
 
 ### Added
+
 - **Earnings chart** -- Recharts BarChart on the ambassador dashboard showing monthly commission earnings for the last 12 months. Zero-filled gaps, current month highlighted, tooltips with exact amounts, responsive with `preserveStartEnd` for mobile, accessible `sr-only` data list.
 - **Referral status breakdown** -- Stacked progress bar showing active/pending/churned referral distribution with color-coded legend and ARIA label.
 - **Referral list pagination** -- Server-side pagination on `/ambassador/referrals` with Previous/Next controls, page indicator, and `keepPreviousData` for smooth transitions.
@@ -867,11 +991,13 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **19 new backend tests** -- Dashboard monthly earnings (12-month zero-fill, amount key, pending exclusion), status counts, referral pagination, status filtering, ordering, row-level isolation, auth.
 
 ### Changed
+
 - `AmbassadorDashboardView` returns 12 months of earnings (was 6) with zero-fill for gaps and `amount` key aligned with frontend type.
 - `AmbassadorReferralsView` now has explicit `order_by('-referred_at')` for deterministic pagination.
 - Dashboard page layout: earnings chart between stat cards and referral code; status breakdown + referral code in responsive 2-column grid.
 
 ### Fixed
+
 - StatusBadge case-sensitive comparison (API returns uppercase, component compared lowercase) — badges now correctly color-coded.
 - X-axis label overlap on mobile screens for 12-month chart.
 
@@ -880,6 +1006,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-20] — In-App Message Search (Pipeline 24)
 
 ### Added
+
 - **Message search API** -- `GET /api/messaging/search/?q=<query>&page=<page>` searches messages across all conversations the authenticated user participates in. Case-insensitive substring match via `icontains`. Excludes soft-deleted messages and archived conversations. Paginated (20/page) with `-created_at` ordering.
 - **`search_messages()` service function** -- Business logic in `services/search_service.py` with frozen dataclass returns (`SearchMessageItem`, `SearchMessagesResult`). Row-level security enforced at query level: trainers see trainer's conversations, trainees see theirs, admins must impersonate.
 - **`SearchMessageResultSerializer`** -- API response serializer with sender info, conversation context (other participant), image URL, timestamps. Nullable `other_participant_id` for removed trainees (SET_NULL FK).
@@ -892,6 +1019,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **42 backend tests** -- Service layer basics (13), edge cases (8), pagination (3), view layer (18). Covers row-level security, cross-tenant isolation, special characters, null trainee, archived conversations, admin rejection, impersonation, field completeness.
 
 ### Fixed
+
 - **Regex `g` flag stateful bug** -- `highlightText()` initially used `gi` regex flag. The `g` flag makes `RegExp.test()` stateful (advances `lastIndex`), causing alternating match/no-match for consecutive matches. Fixed by using `i` flag only with `part.toLowerCase() === lowerQuery` comparison.
 - **Admin role silently returned empty** -- Admin users fell through to `else` branch and got empty results with no error. Fixed by raising `ValueError('Only trainers and trainees can search messages.')`.
 - **Search results flashed to skeleton** -- Every keystroke caused jarring flash from results to skeleton placeholders. Fixed with `placeholderData: keepPreviousData` on the React Query hook.
@@ -903,6 +1031,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-19] — Message Editing and Deletion (Pipeline 23)
 
 ### Added
+
 - **Message editing (15-min window)** -- PATCH `/api/messaging/conversations/<id>/messages/<message_id>/` edits message content. Sender-only, within configurable 15-minute window (`EDIT_WINDOW`). Sets `edited_at` timestamp. Content validated (max 2000 chars, not empty for text-only messages, empty allowed for image messages). Race condition prevention via `transaction.atomic()` + `select_for_update()`.
 - **Message soft-deletion** -- DELETE on same endpoint soft-deletes message. Sender-only, no time limit. Clears content to empty string, sets image to None, deletes actual image file from storage. Sets `is_deleted=True`. Race condition prevention via `transaction.atomic()` + `select_for_update()`.
 - **`EditMessageResult` and `DeleteMessageResult` frozen dataclasses** -- Service layer returns typed results per project convention.
@@ -922,6 +1051,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **107 backend tests** -- Comprehensive coverage: service layer (21), views (18), serializers (7), model (4), edge cases (13), boundary (2), cross-conversation security (3), trainee edit/delete (4), existing tests (35).
 
 ### Fixed
+
 - **CRITICAL: Race condition on edit/delete** -- Both `edit_message()` and `delete_message()` lacked transaction/row lock. Could corrupt data under concurrent writes. Fixed with `transaction.atomic()` + `Message.objects.select_for_update().get(...)`.
 - **CRITICAL: Test URL mismatch for delete views** -- Delete tests used `/messages/<id>/delete/` URL (non-existent) instead of RESTful `/messages/<id>/` with DELETE method. Fixed 3 test URLs.
 - **HIGH: Orphaned image files on delete** -- Setting `message.image = None` didn't delete actual file from storage. Fixed by saving reference before clearing, calling `old_image_field.delete(save=False)` outside transaction.
@@ -936,12 +1066,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Mobile debugPrint calls** -- 3 `debugPrint()` calls violated convention. Removed with unused import.
 
 ### Accessibility
+
 - Mobile deleted message bubble: `Semantics` widget with sender, deleted status, and timestamp
 - Web delete confirmation: `role="alertdialog"` and `aria-label="Confirm message deletion"`
 - Web deleted message: `aria-label` with sender context and timestamp
 - Web delete confirmation: Escape key listener for keyboard-only users
 
 ### Quality Metrics
+
 - Code Review: 7/10 → fixed (1 round, 4 critical + 8 major all fixed)
 - QA: HIGH confidence, 72 initial → 107 final tests, all pass, 0 failures
 - Security Audit: 9/10 PASS (row-level security gap fixed, views consolidated)
@@ -955,6 +1087,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-19] — WebSocket Real-Time Web Messaging (Pipeline 22)
 
 ### Added
+
 - **`useMessagingWebSocket` hook** -- New custom React hook (`web/src/hooks/use-messaging-ws.ts`, ~468 lines) managing full WebSocket lifecycle per conversation. JWT auth via URL query parameter, exponential backoff reconnection (1s→16s cap, max 5 attempts), 30s heartbeat with 5s pong timeout, tab visibility API reconnection, React Query cache mutations with deduplication.
 - **Typing indicators on web** -- Wired existing `typing-indicator.tsx` component via WebSocket `typing_indicator` events. `sendTyping()` with 3s debounce, 4s display timeout. "Name is typing..." with animated dots (staggered 0ms/150ms/300ms delays). Positioned outside scroll area so it's always visible regardless of scroll position.
 - **Real-time read receipts on web** -- WebSocket `read_receipt` events update React Query cache in real-time, replacing poll-based receipt updates.
@@ -964,6 +1097,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`onTyping` callback on ChatInput** -- Fires `onTyping(true)` on input, `onTyping(false)` on send. Enables typing indicator integration.
 
 ### Fixed
+
 - **CRITICAL: Race condition in async `connect()`** -- If component unmounted while `connect()` was awaiting `refreshAccessToken()`, cleanup fired but `connect()` resumed and created a leaked WebSocket with no cleanup reference. Fixed with `cancelledRef` pattern — set to `true` in cleanup, checked after each async gap.
 - **CRITICAL: Typing indicator inside scroll area** -- Was placed inside `overflow-y-auto` div, invisible when user scrolled up. Moved outside scroll area, between message list and ChatInput.
 - **Pre-existing `@/hooks/use-toast` import** -- `chat-input.tsx` imported from non-existent `@/hooks/use-toast`. Project uses `sonner`. Replaced with `import { toast } from "sonner"` and updated all call sites.
@@ -971,11 +1105,13 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Confusing `POLLING_DISABLED` naming** -- `POLLING_DISABLED = false as const` was confusing (variable "DISABLED" = `false`). Renamed to `POLLING_OFF = 0`.
 
 ### Accessibility
+
 - `aria-live="polite"` on typing indicator for screen reader announcements
 - `role="status"` on connection state banners
 - Connection banners use appropriate semantic colors (amber for transient, muted for persistent)
 
 ### Quality Metrics
+
 - Code Review: 8/10 APPROVE (2 rounds -- 2 critical + 2 major all fixed)
 - QA: HIGH confidence, 31/31 AC pass, 35 backend tests pass, 0 new TS errors
 - Security Audit: 9/10 PASS (JWT in URL param is standard for WebSocket, no issues found)
@@ -989,6 +1125,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-19] — Image Attachments in Direct Messages (Pipeline 21)
 
 ### Added
+
 - **Image field on Message model** -- Optional `ImageField` with UUID-based upload paths (`message_images/{uuid}.{ext}`), nullable with default None. Migration adds image column and makes content field blank/optional.
 - **Image validation in views** -- `_validate_message_image()` helper validates JPEG/PNG/WebP content types and 5MB max size. Both `SendMessageView` and `StartConversationView` accept `MultiPartParser` for multipart uploads alongside existing JSON.
 - **Conversation list "Sent a photo" preview** -- Chained Subquery annotation (`_last_message_image` + `annotated_last_message_has_image`) correctly checks if the most recent message has an image. Serializer shows "Sent a photo" for image-only last messages.
@@ -1005,6 +1142,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Object URL cleanup** -- `useEffect` cleanup in web ChatInput to revoke object URLs on unmount, preventing memory leaks.
 
 ### Fixed
+
 - **Dead code cleanup** -- Removed unused `last_message_image_subquery` variable and unused `Length` import in `messaging_service.py`.
 - **Import ordering** -- Moved all imports to top of `views.py` (were after function definition, violating PEP 8).
 - **Type safety** -- Changed `image: Any | None` to `image: UploadedFile | None` on `send_message()` and `send_message_to_trainee()`.
@@ -1017,6 +1155,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-19] — In-App Direct Messaging (Pipeline 20)
 
 ### Added
+
 - **New `messaging` Django app** -- Full backend for 1:1 trainer-to-trainee direct messaging. `Conversation` model (trainer FK CASCADE, trainee FK SET_NULL, unique constraint, 3 indexes, soft-archive via `is_archived`). `Message` model (conversation FK CASCADE, sender FK CASCADE, content max 2000 chars, is_read/read_at, 3 indexes). 2 migrations including SET_NULL fix for trainee FK.
 - **6 REST API endpoints** -- `GET /api/messaging/conversations/` (paginated at 50, annotated preview + unread count), `GET /api/messaging/conversations/<id>/messages/` (paginated at 20), `POST /api/messaging/conversations/<id>/send/` (rate-limited 30/min), `POST /api/messaging/conversations/start/` (trainer-only, creates conversation if needed), `POST /api/messaging/conversations/<id>/read/` (mark all read), `GET /api/messaging/unread-count/` (total unread). All endpoints have IsAuthenticated + row-level security.
 - **WebSocket consumer** -- `DirectMessageConsumer` with JWT authentication via query parameter, per-conversation channel groups (`messaging_conversation_{id}`), typing indicators (coerced to strict bool), read receipt forwarding, ping/pong heartbeat. `is_archived=False` check on connect.
@@ -1037,6 +1176,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **E2E mock setup** -- Paginated conversation mock in auth helpers, per-test conversation/message route overrides.
 
 ### Fixed
+
 - **CRITICAL: scrollToBottom ReferenceError** -- `useCallback` for `scrollToBottom` was defined after the `useEffect` that depended on it. `const` is not hoisted, causing runtime crash when any conversation with messages was rendered. Moved definition above the dependent effect.
 - **CRITICAL: Web new-conversation dead end** -- Navigating from trainee detail "Message" when no conversation existed showed "Select a conversation" with no way to create one. Added `NewConversationView` with first-message flow.
 - **HIGH: Web layout unusable on mobile** -- Sidebar was always `w-80` even on mobile screens. Changed to `w-full md:w-80` with show/hide based on selection state. Added back button for mobile navigation.
@@ -1054,6 +1194,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Missing web TypeScript field** -- Added `is_new_conversation: boolean` to `StartConversationResponse` type.
 
 ### Accessibility
+
 - `Semantics` widgets on all mobile messaging widgets (MessageBubble, ConversationTile, TypingIndicator, ChatInput, ConversationListScreen)
 - `role="log"` with `aria-label="Message history"` and `aria-live="polite"` on web message container
 - `role="listbox"` with `aria-label="Conversations"` on web conversation list
@@ -1063,6 +1204,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `sr-only` loading text for screen readers
 
 ### Quality Metrics
+
 - Code Review: 8/10 APPROVE (2 rounds -- 5 critical + 9 major + 10 minor all fixed)
 - QA: HIGH confidence, 93 tests passed, 0 failed, 4 bugs found and fixed
 - Security Audit: 9/10 PASS (3 High + 2 Medium all fixed, no secrets leaked)
@@ -1071,6 +1213,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Final Verdict: SHIP at 9/10, HIGH confidence
 
 ### Deferred
+
 - Web WebSocket support for messaging (v1 uses HTTP polling at 5s)
 - Web typing indicators (component exists at `typing-indicator.tsx`, awaiting WebSocket)
 - Quick-message from trainee list row on web (must open trainee detail first)
@@ -1083,6 +1226,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-19] — Web Dashboard Full Parity + UI/UX Polish + E2E Tests (Pipeline 19)
 
 ### Added
+
 - **Trainer Announcements (Web)** -- Full CRUD with pin sort, character counters, format toggle (plain/markdown), skeleton loading, empty state.
 - **Trainer AI Chat (Web)** -- Chat interface with trainee selector dropdown, suggestion chips, clear conversation dialog, AI provider availability check.
 - **Trainer Branding (Web)** -- Color pickers with 12 presets per field, hex input validation, logo upload/remove, live preview card, unsaved changes guard with beforeunload.
@@ -1115,17 +1259,20 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Playwright E2E Test Suite** -- Configuration with 5 browser targets (Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari). 19 test files covering auth flows, trainer features (7), admin features (3), ambassador features (4), responsive behavior, error states, dark mode, and navigation. Test helpers: `loginAs()`, `logout()`, mock-api fixtures.
 
 ### Fixed
+
 - **CRITICAL: LeaderboardSection type mismatch** -- Component referenced `setting.id`, `setting.metric`, `setting.label`, `setting.enabled` and `METRIC_DESCRIPTIONS` which did not exist on the `LeaderboardSetting` type from the hook. The hook returns `{ metric_type, time_period, is_enabled }` with no numeric `id`. Complete rewrite with composite key function (`metric_type:time_period`), display name helper, and correct mutation payload.
 - **CRITICAL: StripeConnectSetup type cast** -- Component cast data as `{ is_connected?: boolean }` but the `AmbassadorConnectStatus` type has `has_account` (not `is_connected`). Removed unsafe cast, now uses `data?.has_account` and `data?.payouts_enabled` directly.
 - **Ambassador list redundant variable** -- Removed `const filtered = ambassadors;` that was identical to `ambassadors`. All references updated.
 
 ### Accessibility
+
 - Focus-visible rings (`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`) added to exercise list filter chips, feature request status filters, and branding color picker buttons (24 buttons total)
 - `aria-label` added to ambassador list View button (`View details for {email}`)
 - `role="status"` on EmptyState component, `role="alert"` with `aria-live="assertive"` on ErrorState component
 - `prefers-reduced-motion` support on login animations and card-hover transitions
 
 ### Quality Metrics
+
 - Code Review: 8/10 APPROVE (1 round -- 5 critical + 8 major all fixed)
 - QA: HIGH confidence, 52/60 AC pass, 0 failures (3 partial documented, 5 deferred non-blocking)
 - UX Audit: 8/10 (1 critical type mismatch fixed, 4 medium accessibility fixes, 5 total fixes applied)
@@ -1135,6 +1282,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Final Verdict: SHIP at 8/10, HIGH confidence
 
 ### Deferred
+
 - AC-11: Full impersonation token swap (needs backend integration)
 - AC-22: Ambassador monthly earnings chart and referral stats row
 - AC-33: Onboarding checklist for new trainers
@@ -1148,6 +1296,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-16] — Phase 8 Community & Platform Enhancements (Pipeline 18)
 
 ### Added
+
 - **Leaderboards** — New `Leaderboard` and `LeaderboardEntry` models. Trainer-configurable ranked leaderboards with workout count and streak metrics. Dense ranking algorithm (1, 2, 2, 4). Opt-in/opt-out per trainee with `show_on_leaderboard` field. Leaderboard screen with skeleton loading, empty state ("No leaderboard data yet"), error state with retry. Leaderboard service with `LeaderboardEntry` dataclass returns.
 - **Push Notifications (FCM)** — `DeviceToken` model with platform detection (iOS/Android). Firebase Cloud Messaging integration via `firebase-admin` SDK. `NotificationService` with `send_push_notification()` for single and `send_bulk_push()` for batch delivery. Notification triggers on new announcements and new comments. Device token CRUD API (`POST/DELETE /api/community/device-tokens/`). Platform-specific payload formatting (iOS badge count, Android notification channel).
 - **Rich Text / Markdown** — `content_format` field on CommunityPost and Announcement models (`plain`/`markdown` choices). `flutter_markdown` rendering on mobile with theme-aware styling. Server-side format validation in serializers. Backward-compatible with existing plain text content.
@@ -1157,6 +1306,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Stripe Connect Ambassador Payouts** — `AmbassadorPayout` model with Stripe transfer tracking. Stripe Connect Express account onboarding (`POST /api/ambassador/stripe/onboard/`). Admin-triggered payouts (`POST /api/admin/ambassador/payouts/trigger/`) with `select_for_update()` + `transaction.atomic()` for race condition protection. Payout history screen with status badges (pending/paid/failed). `PayoutService` with `PayoutResult` dataclass returns. Ambassador payouts screen with empty state (wallet icon + descriptive text).
 
 ### Changed
+
 - **`backend/community/consumers.py`** — Added `feed_reaction_update` handler for real-time reaction count broadcasting. Removed unused `json` import.
 - **`backend/community/views.py`** — Refactored `_get_post()` to return `tuple[CommunityPost | None, Response | None]` distinguishing 403 (wrong group) from 404 (not found). Added WebSocket broadcast helpers for all 4 event types.
 - **`mobile/lib/features/community/data/services/community_ws_service.dart`** — Added `reaction_update` case handler. Implemented exponential backoff reconnection (3s, 6s, 12s, 24s, 48s).
@@ -1165,12 +1315,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`mobile/lib/features/community/presentation/widgets/compose_post_sheet.dart`** — Added 5MB client-side image size validation with user-friendly snackbar.
 
 ### Accessibility
+
 - `Semantics` labels on all leaderboard entries (rank, name, metric, value)
 - `Semantics` labels on comment tiles (author, content, timestamp)
 - `Semantics` on full-screen image viewer (image description, close button)
 - Skeleton loading placeholder for leaderboard screen matching populated layout
 
 ### Quality Metrics
+
 - Code Review: 8/10 APPROVE (2 rounds — 6 critical + 10 major issues all fixed)
 - QA: HIGH confidence, 50/61 AC pass, 0 failures (11 ACs deferred: settings toggles, markdown toolbar, notification banners — all non-blocking for V1)
 - UX Audit: 8/10 (ambassador payouts empty state improved)
@@ -1184,6 +1336,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-16] — Social & Community (Phase 7)
 
 ### Added
+
 - **New `community` Django app** — 6 models (Announcement, AnnouncementReadStatus, Achievement, UserAchievement, CommunityPost, PostReaction), 13 API endpoints, 2 service modules, seed command, admin registration. Single migration with all indexes and constraints.
 - **Trainer Announcements (CRUD)** — `GET/POST /api/trainer/announcements/`, `GET/PUT/DELETE /api/trainer/announcements/<id>/`. Title (200 chars), body (2000 chars), is_pinned toggle. Ordered by `is_pinned DESC, created_at DESC`. Row-level security: `trainer=request.user`.
 - **Trainee Announcement Feed** — `GET /api/community/announcements/` (paginated, scoped to parent_trainer), `GET /api/community/announcements/unread-count/` (returns count of new announcements since last read), `POST /api/community/announcements/mark-read/` (upserts `AnnouncementReadStatus` with `last_read_at`).
@@ -1207,6 +1360,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **55 comprehensive backend tests** — Announcements (14), achievements (15), feed (17), auto-post (5), seed command (4). Covering all CRUD operations, security (IDOR, auth, authz), edge cases (no parent_trainer, concurrent operations, max lengths), and service logic (streak calculation, idempotent awarding).
 
 ### Changed
+
 - **`main_navigation_shell.dart`** — Renamed "Forums" tab to "Community" with `people_outlined` / `people` icons.
 - **`app_router.dart`** — Replaced ForumsScreen route with CommunityFeedScreen. Added 4 new routes: `/community/announcements`, `/community/achievements`, `/trainer/announcements-screen`, `/trainer/create-announcement`.
 - **`api_constants.dart`** — Added 11 community endpoint constants.
@@ -1220,6 +1374,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`trainer/urls.py`** — Added trainer announcement CRUD URL patterns.
 
 ### Fixed
+
 - **CRITICAL: Announcement pagination parsing crash** — Mobile `AnnouncementRepository.getAnnouncements()` and `getTrainerAnnouncements()` were parsing `response.data as List<dynamic>`, but DRF `ListAPIView`/`ListCreateAPIView` return paginated responses `{count, next, previous, results}`. Changed to parse as `Map<String, dynamic>` and extract `data['results']`. Would have caused a runtime `type 'Map' is not a subtype of type 'List'` crash on both trainee and trainer announcement screens.
 - **Auto-post type badge placement** — Badge was below content text; AC-29 specifies "subtle label + icon above content." Moved `_buildPostTypeBadge()` above the content Text widget.
 - **Auto-post visual distinction missing** — All posts used `theme.cardColor` uniformly; AC-32 specifies tinted background for auto-posts. Added conditional `post.isAutoPost ? theme.colorScheme.primary.withValues(alpha: 0.05) : theme.cardColor`.
@@ -1229,6 +1384,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Race condition with `.first` call** — `announcements.where((a) => a.isPinned).first` could throw `StateError` between `any()` check and `.first` access. Fixed with safe access pattern.
 
 ### Accessibility
+
 - `Semantics(label: '{name}, earned/locked', button: true)` on all achievement badges with InkWell ripple feedback
 - `Semantics(label: '{type} reaction, {count}, active/inactive. Tap to react/remove.', button: true)` on all reaction buttons
 - `Semantics(label: 'Pinned announcement: {title}. Tap to view all.', button: true)` on announcement banner with Material+InkWell ripple
@@ -1240,6 +1396,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - GestureDetector replaced with InkWell on achievement badges and announcement banner (proper ripple feedback + touch targets)
 
 ### Architecture
+
 - New `community` Django app cleanly separated from `trainer` and `workouts` apps (no cyclic dependencies)
 - Business logic in services: `achievement_service.py` (streak calculation, idempotent awarding), `auto_post_service.py` (template formatting, fire-and-forget)
 - Removed 6 unused serializers from `serializers.py`: `AchievementWithStatusSerializer`, `CommunityPostSerializer`, `PostAuthorSerializer`, `UnreadCountSerializer`, `MarkReadResponseSerializer`, `ReactionResponseSerializer`
@@ -1249,6 +1406,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - All widget files under 150 lines, screens under 200 lines
 
 ### Security
+
 - All 13 endpoints verified: authentication + role-based authorization (IsTrainee/IsTrainer) + row-level security
 - No IDOR vulnerabilities: 7 attack vectors tested and blocked (cross-group feed, cross-group reactions, cross-trainer announcements, non-author delete, trainee accessing trainer endpoints, trainer accessing trainee endpoints)
 - Input validation: max_length on all user inputs, choice validation on reaction_type, whitespace stripping on post content
@@ -1258,6 +1416,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Error messages don't leak internals
 
 ### Quality
+
 - Code review: R1 6/10 REQUEST CHANGES -> All 3 critical + 7 major fixed -> R1 fixes applied
 - QA: 55/55 PASS, HIGH confidence, all 34 ACs verified (31 DONE, 3 justified PARTIAL)
 - UX audit: 8/10 PASS (13 usability/accessibility fixes)
@@ -1271,6 +1430,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Health Data Integration + Performance Audit + Offline UI Polish (Phase 6 Completion)
 
 ### Added
+
 - **HealthKit / Health Connect Integration** — Reads steps, active calories, heart rate, and weight from Apple Health (iOS) and Health Connect (Android) via the `health` Flutter package. Platform-level aggregation queries (HKStatisticsQuery / AggregateRequest) prevent double-counting from overlapping sources (e.g., iPhone + Apple Watch).
 - **"Today's Health" Card** — New card on trainee home screen displaying 4 health metrics with walking/flame/heart/weight icons. Skeleton loading state, 200ms opacity fade-in, "--" for missing data, NumberFormat for thousands separators. Gear icon opens device health settings.
 - **Health Permission Flow** — One-time bottom sheet with platform-specific explanation ("Apple Health" vs "Health Connect"). "Connect Health" / "Not Now" buttons. Permission status persisted in SharedPreferences. Card hidden entirely when permission denied.
@@ -1284,6 +1444,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`HealthDataNotifier`** — Sealed class state hierarchy: Initial, Loading, Loaded, PermissionDenied, Unavailable. Manages permission lifecycle, data fetching, and weight auto-import with mounted guards.
 
 ### Changed
+
 - **`health_service.dart`** — Rewritten: added ACTIVE_ENERGY_BURNED and WEIGHT types, removed SLEEP_IN_BED. Uses `getTotalStepsInInterval()` and `getHealthAggregateDataFromTypes()` for platform-level deduplication. Injectable via Riverpod provider (no more static singleton). Fixed HealthDataPoint value extraction bug.
 - **`home_screen.dart`** — Added TodaysHealthCard between Nutrition and Weekly Progress sections. Pending workouts merged into recent list. RepaintBoundary on CalorieRing and MacroCircle. Riverpod select() for granular health card visibility rebuilds. syncCompletionProvider listener.
 - **`nutrition_screen.dart`** — Pending nutrition macros added to server totals. "(includes X pending)" label. RepaintBoundary on MacroCard. IconButton replacing GestureDetector for touch targets. syncCompletionProvider listener.
@@ -1291,6 +1452,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`weight_trends_screen.dart`** — Converted to CustomScrollView + SliverList.builder for virtualized rendering. Pending weight rows with SyncStatusBadge. RepaintBoundary on weight chart. shouldRepaint optimization comparing data arrays.
 
 ### Performance
+
 - RepaintBoundary on CalorieRing, MacroCircle, MacroCard, weight chart CustomPaint
 - const constructors audited across priority widget files
 - Riverpod select() for granular rebuilds (home screen health card visibility)
@@ -1299,6 +1461,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Static final NumberFormat instances (avoid re-creation per build)
 
 ### Accessibility
+
 - Semantics labels on all health metric tiles, sync status badges, skeleton states
 - ExcludeSemantics on decorative icons
 - Semantics liveRegion on "(includes X pending)" label
@@ -1310,6 +1473,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Offline-First Workout & Nutrition Logging (Phase 6)
 
 ### Added
+
 - **Drift (SQLite) Local Database** — 5 tables: `PendingWorkoutLogs`, `PendingNutritionLogs`, `PendingWeightCheckins`, `CachedPrograms`, `SyncQueueItems`. Background isolate via `NativeDatabase.createInBackground()`. WAL mode for concurrent read/write. Startup cleanup (synced items >24h, stale cache >30d). Transactional user data clearing on logout.
 - **Connectivity Monitoring** — `ConnectivityService` wrapping `connectivity_plus` with 2-second debounce to prevent sync thrashing during connection flapping. Handles Android multi-result edge case (`[wifi, none]` reports online, not offline).
 - **Offline-Aware Repositories** — Decorator pattern: `OfflineWorkoutRepository`, `OfflineNutritionRepository`, `OfflineWeightRepository` wrap existing online repos. When online, delegate to API. When offline, save to Drift + sync queue. UUID-based `clientId` idempotency prevents duplicate submissions. Storage-full `SqliteException` caught with user-friendly messages.
@@ -1324,6 +1488,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`SyncOperationType` and `SyncItemStatus` enums** — Centralized enums with `fromString()` parsers replacing magic strings.
 
 ### Changed
+
 - **`mobile/lib/main.dart`** — Initializes `AppDatabase` and `ConnectivityService` before `runApp`. Overrides providers in `ProviderScope`.
 - **`active_workout_screen.dart`** — `submitPostWorkoutSurvey` and `submitReadinessSurvey` now use `OfflineWorkoutRepository`. Offline save snackbar with cloud_off icon. `late final _workoutClientId` for idempotency.
 - **`workout_log_screen.dart`** — Added `OfflineBanner` at top. Shows "Showing cached program" banner when programs from cache.
@@ -1337,6 +1502,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`pubspec.yaml`** — Added `connectivity_plus: ^6.0.0`, `uuid: ^4.0.0`, `sqlite3: ^2.9.0`.
 
 ### Security
+
 - No secrets, API keys, or credentials in any committed file (regex scan verified)
 - All SQLite queries use Drift parameterized builder (no raw SQL, no injection vectors)
 - userId filtering in every DAO query prevents cross-user data access
@@ -1348,6 +1514,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Corrupted JSON in cache/queue handled gracefully (no crashes)
 
 ### Fixed
+
 - **Infinite retry loop** — `retryItem()` was used for both manual and automatic retries, resetting `retryCount` to 0 each time. Added `requeueForRetry()` for automatic retries that preserves retryCount. Manual retries (`retryItem`) correctly reset to 0 for a fresh set of attempts.
 - **Connectivity false-negative on Android** — `_mapResults()` now only reports offline when `ConnectivityResult.none` is the sole result, handling the `[wifi, none]` edge case documented in `connectivity_plus`.
 - **Weight check-in double-submit** — Added local `_isSaving` flag with proper setState management. Button disabled during async save.
@@ -1359,6 +1526,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Corrupted JSON crashes app** — `_getProgramsFromCache()` catches `FormatException`, deletes corrupt cache, returns graceful error.
 
 ### Quality
+
 - Code review: 7.5/10 APPROVE (2 rounds — 4 critical + 9 major all fixed)
 - QA: 33/42 AC pass, MEDIUM-HIGH confidence, 1 critical bug found and fixed
 - Security audit: 9/10 PASS (1 medium fixed, 0 critical/high)
@@ -1367,6 +1535,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Final verdict: 8/10 SHIP, HIGH confidence
 
 ### Deferred
+
 - AC-12: Merge local pending workouts into Home "Recent Workouts" list
 - AC-16: Merge local pending nutrition into macro totals
 - AC-18: Merge local pending weight check-ins into weight trends
@@ -1379,6 +1548,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Ambassador Enhancements (Phase 5)
 
 ### Added
+
 - **Monthly Earnings Chart** — fl_chart BarChart on ambassador dashboard showing last 6 months of commission earnings. Skeleton loading state, empty state for zero data, accessibility semantics on chart elements.
 - **Native Share Sheet** — share_plus package integration for native iOS/Android share dialog. Automatic fallback to clipboard on unsupported platforms (emulators, web). Broad exception catch handles MissingPluginException.
 - **Commission Approval/Payment Workflow** — Full admin workflow for commission lifecycle (PENDING → APPROVED → PAID). Individual and bulk operations (up to 200 per request). `CommissionService` with atomic transactions, `select_for_update` concurrency control, frozen-dataclass results following `ReferralService` pattern. Admin mobile UI with confirmation dialogs, per-commission loading indicators (`Set<int>`), and "Pay All" bulk button.
@@ -1388,6 +1558,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **3 extracted sub-widgets** — `AmbassadorProfileCard` (167 lines), `AmbassadorReferralsList` (117 lines), `AmbassadorCommissionsList` (261 lines) decomposed from 900-line monolithic screen.
 
 ### Changed
+
 - `referral_code` max_length widened from 8 to 20 characters (migration 0003, `AlterField` only, fully reversible)
 - Commission service logic extracted from views into dedicated `CommissionService` following `ReferralService` pattern
 - `AdminAmbassadorDetailView.get()` reuses paginator's cached count instead of issuing redundant SQL COUNT queries
@@ -1398,6 +1569,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Long referral codes wrapped in `FittedBox(fit: BoxFit.scaleDown)` to prevent overflow
 
 ### Security
+
 - State transition guards on `AmbassadorCommission.approve()` and `mark_paid()` — `ValueError` for invalid state transitions
 - Bulk operations capped at 200 IDs with automatic deduplication via `validate_commission_ids`
 - Django password validation on admin-created ambassador accounts
@@ -1405,6 +1577,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - No secrets, API keys, or credentials in any committed file
 
 ### Quality
+
 - Code review: 8/10 APPROVE (2 rounds — all issues fixed)
 - QA: 34/34 AC pass, HIGH confidence, 0 bugs
 - Security audit: 9/10 PASS (3 fixes applied)
@@ -1417,6 +1590,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Admin Dashboard (Completes Web Dashboard Phase 4)
 
 ### Added
+
 - **Admin Dashboard Overview** — `/admin/dashboard` with stat cards (MRR, trainers, trainees), revenue cards (past due, upcoming payments), tier breakdown, and past due alerts with "View All" link.
 - **Trainer Management** — `/admin/trainers` with searchable/filterable list, detail dialog with subscription info, activate/suspend toggle, and impersonation flow (stores admin tokens in sessionStorage).
 - **Subscription Management** — `/admin/subscriptions` with multi-filter list (status, tier, past due, upcoming). Detail dialog with 4 action forms: change tier, change status, record payment, admin notes. Payment History and Change History tabs.
@@ -1428,6 +1602,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`format-utils.ts`** — Shared `formatCurrency()` with cached `Intl.NumberFormat`, `formatDiscount()` for coupon display.
 
 ### Changed
+
 - **`auth-provider.tsx`** — Extended to accept ADMIN role. Sets role cookie after login for middleware routing.
 - **`middleware.ts`** — Added admin route protection: checks role cookie, blocks non-admin from `/admin/*` routes.
 - **`token-manager.ts`** — Added `setRoleCookie()`, optional `role` parameter on `setTokens()`, cleanup in `clearTokens()`.
@@ -1435,12 +1610,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`impersonation-banner.tsx`** — Restores ADMIN role cookie on end-impersonation, sets TRAINER role on start.
 
 ### Security
+
 - Three-layer admin auth: Edge middleware (role cookie) → Layout component (server user check) → Backend API (`IsAdminUser`)
 - Role cookie is client-writable (documented limitation) — backend authorization is the true security boundary
 - Impersonation tokens scoped to sessionStorage (tab isolation), hard page reload on end clears React Query cache
 - No secrets, XSS vectors, or IDOR vulnerabilities found
 
 ### Quality
+
 - Code review: 8/10 APPROVE (2 rounds — 3 critical + 8 major all fixed)
 - QA: 46/49 AC pass, MEDIUM confidence (3 design deviations: dialogs vs dedicated pages)
 - UX audit: 16 usability + 6 accessibility fixes
@@ -1454,6 +1631,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Web Dashboard Phase 4 (Trainer Program Builder)
 
 ### Added
+
 - **Program List Page** — `/programs` route with DataTable showing program templates (name, difficulty badge, goal, duration, times used, created date). Search with `useDeferredValue`, pagination, empty state with "Create Program" CTA. Three-dot action menu with Edit (owner only), Assign to Trainee, Delete (owner only).
 - **Program Builder** — Two-card layout (metadata + schedule). Name (100 chars) and description (500 chars) with live character counters and amber warning at 90%. Duration (1-52 weeks), difficulty, and goal selects with lowercase enum values matching Django TextChoices. Week tabs with horizontal scroll. 7 days per week (Mon-Sun), rest day toggle with exercise loss confirmation. Exercise picker dialog with multi-add, search, muscle group filter, truncation warning ("Showing X of Y"). Exercise rows with sets (1-20), reps (1-100 or string ranges), weight (0-9999), unit (lbs/kg), rest (0-600s). Up/down reorder. Max 50 exercises per day. Copy Week to All feature. Ctrl/Cmd+S keyboard shortcut.
 - **Assignment Flow** — Dialog with trainee dropdown (up to 200 via `useAllTrainees`), date picker with local timezone default. Empty trainee state with "Send Invitation" CTA.
@@ -1464,6 +1642,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`reconcileSchedule()`** — Syncs schedule weeks with duration when trainer changes week count. Pads new weeks with default 7-day structure, trims excess weeks with confirmation.
 
 ### Changed
+
 - **`nav-links.tsx`** — Added Programs nav item with `Dumbbell` icon between Trainees and Invitations.
 - **`constants.ts`** — Added `PROGRAM_TEMPLATES`, `programTemplateDetail(id)`, `programTemplateAssign(id)`, `EXERCISES` API URL constants.
 - **`use-trainees.ts`** — `useAllTrainees()` hook moved here from `use-programs.ts` (architecture fix).
@@ -1471,6 +1650,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Backend: `ProgramTemplateSerializer`** — `is_public` and `image_url` added to `read_only_fields` (security fix).
 
 ### Accessibility
+
 - All form inputs have visible labels, `aria-label`, and proper `htmlFor`/`id` associations
 - `role="group"` with descriptive `aria-label` on exercise rows for screen reader grouping
 - `aria-invalid` on whitespace-only program names with `role="alert"` error message
@@ -1480,6 +1660,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Week tabs have `aria-label="Week N of M"`
 
 ### UX
+
 - Dirty state tracking: `hasMountedRef` skips initial mount (no false "unsaved changes" warning), `beforeunload` event only when dirty, cancel button confirms when dirty
 - Double-click prevention: `savingRef` guard + `<fieldset disabled={isSaving}>` disables entire form during save
 - Data loss prevention: Confirmation when reducing duration (removes populated weeks), confirmation when toggling rest day with exercises
@@ -1490,6 +1671,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - "Done (N added)" button text in exercise picker footer
 
 ### Quality
+
 - Code review: 8/10 APPROVE (2 rounds — 4 critical + 8 major issues all fixed in round 1)
 - QA: 27/27 AC pass, HIGH confidence (3 minor input clamping bugs fixed)
 - UX audit: 9/10 (19 usability + 10 accessibility fixes)
@@ -1503,6 +1685,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Web Dashboard Phase 3 (Trainer Analytics Page)
 
 ### Added
+
 - **Trainer Analytics Page** — New `/analytics` route with two independent sections: Adherence and Progress. Nav link added between Invitations and Notifications.
 - **Adherence Section** — Three `StatCard` components (Food Logged, Workouts Logged, Protein Goal Hit) with color-coded values: green (≥80%), amber (50-79%), red (<50%). Text descriptions ("Above target", "Below target", "Needs attention") for WCAG 1.4.1 color-only compliance.
 - **Adherence Bar Chart** — Horizontal recharts `BarChart` with per-trainee adherence rates sorted descending. Theme-aware colors via CSS custom properties (`--chart-2`, `--chart-4`, `--destructive`). Click-through navigation to trainee detail page. Custom YAxis tick with SVG `<title>` for truncated name tooltips.
@@ -1513,11 +1696,13 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`StatCard` `valueClassName` prop** — Extended shared component with optional `valueClassName` for colored analytics values. Backward-compatible.
 
 ### Changed
+
 - **`nav-links.tsx`** — Added Analytics nav item with `BarChart3` icon at index 3 (between Invitations and Notifications).
 - **`constants.ts`** — Added `ANALYTICS_ADHERENCE` and `ANALYTICS_PROGRESS` API URL constants.
 - **`progress-charts.tsx`** — Refactored to import `tooltipContentStyle` and `CHART_COLORS` from shared `@/lib/chart-utils` instead of local definitions.
 
 ### Accessibility
+
 - Screen-reader accessible chart: `role="img"` with descriptive `aria-label` + sr-only `<ul>` listing all trainee adherence data
 - `aria-busy` attribute on sections during background refetch with sr-only live region announcements
 - Skeleton loading states with `role="status"` and `aria-label`
@@ -1525,6 +1710,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - `getIndicatorDescription()` text labels complement color-only stat card indicators (WCAG 1.4.1)
 
 ### Quality
+
 - Code review: 9/10 APPROVE (2 rounds — 2 critical + 7 major issues all fixed in round 1)
 - QA: 21/22 AC pass, HIGH confidence (1 deliberate copy improvement)
 - UX audit: 9/10 (shared StatCard, WCAG fixes, responsive header, disabled period selector, sr-only live regions)
@@ -1538,6 +1724,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Web Dashboard Phase 2 (Settings, Charts, Notifications, Invitations)
 
 ### Added
+
 - **Settings Page** — Three sections: Profile (name, business name, image upload/remove), Appearance (Light/Dark/System theme toggle), Security (password change with inline Djoser error parsing). Loading skeleton, error state with retry.
 - **Progress Charts** — Trainee detail Progress tab now renders three recharts visualizations: weight trend (LineChart), workout volume (BarChart), adherence (stacked BarChart). Theme-aware colors via CSS custom properties. Per-chart empty states with contextual icons. Safe date parsing via `parseISO`/`isValid`.
 - **Notification Click-Through** — Notifications with `trainee_id` in data now navigate to `/trainees/{id}`. ChevronRight visual affordance for navigable notifications. Popover auto-closes on navigation. Non-navigable notifications show "Marked as read" toast.
@@ -1545,10 +1732,12 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Auth `refreshUser()`** — `AuthProvider` now exposes `refreshUser()` method. Profile/image mutations call it so the header nav updates immediately without full page reload.
 
 ### Changed
+
 - **`api-client.ts`** — Added `postFormData()` method; `buildHeaders()` skips `Content-Type: application/json` for FormData bodies (lets browser set `multipart/form-data` boundary).
 - **`notification-bell.tsx`** — Controlled Popover state for programmatic close. Conditionally renders `NotificationPopover` only when open (prevents unnecessary API calls).
 
 ### Accessibility
+
 - Theme selector implements proper ARIA radiogroup keyboard navigation (arrow keys, roving tabIndex, focus management)
 - Password fields have `aria-describedby` and `aria-invalid` attributes linking to error messages
 - Email field has `aria-describedby="email-hint"` for the read-only explanation
@@ -1556,6 +1745,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Image upload spinner has `aria-hidden="true"`
 
 ### Quality
+
 - Code review: 8/10 APPROVE (2 rounds — all critical/major issues fixed)
 - QA: 27/28 AC pass, HIGH confidence (1 partial is pre-existing backend gap)
 - UX audit: 9/10 (10 usability + 6 accessibility fixes implemented)
@@ -1568,6 +1758,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-15] — Web Trainer Dashboard (Next.js Foundation)
 
 ### Added
+
 - **Web Trainer Dashboard** — Complete Next.js 15 + React 19 web application for trainers at `http://localhost:3000`. ~100 frontend files using shadcn/ui component library, TanStack React Query for data fetching, and Zod v4 for form validation.
 - **JWT Auth System** — Login with email/password, automatic token refresh with mutex (prevents thundering herd), session cookie for Next.js middleware route protection, TRAINER role gating (non-trainer users rejected immediately), 10-second auth timeout via `Promise.race`.
 - **Dashboard Page** — 4 stats cards (Total Trainees, Active Today, On Track, Pending Onboarding) in responsive grid, recent trainees table (last 10), inactive trainees alert list. Skeleton loading, error with retry, empty state with "Send Invitation" CTA.
@@ -1584,6 +1775,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **`SearchFilter`** added to `TraineeListView` backend — enables `?search=` query parameter for trainee search by email, first_name, last_name.
 
 ### Changed (Backend Performance)
+
 - **6 N+1 query patterns eliminated:**
   - `TraineeListView.get_queryset()` — Added `.select_related('profile').prefetch_related('daily_logs', 'programs')`
   - `TraineeDetailView.get_queryset()` — Added `.select_related('profile', 'nutrition_goal').prefetch_related('programs', 'activity_summaries')`
@@ -1597,6 +1789,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **TypeScript/API alignment** — `DashboardOverview.today` field added to match backend response
 
 ### Security
+
 - No secrets in source code (full grep scan, `.env.local` gitignored)
 - Three-layer auth: Next.js middleware + dashboard layout guard + AuthProvider role validation
 - No XSS vectors (zero `dangerouslySetInnerHTML`, `eval`, `innerHTML` usage — React auto-escaping)
@@ -1609,6 +1802,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - CORS: development allows all origins; production restricts to env-configured whitelist
 
 ### Quality
+
 - Code review: 8/10 — APPROVE (Round 2, all 17 Round 1 issues verified fixed, 2 new major fixed post-QA)
 - QA: 34/35 ACs pass initially (AC-12 fixed by UX audit), 7/7 edge cases pass — HIGH confidence
 - UX audit: 8/10 — 8 usability + 16 accessibility issues fixed across 15+ files
@@ -1622,6 +1816,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — Trainee Workout History + Home Screen Recent Workouts
 
 ### Added
+
 - **Workout History API** — `GET /api/workouts/daily-logs/workout-history/` paginated endpoint returning computed summary fields (workout_name, exercise_count, total_sets, total_volume_lbs, duration_display) from workout_data JSON. `GET /api/workouts/daily-logs/{id}/workout-detail/` for full workout data with restricted serializer.
 - **`WorkoutHistorySummarySerializer`** — Computes workout summaries from DailyLog.workout_data JSON blob. Handles both `exercises` and `sessions` key formats.
 - **`WorkoutDetailSerializer`** — Restricted serializer exposing only id, date, workout_data, notes (excludes trainee email, nutrition_data).
@@ -1637,6 +1832,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **48 new backend tests** — Filtering (7), serialization (15), pagination (9), security (5), detail (8), edge cases (6). Tests verify auth, IDOR prevention, data leakage, and malformed JSON handling.
 
 ### Changed
+
 - **`DailyLogService`** — Extracted `get_workout_history_queryset()` from view to service layer per project architecture conventions.
 - **`WorkoutHistoryPagination`** — Custom pagination class with `page_size=20`, `max_page_size=50`.
 - **Home screen** — Added `recentWorkoutsError` field to `HomeState` for distinguishing API failure from empty data. Section header "See All" uses `InkWell` with Material ripple feedback instead of `GestureDetector`.
@@ -1644,6 +1840,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Test infrastructure** — Converted `workouts/tests.py` into package with `__init__.py`, `test_surveys.py`, `test_workout_history.py`.
 
 ### Security
+
 - Both endpoints require `IsTrainee` (authenticated + trainee role)
 - Row-level security via queryset filter `trainee=user` (IDOR returns 404, not 403)
 - `WorkoutHistorySummarySerializer` excludes trainee, email, nutrition_data
@@ -1654,6 +1851,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - 30 security-relevant tests verify auth, authz, IDOR, data leakage
 
 ### Quality
+
 - Code review: 8/10 — APPROVE (Round 3, all 2 Critical + 5 Major from Round 2 fixed)
 - QA: 48/48 tests pass, 1 bug found and fixed (PostgreSQL NULL semantics) — HIGH confidence
 - UX audit: 8/10 — 9 usability + 7 accessibility issues fixed
@@ -1667,6 +1865,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — AI Food Parsing + Password Change + Invitation Emails
 
 ### Added
+
 - **AI Food Parsing Activation** — Removed "AI parsing coming soon" banner from AI Entry tab. Added meal selector (1-4) with InkWell touch feedback and Semantics labels. Added `_confirmAiEntry()` with empty meals validation, nutrition refresh after save, icon-enhanced success/error snackbars with retry action. Changed button label from "Log Food" to "Parse with AI" for clarity. Added helper text and concrete input examples.
 - **Password Change Screen** — New `ChangePasswordScreen` in Settings → Security. Calls Djoser's `POST /api/auth/users/set_password/` via new `AuthRepository.changePassword()` method. Inline error under "Current Password" field for wrong password. Green success snackbar with icon + auto-pop. Network/server error handling with descriptive messages.
 - **Password Strength Indicator** — Color-coded progress bar (Weak/Fair/Good/Strong) on new password field with helper text.
@@ -1676,12 +1875,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Accessibility Improvements** — Semantics live regions on error/clarification/preview containers. Autofill hints on password fields (`'password'`, `'newPassword'`). TextInputAction flow (next → next → done). Tooltips on show/hide password buttons. 48dp minimum touch targets on meal selector. Theme-aware colors for light/dark mode.
 
 ### Changed
+
 - **Meal prefix on AI-parsed food** — `LoggingNotifier.confirmAndSave()` accepts optional `mealPrefix` parameter. AI-parsed foods saved with "Meal N - " prefix matching manual entry flow.
 - **Password fields** — Added focus borders, error borders, `enableSuggestions: false`, `autocorrect: false` for secure input. Outlined visibility icons.
 - **Login history section** — Added "PREVIEW ONLY" badge to clarify mock data.
 - **Invitation resend query** — Added `select_related('trainer')` to prevent N+1 query.
 
 ### Security
+
 - All user input HTML-escaped in invitation email templates (XSS prevention)
 - URL scheme auto-detected based on domain (prevents broken links on localhost)
 - Invite code URL-encoded for defense-in-depth
@@ -1691,6 +1892,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Password change uses Djoser's built-in endpoint with Django validators
 
 ### Quality
+
 - Code review: 9/10 — APPROVE (Round 2, 2 critical + 3 major from Round 1 all fixed)
 - QA: 17/17 ACs PASS, 12/12 edge cases, 0 bugs — HIGH confidence
 - UX audit: 8.5/10 — 23 usability + 8 accessibility issues fixed
@@ -1704,6 +1906,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — Trainee Home Experience + Password Reset
 
 ### Added
+
 - **Password Reset Flow** — Full forgot/reset password screens using Djoser's built-in email endpoints. ForgotPasswordScreen with email input, loading state, success view with spam folder hint. ResetPasswordScreen with uid/token route params, password strength indicator, validation. Email backend configured (console for dev, SMTP for prod via env vars).
 - **Weekly Workout Progress** — New `GET /api/workouts/daily-logs/weekly-progress/` endpoint returning `{total_days, completed_days, percentage, has_program}`. Home screen shows animated progress bar (hidden when no program). Data fetched in parallel with other dashboard data.
 - **Food Entry Edit/Delete** — New `PUT /api/workouts/daily-logs/<id>/edit-meal-entry/` and `POST /api/workouts/daily-logs/<id>/delete-meal-entry/` endpoints with input key whitelisting, numeric validation, and automatic total recalculation. Mobile EditFoodEntrySheet bottom sheet with pre-filled form, save/delete buttons, confirmation dialog.
@@ -1711,6 +1914,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Date filtering on DailyLog list** — `GET /api/workouts/daily-logs/?date=YYYY-MM-DD` now filters by date (critical fix: was silently ignoring date param).
 
 ### Changed
+
 - **Login screen** — "Forgot password?" button now navigates to ForgotPasswordScreen (was showing "Coming soon!" snackbar).
 - **Home screen notification button** — Shows info dialog ("Notifications coming soon") instead of being a dead button.
 - **ProgramViewSet logging** — Removed verbose email logging, changed to debug level (architecture audit improvement).
@@ -1718,6 +1922,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Weekly progress domain** — Moved `getWeeklyProgress()` from NutritionRepository to WorkoutRepository (correct domain boundary).
 
 ### Security
+
 - Input key whitelisting on meal entry edits (prevents arbitrary JSON injection)
 - DELETE-with-body changed to POST for proxy compatibility
 - No email enumeration in password reset (204 regardless of email existence)
@@ -1729,6 +1934,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — Trainer Notifications Dashboard + Ambassador Commission Webhook
 
 ### Added
+
 - **Trainer Notification API** — 5 endpoints: `GET /api/trainer/notifications/` (paginated, `?is_read` filter), `GET /api/trainer/notifications/unread-count/`, `POST /api/trainer/notifications/<id>/read/`, `POST /api/trainer/notifications/mark-all-read/`, `DELETE /api/trainer/notifications/<id>/`. All protected by `[IsAuthenticated, IsTrainer]` with row-level security.
 - **Ambassador Commission Webhook** — `_handle_invoice_paid()` creates commissions from actual Stripe invoice `amount_paid` (not cached subscription price). `_handle_checkout_completed()` handles first platform subscription payment. `_handle_subscription_deleted()` triggers `ReferralService.handle_trainer_churn()`. `_create_ambassador_commission()` helper looks up referral, validates active ambassador, extracts billing period.
 - **Notification Bell Badge** — `NotificationBadge` widget on trainer dashboard with unread count (shows "99+" for >99), theme-colored, screen reader accessible.
@@ -1740,6 +1946,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Database migration: `trainer/migrations/0005_*` (index optimization).
 
 ### Changed
+
 - **Index optimization** (`trainer/models.py`) — Removed standalone `notification_type` index (never queried alone). Changed `(trainer, created_at)` to `(trainer, -created_at)` descending to match query pattern.
 - **Webhook symmetry** (`payment_views.py`) — Extended `_handle_invoice_payment_failed()` and `_handle_subscription_updated()` to handle both `TraineeSubscription` and `Subscription` models, matching dual-model pattern.
 - **Skeleton loader** — Replaced static containers with shared animated `LoadingShimmer` widget.
@@ -1747,6 +1954,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Safe JSON parsing** (`trainer_notification_model.dart`) — Uses `is Map<String, dynamic>` type check instead of unsafe `as` cast for `data` field.
 
 ### Security
+
 - No secrets in committed code (grepped all new/changed files)
 - All notification endpoints authenticated + authorized (IsTrainer)
 - Row-level security: every query filters `trainer=request.user`
@@ -1755,6 +1963,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Commission creation uses `select_for_update` + `UniqueConstraint` for race condition protection
 
 ### Quality
+
 - Code review: 8/10 — APPROVE (Round 2, all Round 1 issues fixed)
 - QA: 90/90 tests pass, 0 bugs — HIGH confidence
 - UX audit: 8/10 — 15 improvements (shimmer, undo, accessibility, conditional buttons)
@@ -1768,6 +1977,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — Ambassador User Type & Referral Revenue Sharing
 
 ### Added
+
 - **AMBASSADOR user role** — New `User.Role.AMBASSADOR` with `is_ambassador()` helper method, `IsAmbassador` and `IsAmbassadorOrAdmin` permission classes.
 - **AmbassadorProfile model** — OneToOne to User with `referral_code` (unique 8-char alphanumeric, auto-generated with collision retry), `commission_rate` (DecimalField, default 0.20), `is_active`, cached `total_referrals` and `total_earnings`.
 - **AmbassadorReferral model** — Tracks ambassador-to-trainer referrals with 3-state lifecycle: PENDING (registered) -> ACTIVE (first payment) -> CHURNED (cancelled), with reactivation support.
@@ -1789,12 +1999,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - New file: `backend/core/throttles.py` with `RegistrationThrottle` class.
 
 ### Changed
+
 - `users/serializers.py` — Role choices restricted to `[(TRAINEE, 'Trainee'), (TRAINER, 'Trainer')]`, single `create_user()` call instead of two DB writes, referral code processing integrated.
 - `config/urls.py` — Ambassador admin URLs mounted at `/api/admin/ambassadors/` (split from ambassador app URLs).
 - `config/settings.py` — Added `ambassador` to `INSTALLED_APPS`, throttle classes, conditional CORS.
 - `core/permissions.py` — Added `IsAmbassador` and `IsAmbassadorOrAdmin` permission classes.
 
 ### Security
+
 - Registration role escalation prevention (ADMIN/AMBASSADOR roles blocked from self-registration)
 - Race condition protection: `select_for_update()` on commission creation, `IntegrityError` retry on code generation
 - DB-level `UniqueConstraint` on (referral, period_start, period_end) prevents duplicate commissions
@@ -1802,6 +2014,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - No IDOR: all ambassador queries filter by `request.user`
 
 ### Quality
+
 - Code review: 3 rounds. Round 1: BLOCK (5/10) -> 12 fixes. Round 2: REQUEST CHANGES (7.5/10) -> 3 fixes. Round 3: APPROVE.
 - QA: 25/25 acceptance criteria PASS (4 URL routing issues fixed in QA round)
 - UX audit: 8/10 — 12 usability + 10 accessibility issues fixed
@@ -1815,6 +2028,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — White-Label Branding Infrastructure
 
 ### Added
+
 - **TrainerBranding model** — OneToOne to User with `app_name`, `primary_color`, `secondary_color`, `logo` (ImageField). Auto-creates with defaults via `get_or_create_for_trainer()` classmethod.
 - **branding_service.py** — Service layer for image validation and logo operations. `validate_logo_image()` performs 5-layer defense-in-depth validation (content-type, file size, Pillow format, dimensions, filename). `upload_trainer_logo()` and `remove_trainer_logo()` handle business logic.
 - **Trainer API endpoints** — `GET/PUT /api/trainer/branding/` for config management, `POST/DELETE /api/trainer/branding/logo/` for logo upload/removal. IsTrainer permission, row-level security via OneToOne.
@@ -1832,12 +2046,14 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **Dead settings buttons fixed** — 5 empty `onTap` handlers in settings_screen.dart now show "Coming soon!" SnackBars.
 
 ### Changed
+
 - `splash_screen.dart` — Uses `ref.watch(themeProvider)` for reactive branding updates during animation. Added `loadingBuilder` for logo network images.
 - `login_screen.dart` — Fetches branding after trainee login via shared `syncTraineeBranding()`.
 - `theme_provider.dart` — Extended `AppThemeState` with `trainerBranding`, `effectivePrimary`, `effectivePrimaryLight`. `TrainerBrandingTheme` uses hex-string format for consistent caching.
 - `branding_repository.dart` — All methods return typed `BrandingResult` class instead of `Map<String, dynamic>`. Specific exception catches (`DioException`, `FormatException`).
 
 ### Security
+
 - UUID-based filenames for logo uploads (prevents path traversal)
 - HTML tag stripping in `validate_app_name()` (prevents stored XSS)
 - File size bypass fix (`is None or` instead of `is not None and`)
@@ -1845,6 +2061,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 - 5-layer image validation (content-type + Pillow format + size + dimensions + filename)
 
 ### Quality
+
 - Code review: 8/10 — APPROVE (Round 2, all 17 Round 1 issues fixed)
 - QA: 84/84 tests pass, 0 bugs — HIGH confidence
 - UX audit: 8/10 — 9 issues fixed
@@ -1858,6 +2075,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-14] — Trainer-Selectable Workout Layouts
 
 ### Added
+
 - **WorkoutLayoutConfig model** — OneToOne per trainee with layout_type (classic/card/minimal), config_options JSONField, and configured_by FK for audit trail.
 - **Trainer API endpoints** — `GET/PUT /api/trainer/trainees/<id>/layout-config/` with auto-create default and row-level security (parent_trainer check).
 - **Trainee API endpoint** — `GET /api/workouts/my-layout/` with IsTrainee permission and graceful fallback to 'classic' when no config exists.
@@ -1869,10 +2087,12 @@ All notable changes to the FitnessAI platform are documented in this file.
 - Database migration: `trainer/migrations/0003_add_workout_layout_config.py`.
 
 ### Changed
+
 - `active_workout_screen.dart` — Added `_layoutType` state variable and `_buildExerciseContent` switch statement to render Classic/Card/Minimal based on API config.
 - Card layout uses existing `_ExerciseCard` PageView (no new widget needed).
 
 ### Quality
+
 - Code review: 9/10 backend, 8.5/10 mobile — APPROVE (Round 2)
 - QA: 13/13 acceptance criteria PASS, Confidence HIGH
 - Security audit: 9/10 — PASS
@@ -1886,6 +2106,7 @@ All notable changes to the FitnessAI platform are documented in this file.
 ## [2026-02-13] — Fix All 5 Trainee-Side Workout Bugs
 
 ### Fixed
+
 - **CRITICAL — Workout data now persists to database.** `PostWorkoutSurveyView` writes to `DailyLog.workout_data` via `_save_workout_to_daily_log()` with `transaction.atomic()` and `get_or_create`. Multiple workouts per day merge into a `sessions` list while preserving a flat `exercises` list for backward compatibility.
 - **HIGH — Trainer notifications now fire correctly.** Changed `getattr(user, 'trainer', None)` to `user.parent_trainer` in both `ReadinessSurveyView` and `PostWorkoutSurveyView`. Created missing `TrainerNotification` database migration.
 - **HIGH — Real program schedules shown instead of sample data.** Removed `_generateSampleWeeks()` and `_getSampleExercises()` fallbacks from workout provider. Proper empty states for: no programs assigned, empty schedule, no workouts this week.
@@ -1893,19 +2114,23 @@ All notable changes to the FitnessAI platform are documented in this file.
 - **MEDIUM — Program switcher implemented.** Bottom sheet with full program list, active program indicator, snackbar confirmation, and `WorkoutNotifier.switchProgram()` for state update.
 
 ### Added
+
 - Comprehensive Django test suite: 10 tests covering workout persistence, merge logic, trainer notifications, edge cases, and auth.
 - Error state UI with retry button on workout log screen.
 - Accessibility tooltips on icon buttons in workout log header.
 - `TrainerNotification` database migration (`trainer/migrations/0002_add_trainer_notification.py`).
 
 ### Removed
+
 - ~130 lines of hardcoded sample workout data (`_generateSampleWeeks`, `_getSampleExercises`).
 - 2 stale TODO comments in `active_workout_screen.dart` that falsely suggested code was unimplemented.
 
 ### Changed
+
 - `DailyLog.workout_data` JSON schema extended with `sessions` array to support multiple workouts per day (backward compatible).
 
 ### Quality
+
 - Security audit: 9/10 — PASS
 - Architecture review: 8/10 — APPROVE
 - UX audit: 7/10 — Acceptable
