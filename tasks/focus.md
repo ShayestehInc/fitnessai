@@ -1,43 +1,40 @@
-# Focus: Trainer Packet v6.5 — Step 5: Training Generator Pipeline + Swap System
+# Focus: Trainer Packet v6.5 — Step 6: Modality Library with Counting and Guardrails
 
 ## Priority
-Critical — Step 5 of the v6.5 build order. Replaces flat JSON Program.schedule with a relational Plan→Week→Session→Slot hierarchy. Adds a 7-step deterministic generator pipeline and 3-tab swap system.
+
+Critical — Step 6 of the v6.5 build order. Foundation for progression engine and session runner.
 
 ## What to Build
 
-### 1. New Relational Models
-- TrainingPlan: top-level container replacing Program.schedule's flat JSON
-- PlanWeek: week within a plan (week_number, is_deload, intensity/volume modifiers)
-- PlanSession: session within a week (day_of_week, label like "Upper A")
-- PlanSlot: individual exercise slot within a session (order, exercise FK, set/rep prescription, rest, role)
-- SplitTemplate: reusable split definitions (Full Body, Upper/Lower, PPL, Bro Split, etc.)
+### 1. SetStructureModality Model
 
-### 2. 7-Step Deterministic Generator Pipeline (A1-A7)
-- A1: SELECT_PROGRAM_LENGTH → pick weeks based on goal/experience
-- A2: SELECT_SPLIT_TEMPLATE → pick split based on frequency/goal
-- A3: BUILD_WEEKLY_SLOT_SKELETON → create empty sessions and slots per split
-- A4: ASSIGN_SLOT_ROLE → tag each slot (primary_compound, secondary_compound, accessory, isolation)
-- A5: SET_SET_STRUCTURE → assign sets/reps/rest per role and goal
-- A6: SELECT_EXERCISE → fill slots with exercises from pool (respecting muscle/pattern/equipment)
-- A7: BUILD_SWAP_RECOMMENDATIONS → pre-compute 3-tab swap candidates per slot
+- 15 supported modalities: Straight Sets, Down Sets, Controlled Eccentrics, Giant Sets, Myo-reps, Drop Sets, Supersets (Agonist-Antagonist, Pre-Exhaust, Compound), Occlusion, Circuit, Cluster Sets, Rest-Pause, Static Sets, Tri-sets, Pyramid, Athletic Guardrail
+- Each modality has: counting rules (volume multiplier), guardrails (what it can/can't be applied to), fatigue modifier
 
-Each step logs a DecisionLog entry with full context.
+### 2. Counting Rules
 
-### 3. Swap System Service
-- 3 tabs: Same Muscle, Same Pattern, Explore All
-- Uses Exercise.swap_seed_ids for pre-computed recommendations
-- Falls back to dynamic query when seeds unavailable
-- Swap execution creates DecisionLog + UndoSnapshot
+- Volume multipliers per modality (e.g., 1.0x straight sets, 0.67x drop sets/myo-reps/occlusion, 2.0x pre-exhaust supersets)
+- Integration with workload engine for accurate volume tracking
 
-### 4. API Endpoints
-- CRUD for TrainingPlan (with nested weeks/sessions/slots)
-- POST /generate/ — run the 7-step pipeline
-- GET /slots/{id}/swap-options/ — 3-tab swap candidates
-- POST /slots/{id}/swap/ — execute swap with DecisionLog
-- CRUD for SplitTemplate (trainer-facing)
+### 3. Guardrails
+
+- Athletic movements can't use drop sets/myo-reps
+- Heavy compounds can't use drop sets
+- Volume-unstable users can't use giant sets
+- Weekly hard-set ceiling 8-20 per muscle group
+
+### 4. PlanSlot Integration
+
+- Add set_structure_modality FK to PlanSlot
+- Add modality_details JSON for modality-specific parameters
+- Add modality_volume_contribution Decimal
+
+### 5. Generator Integration
+
+- Enhance A5 (SET_SET_STRUCTURE) to assign modalities based on goal/role/slot
 
 ## What NOT to Build
-- Set Structure Modalities (Step 6)
+
 - Progression engine integration (Step 7)
 - Session runner (Step 8)
-- AI-powered generation alternative (use deterministic only)
+- AI-powered modality selection

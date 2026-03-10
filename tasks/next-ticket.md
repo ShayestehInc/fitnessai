@@ -1,53 +1,74 @@
-# Feature: Training Generator Pipeline + Swap System
+# Feature: Modality Library with Counting Rules and Guardrails
 
 ## Priority
-Critical — Step 5 of v6.5 build order. Foundation for session runner, progression engine, and trainer copilot.
+
+Critical — Step 6 of v6.5 build order. Foundation for progression engine, session runner, and workload accuracy.
 
 ## User Story
-As a **trainer**, I want to generate structured training plans for my trainees using a deterministic pipeline so I can quickly create periodized programs with full auditability.
 
-As a **trainee**, I want to swap exercises in my plan with intelligent alternatives so I can adapt my training without losing programming intent.
+As a **trainer**, I want each exercise slot in a training plan to have a set structure modality (straight sets, drop sets, myo-reps, supersets, etc.) so that my trainees get properly structured sessions with accurate volume tracking.
+
+As a **trainee**, I want my plan to show exactly how each exercise should be performed (straight sets vs drop sets vs rest-pause, etc.) so I know the execution format, not just sets × reps.
 
 ## Acceptance Criteria
 
 ### Models
-- [ ] TrainingPlan model with trainee FK, name, goal, status (draft/active/completed/archived), created_by
-- [ ] PlanWeek model with plan FK, week_number, is_deload, intensity_modifier, volume_modifier
-- [ ] PlanSession model with week FK, day_of_week, label, order
-- [ ] PlanSlot model with session FK, exercise FK, order, slot_role, sets, reps_min, reps_max, rest_seconds, load_prescription_pct, notes, swap_options_cache
-- [ ] SplitTemplate model with name, days_per_week, session_definitions JSON, goal_type, is_system, created_by
+
+- [ ] SetStructureModality model with name, slug, description, volume_multiplier, use_when, avoid_when, is_system, created_by
+- [ ] ModalityGuardrail model with modality FK, rule_type (use/avoid), condition_field, condition_operator, condition_value, error_message, is_active
+- [ ] PlanSlot gets new fields: set_structure_modality FK (nullable), modality_details JSON, modality_volume_contribution Decimal
 - [ ] All models use UUID primary keys
-- [ ] Proper unique constraints and indexes
+- [ ] 8 system modalities seeded: Straight Sets, Down Sets, Controlled Eccentrics, Giant Sets, Myo-reps, Drop Sets, Supersets, Occlusion
 
-### Generator Pipeline
-- [ ] A1: SELECT_PROGRAM_LENGTH — returns weeks count based on goal/experience
-- [ ] A2: SELECT_SPLIT_TEMPLATE — picks split based on frequency/goal
-- [ ] A3: BUILD_WEEKLY_SLOT_SKELETON — creates PlanWeek/PlanSession/PlanSlot records
-- [ ] A4: ASSIGN_SLOT_ROLE — tags each slot (primary_compound, secondary_compound, accessory, isolation)
-- [ ] A5: SET_SET_STRUCTURE — assigns sets/reps/rest per role and goal
-- [ ] A6: SELECT_EXERCISE — fills slots from exercise pool (respecting muscle, pattern, equipment, variety)
-- [ ] A7: BUILD_SWAP_RECOMMENDATIONS — pre-computes swap candidates per slot
-- [ ] Each step creates a DecisionLog entry
-- [ ] Pipeline is transactional — failure at any step rolls back
-- [ ] Pipeline returns the complete TrainingPlan with nested structure
+### Counting Rules (from packet)
 
-### Swap System
-- [ ] Same Muscle tab: exercises sharing primary_muscle_group
-- [ ] Same Pattern tab: exercises sharing pattern_tags
-- [ ] Explore All tab: all exercises matching equipment constraints
-- [ ] Swap execution: updates PlanSlot.exercise, creates DecisionLog + UndoSnapshot
-- [ ] Swap preserves set/rep prescription (transfers to new exercise)
-- [ ] Pre-computed swap_seed_ids used when available, dynamic query as fallback
+- [ ] Straight Sets: 1.0x per working set
+- [ ] Down Sets: 1.0x per working set
+- [ ] Controlled Eccentrics: 1.0x per working set
+- [ ] Giant Sets: 0.67x per set for primary muscle
+- [ ] Myo-reps: 0.67x per mini-set (override to 1.0x if fatigue high)
+- [ ] Drop Sets: 0.67x per drop set
+- [ ] Supersets: pre-exhaust 2.0x (or 1.5x); non-overlapping 2.0x total (1.0 per muscle)
+- [ ] Occlusion: 0.67x per working set
+
+### Guardrails (from packet)
+
+- [ ] Athletic movements (has athletic_skill_tags) cannot use drop sets, myo-reps, rest-pause, or metabolite circuits
+- [ ] Heavy compounds in 5-10 rep range cannot use drop sets
+- [ ] Controlled eccentrics avoid 20+ rep hypertrophy sets
+- [ ] Occlusion avoid on compounds/core, max 1 mesocycle per muscle
+- [ ] If exercise is systemically fatiguing → ban drop sets + myo-reps (unless coach override)
+- [ ] If user doesn't have stable volume landmarks → ban giant sets
+- [ ] Guardrail violations return clear error messages, not silent failures
+- [ ] Trainer can override any guardrail with a DecisionLog entry
+
+### Generator Integration
+
+- [ ] A5 step enhanced: after setting sets/reps/rest, assign default modality based on goal + slot_role
+- [ ] Default modality assignment: compounds get Straight Sets, accessories get Straight Sets or Down Sets, isolation can get varied modalities based on goal
+- [ ] Modality assignment creates DecisionLog entry
+- [ ] modality_volume_contribution computed: sets × volume_multiplier
+
+### Modality Service
+
+- [ ] get_modality_recommendations(slot_role, goal, exercise) → ranked list of valid modalities
+- [ ] validate_modality_for_slot(modality, slot, exercise) → list of guardrail violations
+- [ ] apply_modality_to_slot(slot, modality, actor_id) → updated slot + DecisionLog
+- [ ] compute_volume_contribution(slot) → Decimal volume contribution
+- [ ] get_session_volume_summary(session_id) → per-muscle volume with modality multipliers
 
 ### API Endpoints
-- [ ] CRUD for TrainingPlan with nested reads
-- [ ] POST /api/workouts/training-plans/generate/ — run full pipeline
-- [ ] GET /api/workouts/plan-slots/{id}/swap-options/ — 3-tab swap candidates
-- [ ] POST /api/workouts/plan-slots/{id}/swap/ — execute swap
-- [ ] CRUD for SplitTemplate
+
+- [ ] GET /api/workouts/modalities/ — list all modalities (system + trainer-created)
+- [ ] POST /api/workouts/modalities/ — create custom modality (trainer only)
+- [ ] GET/PUT/DELETE /api/workouts/modalities/{id}/ — CRUD
+- [ ] GET /api/workouts/plan-slots/{id}/modality-recommendations/ — ranked valid modalities for slot
+- [ ] POST /api/workouts/plan-slots/{id}/set-modality/ — apply modality to slot with guardrail check
+- [ ] GET /api/workouts/plan-sessions/{id}/volume-summary/ — per-muscle volume with modality multipliers
 - [ ] Row-level security on all endpoints
 
 ### Conventions
+
 - [ ] All service methods return dataclasses, not dicts
 - [ ] Business logic in services/, not views
 - [ ] Type hints on all functions
@@ -55,29 +76,31 @@ As a **trainee**, I want to swap exercises in my plan with intelligent alternati
 - [ ] Proper prefetching on all querysets
 
 ## Edge Cases
-1. No exercises match slot criteria (muscle group + equipment) — widen search progressively: drop equipment, drop difficulty, use any exercise with matching primary_muscle_group
-2. Trainee has no exercise history — generate without variety constraints
-3. Split template requires 6 days but only 3 available — select template matching available days
-4. Swap to same exercise already in session — prevent duplicate in same session
-5. All swap candidates exhausted — show empty tab with explanation
-6. Deload week — reduce volume/intensity modifiers, skip heavy compounds
-7. Exercise has no pattern_tags — skip pattern-based swap tab, don't error
-8. Exercise has no swap_seed_ids — fall back to dynamic query
-9. Plan generation with zero exercises in database — return error before creating any records
-10. Concurrent swap on same slot — last write wins (no optimistic locking needed for v1)
+
+1. Slot has no modality assigned — default to Straight Sets (volume_multiplier=1.0)
+2. Trainer creates custom modality with multiplier > 2.0 — validate max 3.0x
+3. Guardrail violation on modality assignment — return all violations, don't apply
+4. Trainer overrides guardrail — create DecisionLog with override=True, apply modality
+5. Exercise has no athletic_skill_tags — skip athletic guardrail check
+6. Superset modality applied to slot — require paired_exercise_id in modality_details
+7. Myo-reps with high fatigue override — multiplier changes from 0.67 to 1.0
+8. Slot already has modality, re-assign — create UndoSnapshot before changing
+9. Volume summary with mixed modalities in session — aggregate correctly per muscle
+10. Deload week slots — force Straight Sets modality, ignore other assignments
 
 ## Technical Approach
-- Create models in `backend/workouts/models.py`
-- Create `backend/workouts/services/training_generator_service.py` — 7-step pipeline
-- Create `backend/workouts/services/swap_service.py` — swap computation + execution
+
+- Add models to `backend/workouts/models.py`
+- Create `backend/workouts/services/modality_service.py`
+- Enhance `backend/workouts/services/training_generator_service.py` A5 step
 - Add serializers to `backend/workouts/serializers.py`
 - Add views to `backend/workouts/views.py`
 - Register routes in `backend/workouts/urls.py`
 - Generate migration
 
 ## Out of Scope
-- Set structure modalities (Step 6)
+
 - Progression engine integration (Step 7)
 - Session runner UI (Step 8)
-- AI-powered generation alternative
-- Workout schedule calendar sync
+- AI-powered modality selection
+- Per-set modality tracking in LiftSetLog (modality is at PlanSlot level)
