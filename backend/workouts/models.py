@@ -1992,9 +1992,9 @@ class LiftSetLog(models.Model):
         help_text="Rate of Perceived Exertion (1-10, half-points allowed).",
     )
     standardization_pass = models.BooleanField(
-        default=True,
+        default=False,
         help_text="Did this set meet the exercise's standardization criteria? "
-                  "Only passing sets update e1RM.",
+                  "Only passing sets update e1RM. Default False (fail-closed).",
     )
 
     # Workload (computed, stored for fast queries)

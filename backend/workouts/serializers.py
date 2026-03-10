@@ -4,6 +4,7 @@ Serializers for workout and nutrition models.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from typing import Any
 
 from rest_framework import serializers
@@ -1237,12 +1238,7 @@ class LiftSetLogSerializer(serializers.ModelSerializer[LiftSetLog]):
             'created_at',
         ]
 
-    def validate_completed_reps(self, value: int) -> int:
-        if value < 0:
-            raise serializers.ValidationError("Reps cannot be negative.")
-        return value
-
-    def validate_entered_load_value(self, value: float) -> float:
+    def validate_entered_load_value(self, value: Decimal) -> Decimal:
         if value < 0:
             raise serializers.ValidationError("Load value cannot be negative.")
         return value
@@ -1288,4 +1284,8 @@ class LiftMaxPrescribeSerializer(serializers.Serializer[None]):
         default=2.5,
         min_value=0,
         help_text="Round to nearest increment in lb/kg (default 2.5).",
+    )
+    trainee_id = serializers.IntegerField(
+        required=False,
+        help_text="Required for trainers/admins. Ignored for trainees.",
     )

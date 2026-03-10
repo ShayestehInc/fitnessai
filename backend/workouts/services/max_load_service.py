@@ -50,6 +50,9 @@ class MaxLoadService:
     - Smoothing: new e1RM must beat current by a threshold OR be persistent decline
     """
 
+    # Max entries in e1rm_history / tm_history arrays before trimming oldest
+    MAX_HISTORY_ENTRIES: int = 200
+
     # Reps above this threshold make e1RM formulas unreliable
     MAX_ESTIMATION_REPS: int = 15
 
@@ -186,6 +189,8 @@ class MaxLoadService:
         """
         if e1rm <= 0:
             return Decimal("0")
+        if not (Decimal("0") < percentage <= Decimal("100")):
+            raise ValueError(f"TM percentage must be between 0 and 100, got {percentage}")
         return (e1rm * percentage / Decimal("100")).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
@@ -273,6 +278,9 @@ class MaxLoadService:
             exercise=set_log.exercise,
         )
 
+        # Re-fetch with row lock to prevent concurrent update races
+        lift_max = LiftMaxModel.objects.select_for_update().get(pk=lift_max.pk)
+
         smoothed = cls.smooth_e1rm_update(lift_max.e1rm_current, estimate.value)
 
         # Only update if the smoothed value actually changed
@@ -286,6 +294,9 @@ class MaxLoadService:
             "source_set_id": str(set_log.id),
             "formula": estimate.formula,
         })
+        # Trim oldest entries to prevent unbounded growth
+        if len(lift_max.e1rm_history) > cls.MAX_HISTORY_ENTRIES:
+            lift_max.e1rm_history = lift_max.e1rm_history[-cls.MAX_HISTORY_ENTRIES:]
 
         new_tm = cls.calculate_tm(smoothed, lift_max.tm_percentage)
         if new_tm != lift_max.tm_current:
@@ -296,6 +307,8 @@ class MaxLoadService:
                 "reason": "e1rm_update",
                 "trigger": str(set_log.id),
             })
+            if len(lift_max.tm_history) > cls.MAX_HISTORY_ENTRIES:
+                lift_max.tm_history = lift_max.tm_history[-cls.MAX_HISTORY_ENTRIES:]
 
         lift_max.save()
         return lift_max

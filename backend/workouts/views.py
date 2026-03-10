@@ -3404,10 +3404,16 @@ class LiftSetLogPagination(PageNumberPagination):
     max_page_size = 200
 
 
-class LiftSetLogViewSet(viewsets.ModelViewSet[LiftSetLog]):
+class LiftSetLogViewSet(
+    viewsets.GenericViewSet[LiftSetLog],
+    viewsets.mixins.CreateModelMixin,
+    viewsets.mixins.ListModelMixin,
+    viewsets.mixins.RetrieveModelMixin,
+):
     """
-    CRUD for per-set performance tracking (v6.5 Step 3).
+    Create + Read-only ViewSet for per-set performance tracking (v6.5 Step 3).
 
+    Set logs are historical records — no update or delete to preserve audit integrity.
     Trainees create their own set logs.
     Trainers can read their trainees' set logs.
     Admins can read all.
@@ -3479,12 +3485,10 @@ class LiftSetLogViewSet(viewsets.ModelViewSet[LiftSetLog]):
         # Auto-update LiftMax if set qualifies
         MaxLoadService.update_max_from_set(set_log)
 
-    def perform_update(self, serializer: BaseSerializer[LiftSetLog]) -> None:
-        set_log = serializer.save()
-        MaxLoadService.update_max_from_set(set_log)
 
-    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
-        return LiftSetLogSerializer
+class LiftMaxPagination(PageNumberPagination):
+    page_size = 50
+    max_page_size = 200
 
 
 class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
@@ -3496,11 +3500,12 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
     Admins see all.
 
     Custom actions:
-    - GET /{exercise_id}/history/ — e1RM history for charting
+    - GET /history/?exercise_id= — e1RM history for charting
     - POST /prescribe/ — get recommended load for exercise+target
     """
     serializer_class = LiftMaxSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = LiftMaxPagination
 
     def get_queryset(self) -> QuerySet[LiftMax]:
         user = cast(User, self.request.user)
@@ -3524,14 +3529,27 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
 
         return queryset.order_by('exercise__name')
 
-    @action(detail=True, methods=['get'], url_path='history')
-    def history(self, request: Request, pk: str | None = None) -> Response:
+    @action(detail=False, methods=['get'], url_path='history')
+    def history(self, request: Request) -> Response:
         """
-        GET /api/workouts/lift-maxes/{id}/history/
+        GET /api/workouts/lift-maxes/history/?exercise_id=123
 
-        Returns the e1RM history array for charting.
+        Returns the e1RM history array for a specific exercise, for charting.
         """
-        lift_max = self.get_object()
+        exercise_id = request.query_params.get('exercise_id')
+        if not exercise_id:
+            return Response(
+                {'error': 'exercise_id query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        lift_max = self.get_queryset().filter(exercise_id=exercise_id).first()
+        if not lift_max:
+            return Response(
+                {'error': 'No max data found for this exercise.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         return Response({
             'exercise_id': lift_max.exercise_id,
             'exercise_name': lift_max.exercise.name,
@@ -3561,7 +3579,7 @@ class LiftMaxViewSet(viewsets.ReadOnlyModelViewSet[LiftMax]):
         if user.is_trainee():
             trainee = user
         else:
-            trainee_id = request.data.get('trainee_id')
+            trainee_id = serializer.validated_data.get('trainee_id')
             if not trainee_id:
                 return Response(
                     {'error': 'trainee_id is required for trainers/admins.'},

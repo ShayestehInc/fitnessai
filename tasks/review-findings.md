@@ -1,16 +1,15 @@
-# Code Review: v6.5 ExerciseCard + DecisionLog + UndoSnapshot
+# Code Review: LiftSetLog + LiftMax + Max/Load Engine (Pipeline 60)
 
 ## Review Date
 2026-03-09
 
 ## Files Reviewed
-- `backend/workouts/models.py` (Exercise v6.5 fields, DecisionLog, UndoSnapshot)
-- `backend/workouts/serializers.py` (ExerciseSerializer, DecisionLogSerializer, UndoSnapshotSerializer)
-- `backend/workouts/views.py` (ExerciseViewSet filters, DecisionLogViewSet)
-- `backend/workouts/urls.py`
-- `backend/workouts/services/decision_log_service.py`
-- `backend/workouts/management/commands/backfill_exercise_tags.py`
-- `backend/config/settings.py` (django.contrib.postgres confirmed in INSTALLED_APPS, line 34)
+- `backend/workouts/models.py` (lines 1887–2142) — LiftSetLog, LiftMax models
+- `backend/workouts/services/max_load_service.py` — full file (302 lines)
+- `backend/workouts/serializers.py` (lines 1193–1292) — LiftSetLogSerializer, LiftMaxSerializer, LiftMaxPrescribeSerializer
+- `backend/workouts/views.py` (lines 3402–3627) — LiftSetLogPagination, LiftSetLogViewSet, LiftMaxViewSet
+- `backend/workouts/urls.py` — router registrations
+- `backend/workouts/migrations/0020_liftmax_liftsetlog.py`
 
 ---
 
@@ -18,66 +17,77 @@
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| C1 | `views.py:3279` | **IDOR / over-broad scoping for trainers in DecisionLogViewSet.** The trainer query includes `Q(actor__isnull=True, actor_type=DecisionLog.ActorType.SYSTEM)` which leaks ALL system-level decisions to every trainer, including decisions about other trainers' trainees. A system decision for Trainer-B's trainee would appear in Trainer-A's list. | Add `context__plan_id__in=<trainer's plan ids>` or link DecisionLog to a trainee FK and filter by `parent_trainer`. At minimum, remove the blanket system-decision clause or scope it via context data. |
-| C2 | `views.py:3281-3286` | **IDOR for trainees in DecisionLogViewSet.** Same problem but worse: trainees also see ALL system decisions (`actor__isnull=True, actor_type=SYSTEM`) regardless of whether those decisions are about them. A trainee can enumerate system decisions about other trainees. | Trainees should only see decisions where `actor=user` OR decisions linked to their own resources (via context). The system-decision fallback must be scoped. |
-| C3 | `services/decision_log_service.py:119-169` | **undo_decision does not actually restore state.** It marks the snapshot as reverted and logs an undo entry, but it never applies `before_state` back to the actual domain objects (Program schedule, Exercise, etc.). The undo endpoint is effectively a no-op that claims success. This is a data integrity issue -- trainers will believe the undo worked. | Either: (a) implement actual state restoration dispatched by `scope`, or (b) rename this to `mark_decision_reverted` and clearly document that callers must apply the state change themselves, returning `before_state` in the response so the caller can act on it. |
+| C1 | `views.py:3482-3484` | **No ownership guard on update/delete.** `LiftSetLogViewSet` inherits `ModelViewSet` which provides `update`, `partial_update`, and `destroy`. `perform_update` has no role check — a trainer whose queryset includes the set log can modify a trainee's historical performance data. More importantly, **there is no `perform_destroy` override at all** — any user whose `get_queryset` includes the record can delete set logs. Trainers can delete their trainees' set logs silently. Deleting a set log leaves orphaned `source_set_id` references in `LiftMax.e1rm_history`. Set logs are historical records and should likely not be deletable, or at minimum require explicit ownership + audit. | 1) Restrict the viewset to `CreateModelMixin + ListModelMixin + RetrieveModelMixin` only (remove update/delete), OR 2) Add explicit ownership checks: only the trainee who created the set can update, and disallow deletion entirely. If update/delete are needed, add `perform_destroy` with an audit trail and cascade logic to recompute e1RM. |
+| C2 | `views.py:3564` | **`trainee_id` in prescribe endpoint bypasses serializer validation.** `trainee_id` is read directly from `request.data` instead of being defined in `LiftMaxPrescribeSerializer`. If a client sends `trainee_id: "abc"` or `trainee_id: null`, `User.objects.get(id=trainee_id)` raises an unhandled `ValueError` or `TypeError`, producing a 500 response (and potentially leaking stack trace info in DEBUG mode). | Add `trainee_id = serializers.IntegerField(required=False)` to `LiftMaxPrescribeSerializer` and read from `serializer.validated_data`. |
+
+---
 
 ## Major Issues (should fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| M1 | `models.py:1835-1836` | **`options_considered` field uses `default=dict` but docstring says it should be a list** (`[{option, score, reasons}, ...]`). The service also defaults to `{}` (line 105). This type mismatch will cause runtime errors or confusing data when consumers expect a list. | Change to `default=list` and update the service fallback from `options_considered or {}` to `options_considered or []`. |
-| M2 | `views.py:117-207` | **ExerciseViewSet.get_queryset() missing `select_related('created_by')`.** The serializer has `created_by_email = CharField(source='created_by.email')` which triggers an N+1 query for every exercise in a list response. With hundreds of exercises, this is a significant performance hit. | Add `.select_related('created_by')` to all queryset branches. |
-| M3 | `views.py:209-215` | **Trainees and admins can create exercises via ExerciseViewSet.** `perform_create` only checks `is_trainer()` -- if the user is a trainee, it falls through to `save(is_public=True)`, allowing any trainee to create public system exercises. This is a privilege escalation. | Add explicit role checks. Only trainers (custom) and admins (public) should create exercises. Return 403 for trainees. |
-| M4 | `views.py:3266-3307` | **DecisionLogViewSet has no default ordering.** The model has `ordering = ['-timestamp']` but the queryset applies no explicit ordering and adds filters. Depending on the database optimizer, results could be inconsistent. Also, the `PageNumberPagination` class has no `page_size` set, which means it falls back to the global default. If no global default is set, pagination won't work. | Add `.order_by('-timestamp')` to the queryset. Set `page_size` on the pagination class or verify the global `PAGE_SIZE` is configured. |
-| M5 | `management/commands/backfill_exercise_tags.py:122-167` | **Backfill command loads all exercises into memory at once** (`Exercise.objects.all()`) and saves them one-by-one in a loop. For large exercise libraries this is both memory-intensive and creates N individual database writes. | Use `.iterator()` for the read, batch with `bulk_update()`, and wrap in a transaction. Also, the `.count()` call on line 166 fires a second full-table query. |
-| M6 | `management/commands/backfill_exercise_tags.py:157-162` | **Backfill always writes `primary_muscle_group` and `muscle_contribution_map` in update_fields even when only `pattern_tags` changed.** If `primary_muscle_group` wasn't changed by this iteration, the existing (possibly manually set) value is fine, but the intent is unclear. Also `updated_at` is `auto_now=True` which means it auto-updates on `.save()` regardless -- including it in `update_fields` is fine but redundant. | Track which fields actually changed per exercise and only include those in `update_fields`. |
-| M7 | `views.py:3299-3305` | **Date filters `date_from` and `date_to` are not validated.** If a user passes `date_from=not-a-date`, Django will raise an unhandled `ValidationError` which surfaces as a 500 error rather than a clean 400. | Parse and validate date strings, returning 400 on invalid input. |
-| M8 | `views.py:3293` | **`decision_type` filter has no validation.** Any arbitrary string is passed directly to the ORM filter. While not SQL injection (ORM is safe), it means no feedback for typos. Similarly `actor_type` is unvalidated. | Validate against `DecisionLog.ActorType.choices` for `actor_type`. For `decision_type`, either document valid values or validate against a known set. |
+| M1 | `models.py:2098-2101, 2118-2121` | **Unbounded JSONField arrays.** `e1rm_history` and `tm_history` grow without limit. Every qualifying set appends to `e1rm_history`. A trainee doing 4 sets of squats 3x/week for a year = ~624 entries per exercise. Multiply by 20+ exercises = 12,000+ entries across all LiftMax records. The arrays are serialized in full on every LiftMax API response. | Cap history at a reasonable length (e.g., 200 entries per array) and trim oldest entries on append in `update_max_from_set`. Alternatively, move history to a separate related model with proper pagination. |
+| M2 | `max_load_service.py:271-274` | **Race condition on concurrent e1RM updates.** Two concurrent `update_max_from_set` calls for the same trainee+exercise: both call `get_or_create`, both read the same `e1rm_current`, both compute smoothed values, last writer wins. The earlier writer's history entry and e1RM update are silently overwritten. `@transaction.atomic` prevents partial writes but not lost updates. | After `get_or_create`, re-fetch with `select_for_update()`: `lift_max = LiftMaxModel.objects.select_for_update().get(pk=lift_max.pk)` to serialize concurrent updates at the DB level. |
+| M3 | `models.py:1994-1998` | **`standardization_pass` defaults to `True` (fail-open).** Every set is assumed to pass standardization by default. If the mobile client doesn't send this field, all sets will update e1RM — including sets with poor form that should not qualify. This is particularly dangerous before the mobile UI implements standardization criteria. | Default to `False` (fail-closed). Sets must be explicitly marked as standardization-passing. This prevents premature e1RM pollution from unvalidated sets. |
+| M4 | `views.py:3527-3540` | **History endpoint URL deviates from ticket spec.** The ticket specifies `GET /api/workouts/lift-maxes/{exercise_id}/history/`. The implementation uses `@action(detail=True)` which produces `GET /api/workouts/lift-maxes/{lift_max_uuid}/history/`. The client must know the LiftMax UUID, not the exercise ID. This is less ergonomic — the frontend naturally has the exercise ID, not the LiftMax PK. | Change to `@action(detail=False)` with `exercise_id` as a required query param, or add a custom URL route that takes `exercise_id` and looks up the LiftMax. |
+| M5 | `views.py:3509, 3490` | **No pagination on LiftMaxViewSet.** `ReadOnlyModelViewSet` does not include pagination by default. An admin listing all LiftMax records, or a trainer with many trainees, will get an unbounded response. | Add `pagination_class = LiftSetLogPagination` (or a dedicated one) to `LiftMaxViewSet`. |
+| M6 | `serializers.py:1245-1248` | **Type hint mismatch: `validate_entered_load_value` returns `float` but field is `DecimalField`.** DRF `DecimalField` produces `Decimal` objects after validation. The return type annotation says `float`, which is incorrect and could mislead type checkers. | Change signature to `def validate_entered_load_value(self, value: Decimal) -> Decimal:`. Same for the parameter type. |
+
+---
 
 ## Minor Issues (nice to fix)
 
 | # | File:Line | Issue | Suggested Fix |
 |---|-----------|-------|---------------|
-| m1 | `serializers.py:40` | `created_by_email` will raise `AttributeError` when `created_by` is null (system exercises). DRF won't catch this for `CharField` with a `source` -- it needs a `default=None` or should be `SerializerMethodField`. | Add `default=None` to the `created_by_email` field, or use `SerializerMethodField` with a null check. |
-| m2 | `models.py:1800` | `actor_type` max_length=10 but the longest ActorType value is `'trainer'` (7 chars). Fine, but if you add e.g. `'auto_system'` in the future it will fail. Consider max_length=20 for headroom. | Increase to `max_length=20`. |
-| m3 | `serializers.py:128` | `read_only_fields = fields` -- this is a common DRF pattern but `fields` is evaluated at class creation time, which can be fragile if inherited. Works fine here but worth noting. | No action needed; just a note. |
-| m4 | `views.py:3310` | `pk: str = None` should be `pk: str | None = None` per project typing conventions. | Update the type hint. |
-| m5 | `views.py:3273-3274` | `list(User.objects.filter(parent_trainer=user).values_list('id', flat=True))` materializes all trainee IDs into a Python list. For trainers with thousands of trainees, use a subquery instead. | Use `Subquery` or pass the queryset directly to the `__in` filter (Django evaluates it as a subquery). |
-| m6 | `models.py:292-296` | `swap_seed_ids` uses `default=dict` but the help text describes it as having list values (`recommended_same_muscle_ids[]`). The field name suggests IDs, but the type is a generic JSONField dict. This is fine but inconsistent naming -- `swap_seeds` would be clearer. | Minor naming concern. No action needed. |
-| m7 | `services/decision_log_service.py:53` | `actor_type: str` -- should be typed as `DecisionLog.ActorType` (or a Literal) rather than bare `str` for type safety. Same for `undo_scope: str | None`. | Use the enum type from the model. |
-| m8 | `views.py:165-168` | `pattern_tags` filter uses `__overlap` (ANY match) rather than `__contains` (ALL match). The choice is valid but not documented. A trainer filtering by `['horizontal_push', 'knee_dominant']` might expect exercises matching BOTH tags, not either. | Document the behavior or add a `pattern_tags_match` param (e.g., `any` vs `all`). |
-| m9 | `models.py:320-328` | Indexes for Exercise are good but missing a GIN index on `pattern_tags` ArrayField. The `__overlap` filter in the view (line 168) will do a sequential scan without a GIN index. | Add `GinIndex(fields=['pattern_tags'])` to the Meta indexes. Requires `django.contrib.postgres` (already installed). |
+| m1 | `views.py:3486-3487` | **Redundant `get_serializer_class` override.** Returns `LiftSetLogSerializer` which is already set as `serializer_class` on line 3417. | Remove the override — it adds noise with no behavior change. |
+| m2 | `views.py:3603-3608` | **Extra DB query for `latest_unit` on every prescribe call.** Queries `LiftSetLog` to find the trainee's most recent unit for this exercise. This is a per-request DB hit that could be avoided. | Store `preferred_unit` on `LiftMax` model, updated alongside e1RM in `update_max_from_set`. |
+| m3 | `max_load_service.py:180` | **No bounds check on `percentage` parameter.** `calculate_tm` accepts any Decimal. Negative or >100 values would produce nonsensical results. The model has validators (80-100), but the service method doesn't enforce this. | Add `assert Decimal("0") < percentage <= Decimal("100")` or raise `ValueError`. |
+| m4 | `models.py:2039-2044` | **`__str__` accesses `self.exercise.name` without prefetch guarantee.** In admin list views or debugging, this triggers an N+1 query per LiftSetLog instance. | Acceptable for debugging; just note it in admin config with `select_related`. |
+| m5 | `max_load_service.py:283` | **Orphaned history references.** `e1rm_history` entries store `source_set_id` pointing to LiftSetLog UUIDs. If set logs are deleted (see C1), these become dangling references. | Not a bug if deletion is prevented (see C1 fix). Document that history entries reference set IDs that must be preserved. |
+| m6 | `serializers.py:1240-1243` | **`validate_completed_reps` is redundant.** `completed_reps` is a `PositiveIntegerField` — Django/DRF already reject negative values at the model and serializer level. | Remove the custom validator or keep it as defense-in-depth (acceptable either way). |
 
 ---
 
 ## Security Concerns
 
-1. **C1/C2 above are IDOR vulnerabilities** -- trainers and trainees can see decision logs they shouldn't have access to via the system-decision leak.
-2. **M3: Trainee privilege escalation** -- trainees can create public exercises that all users see.
-3. The undo endpoint (line 3309) correctly restricts to trainers/admins. Good.
-4. ExerciseSerializer exposes `created_by` (integer FK) which reveals user IDs. Low risk but could use `write_only=True` on the `created_by` field and rely on `created_by_email` for reads.
-5. No rate limiting on the undo endpoint -- a malicious user could spam undo requests. Low severity.
+1. **C1 (IDOR on update/delete)** — Primary security issue. A trainer can modify their trainee's set logs (tampering with historical performance data), and any permitted user can delete records with no audit trail.
+2. **C2 (unvalidated `trainee_id`)** — Causes 500 errors with malformed input. In DEBUG mode, stack traces could leak internal paths and model structure.
+3. **Good practice:** The `prescribe` endpoint correctly masks authorization failures as 404s (prevents user enumeration). Row-level security in `get_queryset` is correctly implemented for all three roles.
+4. **No secrets or credentials** found in any reviewed files.
 
 ## Performance Concerns
 
-1. **M2: N+1 on ExerciseViewSet** -- missing `select_related('created_by')`.
-2. **m5: Trainee ID materialization** in DecisionLogViewSet.
-3. **m9: Missing GIN index** on `pattern_tags` for `__overlap` queries.
-4. **M5: Backfill command** loads everything into memory and does single-row saves.
-5. DecisionLogViewSet correctly uses `select_related('actor', 'undo_snapshot')` on line 3288. Good.
+1. **M1 (unbounded history arrays)** — Performance degrades over time as JSON serialization of large arrays becomes expensive on every API response.
+2. **M2 (race condition)** — Concurrent set logging produces incorrect e1RM values under load.
+3. **M5 (no pagination on LiftMax)** — Unbounded responses for admin/trainer users.
+4. **Indexes are well-designed** — Composite indexes cover the main query patterns. Unique constraint on (trainee, exercise, session_date, set_number) is correct.
+5. `select_related('exercise', 'trainee')` is correctly used in both viewsets.
 
 ---
 
-## Quality Score: 5/10
+## Acceptance Criteria Verification
 
-The feature is architecturally sound -- models are well-designed, the service layer correctly separates business logic, the serializer validation on tag fields is thorough, and the DecisionLog/UndoSnapshot pattern is extensible. However, there are two IDOR/scoping vulnerabilities (C1, C2), a fundamentally broken undo that doesn't actually restore state (C3), and a privilege escalation allowing trainees to create public exercises (M3). These are production-safety issues that must be fixed.
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| LiftSetLog model with all v6.5 fields | PASS | All fields present with correct types, computed fields, indexes |
+| LiftMax model with e1RM, TM, history | PASS | Complete with unique constraint and validators |
+| MaxLoadService with e1RM estimation | PASS | Epley + Brzycki, conservative min, rep capping, RPE=10 handling |
+| Only standardization-passing sets update e1RM | PASS | Correctly checked in `update_max_from_set` (but default=True is risky, see M3) |
+| LiftSetLog CRUD API | PARTIAL | CRUD works but update/delete lack ownership guards (C1) |
+| LiftMax read API with history endpoint | PARTIAL | Works but URL pattern deviates from ticket (M4) |
+| Load prescription endpoint | PARTIAL | Works but unvalidated trainee_id (C2) |
+| Row-level security on all endpoints | PARTIAL | get_queryset is correct for all roles; update/delete ownership gap (C1) |
+| Proper indexes for performance | PASS | Four indexes + unique constraint cover query patterns well |
+| Service methods return dataclasses, not dicts | PASS | `E1RMEstimate` and `LoadPrescription` are frozen dataclasses |
 
-## Recommendation: BLOCK
+---
 
-Blocking on:
-- **C1 + C2:** DecisionLog IDOR -- trainers and trainees see other users' system decisions
-- **C3:** undo_decision is a no-op that claims success without restoring actual state
-- **M3:** Trainees can create public exercises (privilege escalation)
+## Quality Score: 6/10
 
-After these are fixed, the remaining Major issues (M1, M2, M4-M8) should be addressed to bring the score to 7+/10 for an APPROVE.
+The core implementation is strong — the service layer is clean, the math is correct, the dataclass pattern is well-applied, and the model design is thoughtful. However, the IDOR risk on update/delete (C1), the unvalidated input bypass (C2), the race condition (M2), and the fail-open standardization default (M3) are real issues that would cause problems in production. The history endpoint URL mismatch (M4) will create frontend integration friction.
+
+## Recommendation: REQUEST CHANGES
+
+**Must fix before merge:** C1, C2
+**Should fix before merge:** M1, M2, M3, M4, M5, M6
+**Can defer:** m1–m6
