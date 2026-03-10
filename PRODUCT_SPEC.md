@@ -73,6 +73,7 @@ FitnessAI is a **white-label fitness platform** that personal trainers purchase 
 | LiftSetLog (per-set tracking) | ✅ Done | Shipped 2026-03-09 (Pipeline 60): Per-set performance records with auto-computed canonical load and workload. Create+Read API (no update/delete for audit integrity). UUID PKs, proper indexes. |
 | LiftMax (estimated maxes) | ✅ Done | Shipped 2026-03-09 (Pipeline 60): Cached e1RM and Training Max per exercise per trainee. Auto-updated from qualifying sets with smoothing and concurrency protection. History arrays capped at 200 entries. |
 | Max/Load Engine | ✅ Done | Shipped 2026-03-09 (Pipeline 60): e1RM estimation (Epley/Brzycki conservative), TM calculation, load prescription with equipment rounding. prescribe_for_trainee service method. All edge cases handled. |
+| Workload Engine | ✅ Done | Shipped 2026-03-09 (Pipeline 61): Exercise/session/weekly workload aggregation, muscle-group and pattern distribution, ACWR trending, spike/dip detection, deterministic fact templates. |
 | KILO exercise library | ✅ Done | Shipped 2026-02-21 (Pipeline 31): 1,067 exercises, difficulty classification (beginner/intermediate/advanced) |
 | Exercise difficulty classification | ✅ Done | Shipped 2026-02-21 (Pipeline 31): AI + heuristic classification, cached in database |
 | Smart program generator | ✅ Done | Shipped 2026-02-21 (Pipeline 31): Deterministic generation (PPL, Upper/Lower, Full Body, Bro Split, Custom splits), 3-step web/mobile wizard, progressive overload with deload weeks, goal-based nutrition templates |

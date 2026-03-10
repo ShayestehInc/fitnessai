@@ -4,6 +4,28 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 61: v6.5 Step 4 (Workload Engine)
+
+### Added
+- Backend: WorkloadAggregationService — computes exercise, session, and weekly workload totals from LiftSetLog data
+- Backend: Workload-by-muscle-group distribution using Exercise.muscle_contribution_map (single-pass with pattern distribution)
+- Backend: Workload-by-pattern distribution using Exercise.pattern_tags
+- Backend: WorkloadTrendService — acute:chronic workload ratio (7d/28d), spike/dip detection, week-over-week deltas, trend direction
+- Backend: WorkloadFactService — deterministic cool fact selection from template library with safe regex-based rendering
+- Backend: WorkloadFactTemplate model — scoped (exercise/session), priority-based, condition rules, trainer-manageable
+- Backend: Mixed units detection flag on exercise and session workload responses
+- Backend: Comparable session/exercise matching for delta comparisons
+- Backend: API endpoints: exercise workload, session workload summary, weekly breakdown, trends with ACWR
+
+### Security
+- Template injection prevention: regex-based substitution (no Python attribute access via format specs)
+- Fact templates scoped by trainer: system defaults + trainer's own (no cross-tenant leakage)
+- Bounded template evaluation (max 50) to prevent DoS
+- Row-level security on all workload endpoints
+- Trainer ownership checks on CRUD for fact templates
+
+---
+
 ## [2026-03-09] — Pipeline 60: v6.5 Step 3 (LiftSetLog + LiftMax + Max/Load Engine)
 
 ### Added
