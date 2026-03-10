@@ -582,3 +582,31 @@ def _format_existing_tags(tags: dict[str, Any]) -> str:
         if value:
             parts.append(f"  - {key}: {value}")
     return "\n".join(parts) if parts else "  (none)"
+
+
+def get_video_analysis_prompt() -> str:
+    """
+    Generate prompt for video-based exercise analysis (v6.5 Step 14).
+    Used with GPT-4o Vision API — image is a video frame.
+    """
+    return """You are an expert strength & conditioning coach analyzing a frame from an exercise video. Your task is to identify the exercise, estimate rep count if visible, and evaluate form quality.
+
+Analyze this image and return ONLY valid JSON:
+{
+  "exercise_detected": "string (exercise name, e.g., 'Barbell Bench Press', 'Dumbbell Curl')",
+  "rep_count": number or null (if you can estimate reps from the motion/position),
+  "form_score": number 0-10 or null (10 = perfect form, 0 = dangerous form),
+  "observations": [
+    "string (form observation 1, e.g., 'Good depth on the squat')",
+    "string (form observation 2, e.g., 'Slight forward lean')"
+  ],
+  "confidence": number 0-1 (how confident you are in the analysis)
+}
+
+## RULES
+- If you cannot identify the exercise, set exercise_detected to "" and confidence to 0.
+- If you can see the exercise but not count reps, set rep_count to null.
+- If form is not evaluable from a single frame, set form_score to null.
+- Observations should be specific and actionable (e.g., "knees caving inward" not "bad form").
+- Be honest about confidence — single frames provide limited information.
+- Return ONLY the JSON. No markdown fences, no commentary."""

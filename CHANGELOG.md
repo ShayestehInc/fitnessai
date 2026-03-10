@@ -4,6 +4,21 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-10] — Pipeline 71: v6.5 Step 14 (Voice Memo Parsing + Video Analysis)
+
+### Added
+
+- Backend: VoiceMemo model — audio file storage, Whisper transcription, NLP parsing pipeline with status lifecycle
+- Backend: VideoAnalysis model — video upload, GPT-4o Vision exercise form analysis, rep counting, form scoring
+- Backend: Voice memo service — upload validation (MP3/WAV/M4A/WebM, 25MB max), OpenAI Whisper transcription, auto-parse via NLP
+- Backend: Video analysis service — upload validation (MP4/MOV/WebM, 50MB max), frame extraction via ffmpeg, GPT-4o Vision analysis, exercise library matching
+- Backend: Video analysis prompt for GPT-4o Vision — exercise detection, rep count, form score (0-10), specific observations
+- Backend: DecisionLog on video analysis confirmation
+- Backend: 7 API endpoints: 3 for voice memos (upload, list, detail), 4 for video analysis (upload, list, detail, confirm)
+- Backend: 24 tests with mocked AI covering both services and all API endpoints
+
+---
+
 ## [2026-03-10] — Pipeline 70: v6.5 Step 13 (Auto-tagging Pipeline)
 
 ### Added

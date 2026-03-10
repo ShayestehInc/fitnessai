@@ -51,6 +51,15 @@ from .auto_tag_views import (
     RetryDraftView,
     TagHistoryView,
 )
+from .media_views import (
+    VideoAnalysisConfirmView,
+    VideoAnalysisDetailView,
+    VideoAnalysisListView,
+    VideoAnalysisUploadView,
+    VoiceMemoDetailView,
+    VoiceMemoListView,
+    VoiceMemoUploadView,
+)
 
 router = DefaultRouter()
 router.register(r'exercises', ExerciseViewSet, basename='exercise')
@@ -106,4 +115,15 @@ urlpatterns = [
     path('exercises/<int:exercise_id>/auto-tag-draft/reject/', RejectDraftView.as_view(), name='exercise-auto-tag-reject'),
     path('exercises/<int:exercise_id>/auto-tag-draft/retry/', RetryDraftView.as_view(), name='exercise-auto-tag-retry'),
     path('exercises/<int:exercise_id>/tag-history/', TagHistoryView.as_view(), name='exercise-tag-history'),
+
+    # Voice memos (v6.5 Step 14)
+    path('voice-memos/', VoiceMemoUploadView.as_view(), name='voice-memo-upload'),
+    path('voice-memos/list/', VoiceMemoListView.as_view(), name='voice-memo-list'),
+    path('voice-memos/<str:memo_id>/', VoiceMemoDetailView.as_view(), name='voice-memo-detail'),
+
+    # Video analysis (v6.5 Step 14)
+    path('video-analysis/', VideoAnalysisUploadView.as_view(), name='video-analysis-upload'),
+    path('video-analysis/list/', VideoAnalysisListView.as_view(), name='video-analysis-list'),
+    path('video-analysis/<str:analysis_id>/', VideoAnalysisDetailView.as_view(), name='video-analysis-detail'),
+    path('video-analysis/<str:analysis_id>/confirm/', VideoAnalysisConfirmView.as_view(), name='video-analysis-confirm'),
 ]

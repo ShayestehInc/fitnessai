@@ -1,45 +1,50 @@
-# Focus: Trainer Packet v6.5 — Step 13: Auto-tagging Pipeline
+# Focus: Trainer Packet v6.5 — Step 14: Voice Memo Parsing + Video Analysis
 
 ## Priority
 
-Critical — Step 13 of the v6.5 build order. AI-powered exercise tagging with draft/edit/retry/version workflow.
+Critical — Step 14 of the v6.5 build order. Enables trainees to log workouts/nutrition via voice memos and analyze exercise form via video.
 
 ## What to Build
 
-### 1. ExerciseTagDraft Model
+### 1. VoiceMemo Model
 
-- Stores AI-generated tag suggestions before trainer approval
-- Status: draft, approved, rejected
-- FK to exercise and requesting trainer
-- JSONField for drafted tags, confidence scores, AI reasoning
-- Retry count tracking
+- Audio file metadata (file URL, duration, format)
+- Transcription text and confidence
+- Status lifecycle: uploading, transcribing, transcribed, parsed, failed
+- FK to trainee, optional link to DailyLog
+- Parsed result (JSON from natural language parser)
 
-### 2. Auto-tagging Service
+### 2. VideoAnalysis Model
 
-- `request_auto_tag()` — Call AI to generate tag suggestions → create draft
-- `apply_draft()` — Apply approved tags to exercise, increment version, create DecisionLog + UndoSnapshot
-- `reject_draft()` — Reject draft
-- `retry_draft()` — Request new AI attempt (increments retry count)
-- `get_tag_history()` — Version history for an exercise's tags
+- Video file metadata (file URL, duration, format, thumbnail)
+- AI analysis results: exercise detected, rep count, form score, observations
+- Status lifecycle: uploading, analyzing, analyzed, confirmed, failed
+- FK to trainee, optional exercise FK
+- DecisionLog on confirm
 
-### 3. API Endpoints
+### 3. Transcription Service
 
-- POST /exercises/{id}/auto-tag/ — Request AI auto-tagging (creates draft)
-- GET /exercises/{id}/auto-tag-draft/ — Get current draft for review
-- PATCH /exercises/{id}/auto-tag-draft/ — Edit draft before applying
-- POST /exercises/{id}/auto-tag-draft/apply/ — Apply draft tags to exercise
-- POST /exercises/{id}/auto-tag-draft/reject/ — Reject draft
-- POST /exercises/{id}/auto-tag-draft/retry/ — Request new attempt
-- GET /exercises/{id}/tag-history/ — Tag version history
+- Accept audio upload → validate → call OpenAI Whisper API
+- Return transcript + confidence score
+- Feed transcript into existing natural language parser
+- Support MP3, WAV, M4A, WebM formats
 
-### 4. AI Prompt
+### 4. Video Analysis Service
 
-- GPT-4o function calling to generate structured tags
-- Input: exercise name, description, category, equipment, existing tags
-- Output: all v6.5 tag fields + confidence scores + reasoning
+- Accept video upload → validate → call OpenAI Vision API (GPT-4o)
+- Analyze exercise form, count reps, identify exercise
+- Return structured analysis with confidence scores
+
+### 5. API Endpoints
+
+- POST /voice-memos/ — Upload audio, transcribe, parse
+- GET /voice-memos/{id}/ — Get transcription result
+- POST /video-analysis/ — Upload video, analyze
+- GET /video-analysis/{id}/ — Get analysis result
+- POST /video-analysis/{id}/confirm/ — Confirm and save findings
 
 ## What NOT to Build
 
-- Mobile UI for auto-tagging
-- Bulk auto-tagging (one exercise at a time)
-- Auto-tagging on exercise creation (manual trigger only)
+- Real-time streaming transcription
+- Mobile UI (backend only)
+- Pose estimation (use GPT-4o vision only)
