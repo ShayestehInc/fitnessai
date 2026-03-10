@@ -1,4 +1,4 @@
-# Ship Decision: Food Swap Engine + Nutrition DecisionLog (v6.5 Step 10)
+# Ship Decision: Import Pipeline — Draft/Confirm (v6.5 Step 12)
 
 ## Verdict: SHIP
 
@@ -8,8 +8,13 @@
 
 ## Summary
 
-Food swap engine with 3 recommendation modes, swap execution with UndoSnapshot, CARB_CYCLING ruleset, and DecisionLog integration. 25 tests. No new models/migrations needed.
+Complete two-phase CSV import pipeline for trainers: upload → validate → draft → review → confirm/reject. Atomic plan creation with DecisionLog + UndoSnapshot.
 
 ## What Was Built
 
-Food swap recommendation engine (v6.5 Step 10): calorie-normalized macro similarity scoring with 3 swap modes (same_macros, same_category, explore), swap execution with UndoSnapshot for undo support, DecisionLog audit trail for all swap decisions. CARB_CYCLING template type with Mifflin-St Jeor BMR and 3 day types. Nutrition DecisionLog on plan generation. 2 new API endpoints.
+- ProgramImportDraft model with full status lifecycle (pending_review → confirmed/rejected/expired)
+- CSV parsing service with column validation, exercise lookup (case-insensitive), row-level validation
+- Atomic confirm that creates TrainingPlan → PlanWeek → PlanSession → PlanSlot hierarchy
+- 4 API endpoints: upload, list, detail, confirm, reject
+- 24 tests covering service + API
+- DecisionLog + UndoSnapshot on confirm
