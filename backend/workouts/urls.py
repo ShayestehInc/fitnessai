@@ -18,6 +18,7 @@ from .views import (
     NutritionTemplateViewSet,
     PlanSessionViewSet,
     PlanSlotViewSet,
+    ProgressionProfileViewSet,
     ProgressionSuggestionViewSet,
     ProgressPhotoViewSet,
     ProgramViewSet,
@@ -59,6 +60,7 @@ router.register(r'plan-slots', PlanSlotViewSet, basename='planslot')
 router.register(r'plan-sessions', PlanSessionViewSet, basename='plansession')
 router.register(r'modalities', SetStructureModalityViewSet, basename='modality')
 router.register(r'split-templates', SplitTemplateViewSet, basename='splittemplate')
+router.register(r'progression-profiles', ProgressionProfileViewSet, basename='progressionprofile')
 
 urlpatterns = [
     path('', include(router.urls)),

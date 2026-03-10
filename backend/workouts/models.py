@@ -2328,6 +2328,14 @@ class TrainingPlan(models.Model):
         related_name='created_training_plans',
         help_text="Trainer or admin who created this plan.",
     )
+    default_progression_profile = models.ForeignKey(
+        'ProgressionProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='training_plans',
+        help_text="Default progression profile for all slots in this plan. Overrideable per slot.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -2521,6 +2529,14 @@ class PlanSlot(models.Model):
         default=Decimal('0.00'),
         help_text="Computed volume contribution: sets × modality volume_multiplier.",
     )
+    progression_profile = models.ForeignKey(
+        'ProgressionProfile',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='plan_slots',
+        help_text="Slot-level progression profile override. Falls back to plan default if null.",
+    )
 
     class Meta:
         db_table = 'plan_slots'
@@ -2651,3 +2667,139 @@ class ModalityGuardrail(models.Model):
 
     def __str__(self) -> str:
         return f"Guardrail({self.modality.name}: {self.rule_type} when {self.condition_field} {self.condition_operator})"
+
+
+class ProgressionProfile(models.Model):
+    """
+    A selectable template defining how progression works for a plan or exercise.
+
+    Stores the progression style (staircase, wave, double progression, etc.) and
+    all configuration as structured JSON: rules, deload_rules, failure_rules.
+    Versioned, pinned to plan, overrideable per slot.
+    """
+
+    class ProgressionType(models.TextChoices):
+        STAIRCASE_PERCENT = 'staircase_percent', 'Staircase Percent'
+        REP_STAIRCASE = 'rep_staircase', 'Rep Staircase'
+        WAVE_BY_MONTH = 'wave_by_month', 'Wave-by-Month'
+        DOUBLE_PROGRESSION = 'double_progression', 'Double Progression'
+        LINEAR = 'linear', 'Linear'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(blank=True, default='')
+    progression_type = models.CharField(
+        max_length=30,
+        choices=ProgressionType.choices,
+    )
+    rules = models.JSONField(
+        default=dict,
+        help_text=(
+            "Progression rules. Structure varies by type. "
+            "E.g., {step_pct: 2.5, work_weeks: 4} for staircase_percent, "
+            "{rep_step: 1, load_increment_upper_lb: 5} for rep_staircase."
+        ),
+    )
+    deload_rules = models.JSONField(
+        default=dict,
+        help_text=(
+            "Deload configuration. E.g., {volume_drop_pct: 40, intensity_drop_pct: 10, "
+            "trigger_after_weeks: 4}."
+        ),
+    )
+    failure_rules = models.JSONField(
+        default=dict,
+        help_text=(
+            "Failure handling. E.g., {consecutive_failures_for_deload: 2, "
+            "load_reduction_pct: 5, action: 'repeat_week'}."
+        ),
+    )
+    is_system = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_progression_profiles',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'progression_profiles'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.progression_type})"
+
+
+class ProgressionEvent(models.Model):
+    """
+    Records a progression decision for an exercise slot.
+    Tracks what changed, why, and links to the DecisionLog for full audit trail.
+    """
+
+    class EventType(models.TextChoices):
+        PROGRESSION = 'progression', 'Progression'
+        DELOAD = 'deload', 'Deload'
+        FAILURE = 'failure', 'Failure'
+        RESET = 'reset', 'Reset'
+        HOLD = 'hold', 'Hold'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='progression_events',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='progression_events',
+    )
+    plan_slot = models.ForeignKey(
+        PlanSlot,
+        on_delete=models.CASCADE,
+        related_name='progression_events',
+    )
+    event_type = models.CharField(max_length=20, choices=EventType.choices)
+    old_prescription = models.JSONField(
+        default=dict,
+        help_text="Previous prescription: {sets, reps_min, reps_max, load, percentage}.",
+    )
+    new_prescription = models.JSONField(
+        default=dict,
+        help_text="New prescription: {sets, reps_min, reps_max, load, percentage}.",
+    )
+    reason_codes = models.JSONField(
+        default=list,
+        help_text="Reason codes for the decision (e.g., ['all_sets_completed', 'rir_on_target']).",
+    )
+    decision_log = models.ForeignKey(
+        DecisionLog,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='progression_events',
+    )
+    progression_profile = models.ForeignKey(
+        ProgressionProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='events',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'progression_events'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', 'exercise']),
+            models.Index(fields=['plan_slot', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"ProgressionEvent({self.event_type}, slot={self.plan_slot_id})"

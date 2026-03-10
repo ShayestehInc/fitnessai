@@ -33,6 +33,8 @@ from .models import (
     PlanSlot,
     PlanWeek,
     Program,
+    ProgressionEvent,
+    ProgressionProfile,
     ProgressionSuggestion,
     ProgressPhoto,
     SetStructureModality,
@@ -1584,4 +1586,81 @@ class SetModalityInputSerializer(serializers.Serializer[None]):
     modality_id = serializers.UUIDField()
     override_guardrails = serializers.BooleanField(default=False)
     modality_details = serializers.JSONField(required=False, default=dict)
+    reason = serializers.CharField(required=False, default='')
+
+
+# ---------------------------------------------------------------------------
+# Progression Engine serializers (v6.5 Step 7)
+# ---------------------------------------------------------------------------
+
+class ProgressionProfileSerializer(serializers.ModelSerializer[ProgressionProfile]):
+    """Full detail serializer for ProgressionProfile."""
+
+    class Meta:
+        model = ProgressionProfile
+        fields = [
+            'id', 'name', 'slug', 'description', 'progression_type',
+            'rules', 'deload_rules', 'failure_rules',
+            'is_system', 'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'is_system', 'created_by', 'created_at', 'updated_at']
+
+    def validate_rules(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("rules must be a JSON object.")
+        return value
+
+    def validate_deload_rules(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("deload_rules must be a JSON object.")
+        return value
+
+    def validate_failure_rules(self, value: Any) -> Any:
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("failure_rules must be a JSON object.")
+        return value
+
+
+class ProgressionProfileListSerializer(serializers.ModelSerializer[ProgressionProfile]):
+    """Lightweight list serializer for ProgressionProfile."""
+
+    class Meta:
+        model = ProgressionProfile
+        fields = [
+            'id', 'name', 'slug', 'progression_type', 'is_system',
+        ]
+
+
+class ProgressionEventSerializer(serializers.ModelSerializer[ProgressionEvent]):
+    """Read-only serializer for ProgressionEvent."""
+
+    exercise_name = serializers.CharField(source='exercise.name', read_only=True)
+    profile_name = serializers.CharField(
+        source='progression_profile.name', read_only=True, default=None,
+    )
+    decision_log_id = serializers.CharField(
+        source='decision_log.pk', read_only=True, default=None,
+    )
+
+    class Meta:
+        model = ProgressionEvent
+        fields = [
+            'id', 'trainee', 'exercise', 'exercise_name', 'plan_slot',
+            'event_type', 'old_prescription', 'new_prescription',
+            'reason_codes', 'decision_log_id', 'progression_profile',
+            'profile_name', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class ApplyProgressionInputSerializer(serializers.Serializer[None]):
+    """Input serializer for the apply-progression endpoint."""
+    # All fields are optional — the server computes the prescription.
+    # If provided, they override the computed values (trainer override).
+    override_sets = serializers.IntegerField(required=False, min_value=1)
+    override_reps_min = serializers.IntegerField(required=False, min_value=1)
+    override_reps_max = serializers.IntegerField(required=False, min_value=1)
+    override_load = serializers.DecimalField(
+        required=False, max_digits=8, decimal_places=2, min_value=Decimal('0'),
+    )
     reason = serializers.CharField(required=False, default='')
