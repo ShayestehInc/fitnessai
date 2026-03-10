@@ -31,6 +31,11 @@ from .views import (
     WorkoutTemplateViewSet,
 )
 from .session_views import ActiveSessionViewSet
+from .feedback_views import (
+    PainEventViewSet,
+    SessionFeedbackViewSet,
+    TrainerRoutingRuleViewSet,
+)
 from .survey_views import ReadinessSurveyView, PostWorkoutSurveyView, MyLayoutConfigView
 
 router = DefaultRouter()
@@ -63,6 +68,9 @@ router.register(r'modalities', SetStructureModalityViewSet, basename='modality')
 router.register(r'split-templates', SplitTemplateViewSet, basename='splittemplate')
 router.register(r'progression-profiles', ProgressionProfileViewSet, basename='progressionprofile')
 router.register(r'sessions', ActiveSessionViewSet, basename='activesession')
+router.register(r'session-feedback', SessionFeedbackViewSet, basename='sessionfeedback')
+router.register(r'pain-events', PainEventViewSet, basename='painevent')
+router.register(r'routing-rules', TrainerRoutingRuleViewSet, basename='routingrule')
 
 urlpatterns = [
     path('', include(router.urls)),

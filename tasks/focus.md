@@ -1,43 +1,39 @@
-# Focus: Trainer Packet v6.5 — Step 8: Client Session Runner (Backend Only)
+# Focus: Trainer Packet v6.5 — Step 9: End-of-Session Feedback + Trainer Routing Rules
 
 ## Priority
 
-Critical — Step 8 of the v6.5 build order. The session runner is the runtime engine that a trainee interacts with during a workout. Without it, the progression engine (Step 7) has no live data source.
+Critical — Step 9 of the v6.5 build order. Closes the feedback loop: trainee rates their session, reports pain, and the system automatically routes alerts to their trainer based on configurable rules.
 
 ## What to Build
 
-### 1. ActiveSession + ActiveSetLog Models
+### 1. SessionFeedback Model
 
-- ActiveSession tracks an in-progress workout for a trainee, linked to a PlanSession
-- ActiveSetLog tracks per-set data (weight, reps, RPE, rest time, timestamps) within an active session
-- Only one active session per trainee at a time
+- Links to ActiveSession (one feedback per session)
+- completion_state, 6 rating scales (1-5), friction_reasons JSON, recovery_concern boolean, notes
 
-### 2. Session Runner Service
+### 2. PainEvent Model
 
-- start_session, log_set, skip_set, complete_session, abandon_session
-- get_current_prescription integrates with progression engine for next-set guidance
-- get_session_status returns full progress overview
-- complete_session triggers LiftSetLog creation + progression evaluation
+- Trainee pain/discomfort tracking: body_region, side, pain_score (1-10), sensation_type, onset_phase, warmup_effect
 
-### 3. Rest Timer Service
+### 3. TrainerRoutingRule Model
 
-- Compute rest durations based on slot_role and modality
-- Default rest times: primary_compound=180s, secondary_compound=120s, isolation=90s, accessory=60s
-- Modality overrides (e.g., cluster sets get shorter rest between clusters)
+- Configurable alert rules: low_rating, pain_report, missed_sessions, high_difficulty, recovery_concern
+- Threshold values, notification method, is_active flag
 
-### 4. API Endpoints
+### 4. Feedback Service
 
-- POST /sessions/start/ — start a session
-- GET /sessions/{id}/status/ — current session status with prescription
-- POST /sessions/{id}/log-set/ — log a completed set
-- POST /sessions/{id}/skip-set/ — skip current set
-- POST /sessions/{id}/complete/ — complete session
-- POST /sessions/{id}/abandon/ — abandon session
-- GET /sessions/active/ — get trainee's active session (if any)
+- submit_feedback → evaluates routing rules → creates trainer notifications
+- Pain event logging, feedback/pain history queries
+
+### 5. API Endpoints
+
+- POST/GET /sessions/{id}/feedback/
+- CRUD /pain-events/
+- CRUD /trainer-routing-rules/
+- GET /trainer-routing-rules/defaults/
 
 ## What NOT to Build
 
-- Mobile/Flutter session runner UI (separate step)
-- End-of-session feedback page (Step 9)
-- Pain event tracking (separate step)
-- Real-time WebSocket push (defer — polling is fine for now)
+- Mobile UI (separate step)
+- AI-powered feedback analysis
+- Push notifications (use existing TrainerNotification model)
