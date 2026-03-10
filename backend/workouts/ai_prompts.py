@@ -463,3 +463,122 @@ Rules:
 - If plateau for 3+ sessions, suggest a small increase to break through.
 - Be conservative — better to under-suggest than over-suggest.
 """
+
+
+def get_exercise_auto_tag_prompt(
+    exercise_name: str,
+    description: str = '',
+    category: str = '',
+    muscle_group: str = '',
+    existing_tags: dict[str, Any] | None = None,
+) -> str:
+    """
+    Generate prompt for AI-powered exercise auto-tagging (v6.5 Step 13).
+
+    Uses GPT-4o to generate structured v6.5 ExerciseCard tags with
+    confidence scores and reasoning.
+    """
+    existing_info = ""
+    if existing_tags:
+        existing_info = f"""
+Existing tags (may be incomplete or inaccurate — re-evaluate from scratch):
+{_format_existing_tags(existing_tags)}
+"""
+
+    return f"""You are a certified strength & conditioning specialist (CSCS) and exercise science expert with 20+ years of experience. Your task is to classify an exercise with rich, precise tags used for program design, exercise swaps, and workload analytics.
+
+## EXERCISE
+- Name: {exercise_name}
+- Description: {description or 'Not provided'}
+- Category: {category or 'Not provided'}
+- Legacy muscle group: {muscle_group or 'Not provided'}
+{existing_info}
+
+## TAG TAXONOMY
+
+### pattern_tags (select ALL that apply, usually 1-3):
+knee_dominant, hip_dominant, horizontal_push, horizontal_pull, vertical_push, vertical_pull, trunk_anti_extension, trunk_anti_flexion, trunk_anti_rotation, trunk_rotation, trunk_lateral_flexion, trunk_anti_lateral_flexion, pelvis_flexion_emphasis, pelvis_extension_emphasis, locomotion, carries
+
+### primary_muscle_group (select exactly ONE):
+quads, hamstrings, glutes, calves, hip_adductors, hip_abductors, hip_flexors, spinal_erectors, lats, mid_back, upper_traps, rear_delts, side_delts, front_delts, chest, triceps, biceps, forearms_and_grip, abs_rectus, obliques, deep_core
+
+### secondary_muscle_groups (select 1-5):
+Same options as primary_muscle_group. Must NOT include the primary.
+
+### muscle_contribution_map (weights MUST sum to 1.0):
+Map of muscle_group → contribution weight. Include primary + secondary muscles.
+Example: {{"quads": 0.6, "glutes": 0.25, "hamstrings": 0.1, "deep_core": 0.05}}
+
+### stance (select exactly ONE):
+supine, prone, quadruped, tall_kneeling, half_kneeling, seated_supported, standing_supported, bilateral_standing, staggered, split_squat_lunge, single_leg, athletic_multidirectional, hang_support
+
+### plane (select exactly ONE):
+sagittal, frontal, transverse, mixed
+
+### rom_bias (select exactly ONE):
+lengthened, mid_range, shortened, mixed
+
+### athletic_skill_tags (select 0-3, empty for non-athletic exercises):
+jump_vertical, jump_horizontal, jump_lateral, hop_single_leg_vertical, hop_single_leg_horizontal, bound_alternating, landing_and_deceleration, sprint_acceleration, sprint_max_velocity, change_of_direction_cut, shuffle_and_lateral, throw_overhead, throw_rotational, throw_chest_pass, olympic_lift_derivative, upper_body_plyometric, medicine_ball_slam, medicine_ball_scoop_toss, reactive_agility_cue_based
+
+### athletic_attribute_tags (select 0-3, empty for non-athletic exercises):
+power, elasticity, rate_of_force_development, reactive_strength_index, speed_linear, agility_multi_directional, coordination, stiffness, deceleration_capacity, work_capacity
+
+### equipment_required (list all REQUIRED equipment):
+e.g., ["barbell", "squat_rack"] or ["cable_machine"] or [] for bodyweight
+
+### equipment_optional (list optional enhancements):
+e.g., ["belt", "wrist_wraps"] or []
+
+## OUTPUT FORMAT
+
+Return ONLY valid JSON:
+{{
+  "pattern_tags": ["tag1", "tag2"],
+  "primary_muscle_group": "string",
+  "secondary_muscle_groups": ["string1", "string2"],
+  "muscle_contribution_map": {{"muscle": 0.5, "muscle2": 0.3, "muscle3": 0.2}},
+  "stance": "string",
+  "plane": "string",
+  "rom_bias": "string",
+  "athletic_skill_tags": [],
+  "athletic_attribute_tags": [],
+  "equipment_required": [],
+  "equipment_optional": [],
+  "confidence": {{
+    "pattern_tags": 0.95,
+    "primary_muscle_group": 0.9,
+    "secondary_muscle_groups": 0.85,
+    "muscle_contribution_map": 0.8,
+    "stance": 0.9,
+    "plane": 0.95,
+    "rom_bias": 0.85,
+    "athletic_skill_tags": 0.9,
+    "athletic_attribute_tags": 0.9,
+    "equipment_required": 0.95,
+    "equipment_optional": 0.9
+  }},
+  "reasoning": {{
+    "pattern_tags": "Brief explanation",
+    "primary_muscle_group": "Brief explanation",
+    "stance": "Brief explanation",
+    "plane": "Brief explanation",
+    "rom_bias": "Brief explanation"
+  }}
+}}
+
+## RULES
+- Be precise. Don't over-tag — only select what clearly applies.
+- muscle_contribution_map weights MUST sum to exactly 1.0.
+- Confidence values: 0.0 = no idea, 0.5 = educated guess, 0.8 = fairly sure, 0.95+ = very confident.
+- Reasoning only for the 5 most important fields (pattern_tags, primary_muscle_group, stance, plane, rom_bias).
+- Return ONLY the JSON. No markdown fences, no commentary."""
+
+
+def _format_existing_tags(tags: dict[str, Any]) -> str:
+    """Format existing tags for prompt context."""
+    parts: list[str] = []
+    for key, value in tags.items():
+        if value:
+            parts.append(f"  - {key}: {value}")
+    return "\n".join(parts) if parts else "  (none)"

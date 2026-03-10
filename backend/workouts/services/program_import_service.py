@@ -460,8 +460,7 @@ def confirm_import(
 
         # UndoSnapshot
         UndoSnapshot.objects.create(
-            decision_log=DecisionLog.objects.latest('created_at'),
-            scope=UndoSnapshot.Scope.TRAINING_PLAN,
+            scope=UndoSnapshot.Scope.PLAN,
             before_state={},
             after_state={
                 'training_plan_id': str(plan.pk),

@@ -1,33 +1,45 @@
-# Focus: Trainer Packet v6.5 — Step 12: Import Pipeline (Draft/Confirm)
+# Focus: Trainer Packet v6.5 — Step 13: Auto-tagging Pipeline
 
 ## Priority
 
-Critical — Step 12 of the v6.5 build order. Enables trainers to bulk import training programs from CSV/JSON with a two-phase draft→confirm workflow.
+Critical — Step 13 of the v6.5 build order. AI-powered exercise tagging with draft/edit/retry/version workflow.
 
 ## What to Build
 
-### 1. ProgramImportDraft Model
+### 1. ExerciseTagDraft Model
 
-- Stores uploaded file content, parsed preview, validation errors
-- Status: pending_review, confirmed, rejected, expired
-- FK to trainer, optional trainee
-- JSONField for parsed data and errors
+- Stores AI-generated tag suggestions before trainer approval
+- Status: draft, approved, rejected
+- FK to exercise and requesting trainer
+- JSONField for drafted tags, confidence scores, AI reasoning
+- Retry count tracking
 
-### 2. Import Service
+### 2. Auto-tagging Service
 
-- `parse_csv_to_draft()` — Parse CSV into structured plan preview
-- `validate_draft()` — Validate exercises exist, rep ranges valid, etc.
-- `confirm_import()` — Atomic creation of TrainingPlan/PlanWeek/PlanSession/PlanSlot + DecisionLog
+- `request_auto_tag()` — Call AI to generate tag suggestions → create draft
+- `apply_draft()` — Apply approved tags to exercise, increment version, create DecisionLog + UndoSnapshot
+- `reject_draft()` — Reject draft
+- `retry_draft()` — Request new AI attempt (increments retry count)
+- `get_tag_history()` — Version history for an exercise's tags
 
 ### 3. API Endpoints
 
-- POST /program-imports/upload/ — Accept CSV, create draft
-- GET /program-imports/{draft_id}/ — Get draft for review
-- POST /program-imports/{draft_id}/confirm/ — Execute import
-- DELETE /program-imports/{draft_id}/ — Reject/discard draft
+- POST /exercises/{id}/auto-tag/ — Request AI auto-tagging (creates draft)
+- GET /exercises/{id}/auto-tag-draft/ — Get current draft for review
+- PATCH /exercises/{id}/auto-tag-draft/ — Edit draft before applying
+- POST /exercises/{id}/auto-tag-draft/apply/ — Apply draft tags to exercise
+- POST /exercises/{id}/auto-tag-draft/reject/ — Reject draft
+- POST /exercises/{id}/auto-tag-draft/retry/ — Request new attempt
+- GET /exercises/{id}/tag-history/ — Tag version history
+
+### 4. AI Prompt
+
+- GPT-4o function calling to generate structured tags
+- Input: exercise name, description, category, equipment, existing tags
+- Output: all v6.5 tag fields + confidence scores + reasoning
 
 ## What NOT to Build
 
-- Mobile UI for import
-- JSON file import (CSV only for now)
-- Exercise auto-creation (exercises must pre-exist)
+- Mobile UI for auto-tagging
+- Bulk auto-tagging (one exercise at a time)
+- Auto-tagging on exercise creation (manual trigger only)
