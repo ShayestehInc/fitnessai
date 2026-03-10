@@ -4,6 +4,37 @@ All notable changes to the FitnessAI platform are documented in this file.
 
 ---
 
+## [2026-03-09] — Pipeline 64: v6.5 Step 7 (Progression Engine — Staircase + Wave + Deload)
+
+### Added
+
+- Backend: ProgressionProfile model — 5 progression types (Staircase Percent, Rep Staircase, Double Progression, Linear, Wave-by-Month) with rules, deload_rules, failure_rules JSON configs. UUID PK, is_system flag
+- Backend: ProgressionEvent model — audit trail for every progression decision, linked to DecisionLog and ProgressionProfile
+- Backend: TrainingPlan.default_progression_profile FK (plan-level default)
+- Backend: PlanSlot.progression_profile FK (slot-level override, falls back to plan default)
+- Backend: Progression engine service — 5 deterministic evaluators with gap detection (>14 days → 90% TM deload), consecutive failure detection, scheduled deload weeks, dynamic load unit resolution
+- Backend: 4 PlanSlot actions: next-prescription (GET), apply-progression (POST, trainer/admin only), progression-readiness (GET), progression-history (GET)
+- Backend: ProgressionProfile CRUD ViewSet with role-based security (system profiles admin-only)
+- Backend: PlanSlot serializer now includes progression_profile info (name, type)
+- Backend: seed_progression_profiles management command — 5 system profiles with full rule configs
+- Backend: 73 comprehensive tests covering all evaluators, edge cases, role-based access
+
+### Security
+
+- Trainees blocked from apply-progression (trainer/admin only action)
+- Row-level security on ProgressionProfileViewSet (system + trainer-scoped visibility)
+- PlanSlot actions inherit queryset-level IDOR protection
+- DecisionLog audit trail with explicit actor_type (user vs system)
+
+### Fixed
+
+- Staircase percent off-by-one: first work week now correctly uses start_pct
+- Wave-by-month cycle counter now only counts progression/deload events (not hold/failure)
+- load_prescription_pct unconditionally cleared when switching from percent-based to absolute-load profiles
+- Dynamic load unit resolution from LiftMax/LiftSetLog (no more hardcoded 'lb')
+
+---
+
 ## [2026-03-09] — Pipeline 63: v6.5 Step 6 (Modality Library with Counting Rules and Guardrails)
 
 ### Added

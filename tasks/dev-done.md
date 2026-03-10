@@ -1,52 +1,53 @@
-# Dev Done: Modality Library with Counting Rules and Guardrails
+# Dev Done: Progression Engine (v6.5 Step 7)
 
 ## Date: 2026-03-09
 
-## Files Changed
+## Files Created
 
-### Modified
+- `backend/workouts/services/progression_engine_service.py` — Full progression engine with 5 evaluators and 4 public API functions
+- `backend/workouts/management/commands/seed_progression_profiles.py` — Seed 5 system profiles
+- `backend/workouts/migrations/0025_progression_engine.py` — Migration for ProgressionProfile, ProgressionEvent, FKs
 
-- `backend/workouts/models.py` — Added SetStructureModality, ModalityGuardrail models; added modality fields to PlanSlot
-- `backend/workouts/serializers.py` — Added modality serializers; updated PlanSlotSerializer with modality fields
-- `backend/workouts/views.py` — Added SetStructureModalityViewSet, PlanSessionViewSet; added modality-recommendations and set-modality actions to PlanSlotViewSet
-- `backend/workouts/urls.py` — Registered modalities, plan-sessions routes
-- `backend/workouts/services/training_generator_service.py` — Enhanced A5 step with modality assignment; added modality fields to SlotSpec
+## Files Modified
 
-### Created
-
-- `backend/workouts/services/modality_service.py` — Full modality service: guardrail validation, recommendations, volume computation, apply/assign logic
-- `backend/workouts/management/commands/seed_modalities.py` — Seeds 8 system modalities + 5 guardrails
-- `backend/workouts/migrations/0024_modality_library.py` — Migration
+- `backend/workouts/models.py` — Added ProgressionProfile model (UUID PK, 5 progression types, rules/deload_rules/failure_rules JSON), ProgressionEvent model (trainee, exercise, plan_slot, event audit trail), TrainingPlan.default_progression_profile FK, PlanSlot.progression_profile FK
+- `backend/workouts/serializers.py` — Added ProgressionProfileSerializer, ProgressionProfileListSerializer, ProgressionEventSerializer, ApplyProgressionInputSerializer
+- `backend/workouts/views.py` — Added ProgressionProfileViewSet (full CRUD with role-based security), PlanSlotViewSet actions: next-prescription, apply-progression, progression-history, progression-readiness
+- `backend/workouts/urls.py` — Registered progression-profiles route
 
 ## Key Decisions
 
-1. SetStructureModality is a standalone model (not TextChoices) — supports trainer-created custom modalities
-2. ModalityGuardrail uses condition_field/operator/value pattern — extensible without code changes
-3. Volume multiplier from packet: 1.0x (straight/down/eccentrics), 0.67x (giant/myo/drop/occlusion), 2.0x (supersets)
-4. PlanSlot gets nullable FK to SetStructureModality — backward compatible with existing plans
-5. A5 enhanced to assign default modality during pipeline — uses prefetched modality map
-6. SlotSpec extended with modality fields — passed through to PlanSlot during bulk_create
-7. Guardrail evaluation resolves field values from exercise tags and slot properties
-8. Deload weeks always get Straight Sets regardless of goal
-9. Trainer override creates DecisionLog with guardrail_override reason code
-10. Volume summary service aggregates per-muscle with modality multipliers
+1. **Slot override > plan default**: \_get_effective_profile resolves slot.progression_profile first, falls back to plan.default_progression_profile
+2. **Gap detection**: >14 days since last session triggers automatic deload to 90% TM
+3. **Consecutive failure detection**: Configurable per profile (default 2), triggers deload/reduce per failure_rules
+4. **Frozen dataclasses**: NextPrescription, ProgressionReadiness, ProgressionEventResult — immutable return types
+5. **Trainer override on apply-progression**: Optional override_sets/reps/load fields let trainers adjust the computed prescription before applying
+6. **DecisionLog integration**: Every apply_progression creates a DecisionLog entry with full audit trail
 
-## New API Endpoints
+## Progression Types Implemented
 
-- `GET/POST /api/workouts/modalities/` — list/create modalities
-- `GET/PUT/DELETE /api/workouts/modalities/{id}/` — CRUD modality
-- `GET /api/workouts/plan-slots/{id}/modality-recommendations/` — ranked valid modalities
-- `POST /api/workouts/plan-slots/{id}/set-modality/` — apply modality with guardrail check
-- `GET /api/workouts/plan-sessions/{id}/` — retrieve session
-- `GET /api/workouts/plan-sessions/{id}/volume-summary/` — per-muscle volume summary
+1. **Staircase Percent**: Step through TM percentages weekly, scheduled deload
+2. **Rep Staircase**: Hold load, climb reps, bump load at top rung
+3. **Double Progression**: Earn reps in range, increase load when all sets hit top
+4. **Linear**: Fixed weight increment per session/week, deload on failure
+5. **Wave-by-Month**: 4-week accumulation/build/intensify/deload cycle
+
+## Edge Cases Handled
+
+- No progression profile assigned → hold prescription
+- No LiftMax → hold (no_max blocker)
+- No history → hold (no_history)
+- Gap > 14 days → auto-deload to 90% TM
+- Consecutive failures → deload/reduce per profile rules
+- Deload week → skip progression (deload_week blocker)
+- Unsupported progression type → hold
 
 ## How to Test
 
-1. `python manage.py migrate`
-2. `python manage.py seed_modalities` — seeds 8 system modalities + guardrails
-3. `GET /api/workouts/modalities/` — verify 8 system modalities listed
-4. Generate a plan: existing flow now assigns modalities in A5
-5. `GET /api/workouts/training-plans/{id}/` — verify slots have modality data
-6. `GET /api/workouts/plan-slots/{id}/modality-recommendations/` — verify ranked list
-7. `POST /api/workouts/plan-slots/{id}/set-modality/` — apply modality, verify guardrails
-8. `GET /api/workouts/plan-sessions/{id}/volume-summary/` — verify per-muscle volume
+1. Seed profiles: `python manage.py seed_progression_profiles`
+2. Assign a profile to a plan or slot
+3. GET `/api/workouts/plan-slots/{id}/next-prescription/` — see computed prescription
+4. GET `/api/workouts/plan-slots/{id}/progression-readiness/` — check blockers
+5. POST `/api/workouts/plan-slots/{id}/apply-progression/` — apply and create event
+6. GET `/api/workouts/plan-slots/{id}/progression-history/` — view audit trail
+7. CRUD on `/api/workouts/progression-profiles/` — manage profiles

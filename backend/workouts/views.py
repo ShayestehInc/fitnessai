@@ -19,6 +19,7 @@ from django.db.models import QuerySet
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.conf import settings
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, cast
@@ -43,6 +44,7 @@ from .models import (
     PlanSession,
     PlanSlot,
     PlanWeek,
+    ProgressionProfile,
     SplitTemplate,
     TrainingPlan,
     WorkloadFactTemplate,
@@ -122,6 +124,10 @@ from .serializers import (
     TrainingPlanCreateSerializer,
     TrainingPlanListSerializer,
     TrainingPlanSerializer,
+    ProgressionProfileSerializer,
+    ProgressionProfileListSerializer,
+    ProgressionEventSerializer,
+    ApplyProgressionInputSerializer,
 )
 from core.permissions import IsTrainer as IsTrainerPerm
 
@@ -129,6 +135,7 @@ from .services.daily_log_service import DailyLogService
 from .services.decision_log_service import DecisionLogService
 from .services.max_load_service import MaxLoadService
 from .services.natural_language_parser import NaturalLanguageParserService
+from .services.progression_engine_service import NextPrescription
 from .services.workload_service import WorkloadAggregationService, WorkloadTrendService
 
 
@@ -4082,7 +4089,9 @@ class PlanSlotViewSet(
         qs = PlanSlot.objects.select_related(
             'exercise',
             'set_structure_modality',
+            'progression_profile',
             'session__week__plan__trainee',
+            'session__week__plan__default_progression_profile',
         )
 
         if user.role == 'ADMIN':
@@ -4287,6 +4296,115 @@ class PlanSlotViewSet(
             'guardrails_overridden': result.guardrails_overridden,
         })
 
+    @action(detail=True, methods=['get'], url_path='next-prescription')
+    def next_prescription(self, request: Request, pk: str | None = None) -> Response:
+        """Compute the next session prescription for this slot."""
+        from .services.progression_engine_service import compute_next_prescription
+
+        slot = self.get_object()
+        trainee = slot.session.week.plan.trainee
+        prescription = compute_next_prescription(slot=slot, trainee_id=trainee.pk)
+
+        return Response({
+            'slot_id': prescription.slot_id,
+            'exercise_id': prescription.exercise_id,
+            'exercise_name': prescription.exercise_name,
+            'progression_type': prescription.progression_type,
+            'event_type': prescription.event_type,
+            'sets': prescription.sets,
+            'reps_min': prescription.reps_min,
+            'reps_max': prescription.reps_max,
+            'load_value': str(prescription.load_value) if prescription.load_value else None,
+            'load_unit': prescription.load_unit,
+            'load_percentage': str(prescription.load_percentage) if prescription.load_percentage else None,
+            'reason_codes': prescription.reason_codes,
+            'reason_display': prescription.reason_display,
+            'confidence': prescription.confidence,
+        })
+
+    @action(detail=True, methods=['post'], url_path='apply-progression')
+    def apply_progression(self, request: Request, pk: str | None = None) -> Response:
+        """Compute and apply the next progression to this slot."""
+        from .services.progression_engine_service import (
+            apply_progression as apply_prog,
+            compute_next_prescription,
+        )
+
+        slot = self.get_object()
+        trainee = slot.session.week.plan.trainee
+        user = request.user
+
+        # Only trainers and admins can apply progression
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Only trainers and admins can apply progression.")
+
+        serializer = ApplyProgressionInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        overrides = serializer.validated_data
+
+        prescription = compute_next_prescription(slot=slot, trainee_id=trainee.pk)
+
+        # Apply trainer overrides if provided
+        override_kwargs: dict[str, Any] = {}
+        if overrides.get('override_sets') is not None:
+            override_kwargs['sets'] = overrides['override_sets']
+        if overrides.get('override_reps_min') is not None:
+            override_kwargs['reps_min'] = overrides['override_reps_min']
+        if overrides.get('override_reps_max') is not None:
+            override_kwargs['reps_max'] = overrides['override_reps_max']
+        if overrides.get('override_load') is not None:
+            override_kwargs['load_value'] = overrides['override_load']
+        if override_kwargs:
+            prescription = replace(prescription, **override_kwargs)
+
+        result = apply_prog(
+            slot=slot,
+            prescription=prescription,
+            actor_id=user.pk,
+            trainee_id=trainee.pk,
+            reason=overrides.get('reason', ''),
+        )
+
+        return Response({
+            'event_id': result.event_id,
+            'slot_id': result.slot_id,
+            'event_type': result.event_type,
+            'old_prescription': result.old_prescription,
+            'new_prescription': result.new_prescription,
+            'reason_codes': result.reason_codes,
+            'decision_log_id': result.decision_log_id,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], url_path='progression-history')
+    def progression_history(self, request: Request, pk: str | None = None) -> Response:
+        """Get progression event history for this slot."""
+        from .services.progression_engine_service import get_progression_history
+
+        slot = self.get_object()
+        events = get_progression_history(slot=slot)
+        serializer = ProgressionEventSerializer(events, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='progression-readiness')
+    def progression_readiness(self, request: Request, pk: str | None = None) -> Response:
+        """Evaluate whether this slot is ready for progression."""
+        from .services.progression_engine_service import evaluate_progression_readiness
+
+        slot = self.get_object()
+        trainee = slot.session.week.plan.trainee
+        readiness = evaluate_progression_readiness(slot=slot, trainee_id=trainee.pk)
+
+        return Response({
+            'slot_id': readiness.slot_id,
+            'is_ready': readiness.is_ready,
+            'blockers': readiness.blockers,
+            'recent_sessions': readiness.recent_sessions,
+            'last_session_date': readiness.last_session_date,
+            'avg_rpe': str(readiness.avg_rpe) if readiness.avg_rpe else None,
+            'sets_completed_rate': str(readiness.sets_completed_rate) if readiness.sets_completed_rate else None,
+            'consecutive_failures': readiness.consecutive_failures,
+        })
+
 
 class SetStructureModalityViewSet(viewsets.ModelViewSet[SetStructureModality]):
     """
@@ -4437,4 +4555,57 @@ class SplitTemplateViewSet(viewsets.ModelViewSet[SplitTemplate]):
             raise PermissionDenied("Trainees cannot delete split templates.")
         if instance.is_system and user.role != 'ADMIN':
             raise PermissionDenied("Cannot delete system split templates.")
+        instance.delete()
+
+
+class ProgressionProfileViewSet(viewsets.ModelViewSet[ProgressionProfile]):
+    """
+    CRUD for progression profiles.
+    System profiles visible to all. Trainer-created visible to creator + their trainees.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self) -> type[BaseSerializer[Any]]:
+        if self.action == 'list':
+            return ProgressionProfileListSerializer
+        return ProgressionProfileSerializer
+
+    def get_queryset(self) -> QuerySet[ProgressionProfile]:
+        user = self.request.user
+        if user.role == 'ADMIN':
+            return ProgressionProfile.objects.all()
+        elif user.role == 'TRAINER':
+            return ProgressionProfile.objects.filter(
+                Q(is_system=True) | Q(created_by=user)
+            )
+        else:
+            q = Q(is_system=True)
+            if user.parent_trainer_id is not None:
+                q |= Q(created_by_id=user.parent_trainer_id)
+            return ProgressionProfile.objects.filter(q)
+
+    def perform_create(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot create progression profiles.")
+        if user.role == 'ADMIN':
+            serializer.save(is_system=True, created_by=user)
+        else:
+            serializer.save(is_system=False, created_by=user)
+
+    def perform_update(self, serializer: BaseSerializer[Any]) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot modify progression profiles.")
+        instance = serializer.instance
+        if instance and instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot modify system progression profiles.")
+        serializer.save()
+
+    def perform_destroy(self, instance: ProgressionProfile) -> None:
+        user = self.request.user
+        if user.role == 'TRAINEE':
+            raise PermissionDenied("Trainees cannot delete progression profiles.")
+        if instance.is_system and user.role != 'ADMIN':
+            raise PermissionDenied("Cannot delete system progression profiles.")
         instance.delete()
