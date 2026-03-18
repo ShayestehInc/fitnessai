@@ -48,12 +48,12 @@ class _ProgramGeneratorScreenState
   int _progressStep = 0;
   Timer? _progressTimer;
   static const _progressMessages = [
-    ('Analyzing split type & training goals', Icons.psychology_outlined, 'Understanding your configuration...'),
-    ('Building weekly split template', Icons.calendar_month_outlined, 'Mapping muscle groups to training days...'),
-    ('Selecting exercises from library', Icons.fitness_center_outlined, 'Picking the best movements for each session...'),
-    ('Assigning sets, reps & intensity', Icons.tune_outlined, 'Calibrating volume and load per exercise...'),
-    ('Applying progressive overload', Icons.trending_up_outlined, 'Planning week-over-week progression...'),
-    ('Finalizing your program', Icons.check_circle_outline, 'Almost there — reviewing the full plan...'),
+    ('Gathering exercise bank', Icons.fitness_center_outlined, 'Loading exercises matching your muscle groups...'),
+    ('Building the AI prompt', Icons.psychology_outlined, 'Combining split type, goal & exercise library...'),
+    ('AI is designing Week 1', Icons.auto_awesome_outlined, 'Selecting exercises, sets, reps & intensity...'),
+    ('Validating AI response', Icons.verified_outlined, 'Checking exercise IDs and program structure...'),
+    ('Expanding across all weeks', Icons.calendar_month_outlined, 'Applying progressive overload & deload weeks...'),
+    ('Finalizing program', Icons.check_circle_outline, 'Building nutrition template & schedule...'),
   ];
   final TextEditingController _modifyController = TextEditingController();
 
@@ -175,7 +175,9 @@ class _ProgramGeneratorScreenState
       goal: _goal,
       durationWeeks: _durationWeeks,
       trainingDaysPerWeek: _selectedDays.length,
-      trainingDays: _selectedDays.toList(),
+      trainingDays: const ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+          .where(_selectedDays.contains)
+          .toList(),
       customDayConfig: _splitType == 'custom'
           ? _customDayConfig.map((d) => d.toJson()).toList()
           : null,
@@ -914,6 +916,13 @@ class _ProgramGeneratorScreenState
           // Animated icon
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
+            layoutBuilder: (currentChild, previousChildren) =>
+                Stack(alignment: Alignment.center, children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ]),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: Icon(
               current.$2,
               key: ValueKey(_progressStep),
@@ -925,6 +934,13 @@ class _ProgramGeneratorScreenState
           // Main title
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
+            layoutBuilder: (currentChild, previousChildren) =>
+                Stack(alignment: Alignment.center, children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ]),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: Text(
               current.$1,
               key: ValueKey('title_$_progressStep'),
@@ -938,6 +954,13 @@ class _ProgramGeneratorScreenState
           // Subtitle
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
+            layoutBuilder: (currentChild, previousChildren) =>
+                Stack(alignment: Alignment.center, children: [
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ]),
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
             child: Text(
               current.$3,
               key: ValueKey('sub_$_progressStep'),
