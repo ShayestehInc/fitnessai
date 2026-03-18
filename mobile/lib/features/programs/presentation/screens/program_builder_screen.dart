@@ -901,10 +901,35 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     exercise.exerciseName,
                     style: const TextStyle(fontWeight: FontWeight.w500),
                   ),
-                  Text(
-                    exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
-                      w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  Row(
+                    children: [
+                      if (exercise.slotRole != null && exercise.slotRole!.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _slotRoleColor(theme, exercise.slotRole!).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            _slotRoleLabel(exercise.slotRole!),
+                            style: TextStyle(
+                              color: _slotRoleColor(theme, exercise.slotRole!),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+                      Flexible(
+                        child: Text(
+                          exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
+                            w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -961,6 +986,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     int sets = exercise.sets;
     int reps = _parseRepsToInt(exercise.reps);
     int restSeconds = exercise.restSeconds ?? 60;
+    String? selectedRole = exercise.slotRole;
 
     showAdaptiveBottomSheet(
       context: context,
@@ -1031,6 +1057,38 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
                   w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+
+              // Slot role selector
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final role in const [
+                    ('primary_compound', 'Primary'),
+                    ('secondary_compound', 'Secondary'),
+                    ('accessory', 'Accessory'),
+                    ('isolation', 'Isolation'),
+                  ])
+                    ChoiceChip(
+                      label: Text(role.$2),
+                      selected: selectedRole == role.$1,
+                      selectedColor: _slotRoleColor(theme, role.$1).withValues(alpha: 0.25),
+                      labelStyle: TextStyle(
+                        color: selectedRole == role.$1
+                            ? _slotRoleColor(theme, role.$1)
+                            : null,
+                        fontWeight: selectedRole == role.$1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                      onSelected: (selected) {
+                        setModalState(() {
+                          selectedRole = selected ? role.$1 : null;
+                        });
+                      },
+                    ),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -1123,7 +1181,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        _applyToThisWeek(exercise, sets, reps, restSeconds);
+                        _applyToThisWeek(exercise, sets, reps, restSeconds, slotRole: selectedRole);
                         Navigator.pop(context);
                       },
                       child: Text(context.l10n.communityThisWeek),
@@ -1133,7 +1191,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        _applyToAllWeeks(exercise, sets, reps, restSeconds);
+                        _applyToAllWeeks(exercise, sets, reps, restSeconds, slotRole: selectedRole);
                         Navigator.pop(context);
                       },
                       child: Text(context.l10n.programsAllWeeks),
@@ -1146,7 +1204,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () {
-                    _applyProgressiveOverload(exercise, sets, reps, restSeconds);
+                    _applyProgressiveOverload(exercise, sets, reps, restSeconds, slotRole: selectedRole);
                     Navigator.pop(context);
                   },
                   child: Text(context.l10n.programsApplyWithProgressiveOverload1RepWeek),
@@ -1157,7 +1215,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    _applyToAllWeeks(exercise, sets, reps, restSeconds);
+                    _applyToAllWeeks(exercise, sets, reps, restSeconds, slotRole: selectedRole);
                     Navigator.pop(context);
                   },
                   child: Text(context.l10n.commonSave),
@@ -1182,6 +1240,26 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   /// Parse a reps string (e.g. "8-10" or "12") to an int for the slider.
   /// For range strings, uses the high end of the range.
+  Color _slotRoleColor(ThemeData theme, String slotRole) {
+    switch (slotRole) {
+      case 'primary_compound': return theme.colorScheme.error;
+      case 'secondary_compound': return theme.colorScheme.primary;
+      case 'accessory': return theme.colorScheme.tertiary;
+      case 'isolation': return theme.colorScheme.onSurfaceVariant;
+      default: return theme.colorScheme.onSurfaceVariant;
+    }
+  }
+
+  String _slotRoleLabel(String slotRole) {
+    switch (slotRole) {
+      case 'primary_compound': return 'Primary';
+      case 'secondary_compound': return 'Secondary';
+      case 'accessory': return 'Accessory';
+      case 'isolation': return 'Isolation';
+      default: return slotRole;
+    }
+  }
+
   int _parseRepsToInt(String reps) {
     if (reps.contains('-')) {
       final parts = reps.split('-');
@@ -1505,7 +1583,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     showAdaptiveToast(context, message: 'Removed ${exercise.exerciseName}');
   }
 
-  void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
+  void _applyToThisWeek(WorkoutExercise exercise, int sets, int reps, int restSeconds, {String? slotRole}) {
     final repsStr = reps.toString();
     setState(() {
       final weekIndex = _selectedWeekIndex;
@@ -1515,7 +1593,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       final updatedDays = week.days.map((day) {
         final updatedExercises = day.exercises.map((e) {
           if (e.exerciseId == exercise.exerciseId) {
-            return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds);
+            return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds, slotRole: slotRole);
           }
           return e;
         }).toList();
@@ -1529,14 +1607,14 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     showAdaptiveToast(context, message: context.l10n.programsUpdatedForThisWeek);
   }
 
-  void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
+  void _applyToAllWeeks(WorkoutExercise exercise, int sets, int reps, int restSeconds, {String? slotRole}) {
     final repsStr = reps.toString();
     setState(() {
       final updatedWeeks = _programState.weeks.map((week) {
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds);
+              return e.copyWith(sets: sets, reps: repsStr, restSeconds: restSeconds, slotRole: slotRole);
             }
             return e;
           }).toList();
@@ -1551,7 +1629,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     showAdaptiveToast(context, message: context.l10n.programsUpdatedForAllWeeks);
   }
 
-  void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps, int restSeconds) {
+  void _applyProgressiveOverload(WorkoutExercise exercise, int sets, int reps, int restSeconds, {String? slotRole}) {
     setState(() {
       final updatedWeeks = _programState.weeks.asMap().entries.map((entry) {
         final weekIndex = entry.key;
@@ -1576,7 +1654,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
         final updatedDays = week.days.map((day) {
           final updatedExercises = day.exercises.map((e) {
             if (e.exerciseId == exercise.exerciseId) {
-              return e.copyWith(sets: weekSets, reps: weekRepsStr, restSeconds: restSeconds);
+              return e.copyWith(sets: weekSets, reps: weekRepsStr, restSeconds: restSeconds, slotRole: slotRole);
             }
             return e;
           }).toList();
