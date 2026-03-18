@@ -102,6 +102,7 @@ class ProgramRepository {
     required String goal,
     required int durationWeeks,
     required int trainingDaysPerWeek,
+    List<String>? trainingDays,
     List<Map<String, dynamic>>? customDayConfig,
   }) async {
     try {
@@ -112,6 +113,9 @@ class ProgramRepository {
         'duration_weeks': durationWeeks,
         'training_days_per_week': trainingDaysPerWeek,
       };
+      if (trainingDays != null && trainingDays.isNotEmpty) {
+        data['training_days'] = trainingDays;
+      }
       if (customDayConfig != null && customDayConfig.isNotEmpty) {
         data['custom_day_config'] = customDayConfig;
       }

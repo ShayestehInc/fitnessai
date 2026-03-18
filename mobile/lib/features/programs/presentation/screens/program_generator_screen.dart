@@ -1,8 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
-import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../data/models/program_week_model.dart';
 import '../providers/program_provider.dart';
 import '../widgets/split_type_card.dart';
@@ -34,6 +34,7 @@ class _ProgramGeneratorScreenState
   String _goal = 'build_muscle';
   int _durationWeeks = 4;
   int _trainingDaysPerWeek = 4;
+  Set<String> _selectedDays = {'Monday', 'Tuesday', 'Wednesday', 'Thursday'};
   List<CustomDayConfig> _customDayConfig = [];
 
   // Step 3: Preview / generation
@@ -42,12 +43,25 @@ class _ProgramGeneratorScreenState
   String? _errorMessage;
   Map<String, dynamic>? _generatedData;
   String? _modificationSummary;
+
+  // Animated progress steps
+  int _progressStep = 0;
+  Timer? _progressTimer;
+  static const _progressMessages = [
+    ('Analyzing split type & training goals', Icons.psychology_outlined, 'Understanding your configuration...'),
+    ('Building weekly split template', Icons.calendar_month_outlined, 'Mapping muscle groups to training days...'),
+    ('Selecting exercises from library', Icons.fitness_center_outlined, 'Picking the best movements for each session...'),
+    ('Assigning sets, reps & intensity', Icons.tune_outlined, 'Calibrating volume and load per exercise...'),
+    ('Applying progressive overload', Icons.trending_up_outlined, 'Planning week-over-week progression...'),
+    ('Finalizing your program', Icons.check_circle_outline, 'Almost there — reviewing the full plan...'),
+  ];
   final TextEditingController _modifyController = TextEditingController();
 
   static const _totalSteps = 3;
 
   @override
   void dispose() {
+    _progressTimer?.cancel();
     _modifyController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -58,6 +72,7 @@ class _ProgramGeneratorScreenState
       case 0:
         return _splitType != null;
       case 1:
+        if (_selectedDays.length < 2) return false;
         if (_splitType == 'custom') {
           return _customDayConfig.isNotEmpty &&
               _customDayConfig.every((d) => d.muscleGroups.isNotEmpty);
@@ -122,6 +137,27 @@ class _ProgramGeneratorScreenState
     }
   }
 
+  void _startProgressTimer() {
+    _progressStep = 0;
+    _progressTimer?.cancel();
+    _progressTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        if (_progressStep < _progressMessages.length - 1) {
+          _progressStep++;
+        }
+      });
+    });
+  }
+
+  void _stopProgressTimer() {
+    _progressTimer?.cancel();
+    _progressTimer = null;
+  }
+
   Future<void> _generateProgram() async {
     if (_isGenerating) return;
 
@@ -130,6 +166,7 @@ class _ProgramGeneratorScreenState
       _errorMessage = null;
       _generatedData = null;
     });
+    _startProgressTimer();
 
     final repository = ref.read(programRepositoryProvider);
     final result = await repository.generateProgram(
@@ -137,12 +174,14 @@ class _ProgramGeneratorScreenState
       difficulty: _difficulty,
       goal: _goal,
       durationWeeks: _durationWeeks,
-      trainingDaysPerWeek: _trainingDaysPerWeek,
+      trainingDaysPerWeek: _selectedDays.length,
+      trainingDays: _selectedDays.toList(),
       customDayConfig: _splitType == 'custom'
           ? _customDayConfig.map((d) => d.toJson()).toList()
           : null,
     );
 
+    _stopProgressTimer();
     if (!mounted) return;
 
     if (result['success'] == true) {
@@ -433,62 +472,46 @@ class _ProgramGeneratorScreenState
 
         const SizedBox(height: 24),
 
-        // Training days per week
+        // Training days selection
         Text(
-          'Training Days / Week',
+          'Training Days',
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        Text(
+          'Select the days this trainee is available',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 12),
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            IconButton(
-              onPressed: _trainingDaysPerWeek > 2
-                  ? () {
-                      setState(() => _trainingDaysPerWeek--);
-                      _syncCustomDayConfig();
-                    }
-                  : null,
-              icon: const Icon(Icons.remove_circle_outline),
-              tooltip: context.l10n.programsDecreaseTrainingDays,
-            ),
-            Expanded(
-              child: Center(
-                child: Semantics(
-                  label: context.l10n.programsTrainingDaysPerWeekTrainingDaysPerWeek,
-                  child: Text(
-                    '$_trainingDaysPerWeek days',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _trainingDaysPerWeek < 7
-                  ? () {
-                      setState(() => _trainingDaysPerWeek++);
-                      _syncCustomDayConfig();
-                    }
-                  : null,
-              icon: const Icon(Icons.add_circle_outline),
-              tooltip: context.l10n.programsIncreaseTrainingDays,
-            ),
+            for (final entry in const [
+              ('Monday', 'Mon'),
+              ('Tuesday', 'Tue'),
+              ('Wednesday', 'Wed'),
+              ('Thursday', 'Thu'),
+              ('Friday', 'Fri'),
+              ('Saturday', 'Sat'),
+              ('Sunday', 'Sun'),
+            ])
+              _buildDayChip(theme, entry.$1, entry.$2),
           ],
         ),
-        Slider.adaptive(
-          value: _trainingDaysPerWeek.toDouble(),
-          min: 2,
-          max: 7,
-          divisions: 5,
-          label: '$_trainingDaysPerWeek days',
-          onChanged: (value) {
-            setState(() => _trainingDaysPerWeek = value.round());
-            _syncCustomDayConfig();
-          },
-        ),
+        if (_selectedDays.length < 2)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Select at least 2 days',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ),
 
         // Custom day configuration
         if (_splitType == 'custom') ...[
@@ -510,26 +533,7 @@ class _ProgramGeneratorScreenState
     final colorScheme = theme.colorScheme;
 
     if (_isGenerating) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const AdaptiveSpinner(),
-            const SizedBox(height: 24),
-            Text(
-              'Generating your program...',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Selecting exercises and building your schedule',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      );
+      return _buildGenerationProgress(theme, colorScheme);
     }
 
     if (_errorMessage != null) {
@@ -694,7 +698,7 @@ class _ProgramGeneratorScreenState
                         ),
                         _buildInfoChip(
                           theme,
-                          '$_trainingDaysPerWeek days/wk',
+                          '${_selectedDays.length} days/wk',
                           Icons.repeat,
                         ),
                       ],
@@ -809,6 +813,7 @@ class _ProgramGeneratorScreenState
                         ),
                         style: theme.textTheme.bodyMedium,
                         textInputAction: TextInputAction.send,
+                        onChanged: (_) => setState(() {}),
                         onSubmitted: (_) => _modifyProgram(),
                       ),
                     ),
@@ -851,6 +856,126 @@ class _ProgramGeneratorScreenState
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDayChip(ThemeData theme, String dayName, String shortName) {
+    final isSelected = _selectedDays.contains(dayName);
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            if (_selectedDays.length > 2) {
+              _selectedDays = Set.from(_selectedDays)..remove(dayName);
+            }
+          } else {
+            _selectedDays = Set.from(_selectedDays)..add(dayName);
+          }
+          _trainingDaysPerWeek = _selectedDays.length;
+          _syncCustomDayConfig();
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHighest,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          shortName,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: isSelected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenerationProgress(ThemeData theme, ColorScheme colorScheme) {
+    final current = _progressMessages[_progressStep];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Animated icon
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: Icon(
+              current.$2,
+              key: ValueKey(_progressStep),
+              size: 48,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Main title
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: Text(
+              current.$1,
+              key: ValueKey('title_$_progressStep'),
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Subtitle
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            child: Text(
+              current.$3,
+              key: ValueKey('sub_$_progressStep'),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Step indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_progressMessages.length, (i) {
+              final isActive = i <= _progressStep;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == _progressStep ? 24 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? colorScheme.primary
+                      : colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Step ${_progressStep + 1} of ${_progressMessages.length}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
