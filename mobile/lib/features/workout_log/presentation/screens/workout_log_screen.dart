@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_refresh_indicator.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../../shared/widgets/offline_banner.dart';
+import '../../../exercises/data/models/exercise_model.dart';
 import '../providers/workout_provider.dart';
 import '../../../../core/l10n/l10n_extension.dart';
 
@@ -165,7 +166,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     }
 
     return Container(
-      height: 56,
+      height: 60,
       margin: const EdgeInsets.only(bottom: 16),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -344,12 +345,14 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Could not load your workouts. Pull down to retry.',
+            error,
             style: TextStyle(
               color: theme.textTheme.bodySmall?.color,
-              fontSize: 14,
+              fontSize: 12,
             ),
             textAlign: TextAlign.center,
+            maxLines: 5,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 16),
           OutlinedButton.icon(
@@ -614,7 +617,7 @@ class _WorkoutCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Workout image placeholder
+            // Workout image with exercise preview
             Container(
               height: 120,
               decoration: BoxDecoration(
@@ -627,6 +630,15 @@ class _WorkoutCard extends StatelessWidget {
               ),
               child: Stack(
                 children: [
+                  // Exercise preview image (from exercise library) or local muscle group fallback
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(15),
+                      ),
+                      child: _buildWorkoutImage(workout),
+                    ),
+                  ),
                   // Gradient overlay
                   Container(
                     decoration: BoxDecoration(
@@ -641,16 +653,6 @@ class _WorkoutCard extends StatelessWidget {
                           Colors.black.withValues(alpha: 0.6),
                         ],
                       ),
-                    ),
-                  ),
-                  // Muscle group icon
-                  Center(
-                    child: Icon(
-                      _getMuscleGroupIcon(workout.exercises.isNotEmpty
-                          ? workout.exercises.first.muscleGroup
-                          : 'other'),
-                      size: 48,
-                      color: Colors.white.withValues(alpha: 0.3),
                     ),
                   ),
                   // Status badge
@@ -750,6 +752,32 @@ class _WorkoutCard extends StatelessWidget {
     );
   }
 
+  Widget _buildWorkoutImage(ProgramWorkoutDay workout) {
+    final muscleGroup = workout.exercises.isNotEmpty
+        ? workout.exercises.first.muscleGroup
+        : 'other';
+    final assetFallback = Image.asset(
+      MuscleGroups.assetPath(muscleGroup),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: _getMuscleGroupColor(muscleGroup),
+      ),
+    );
+
+    // If exercise has a network image, show it with local asset as fallback
+    if (workout.exercises.isNotEmpty &&
+        workout.exercises.first.imageUrl != null &&
+        workout.exercises.first.imageUrl!.isNotEmpty) {
+      return Image.network(
+        workout.exercises.first.imageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => assetFallback,
+      );
+    }
+
+    return assetFallback;
+  }
+
   Color _getMuscleGroupColor(String muscleGroup) {
     switch (muscleGroup.toLowerCase()) {
       case 'chest':
@@ -772,25 +800,4 @@ class _WorkoutCard extends StatelessWidget {
     }
   }
 
-  IconData _getMuscleGroupIcon(String muscleGroup) {
-    switch (muscleGroup.toLowerCase()) {
-      case 'chest':
-        return Icons.fitness_center;
-      case 'back':
-        return Icons.accessibility_new;
-      case 'shoulders':
-        return Icons.sports_gymnastics;
-      case 'legs':
-        return Icons.directions_run;
-      case 'biceps':
-      case 'triceps':
-      case 'arms':
-        return Icons.sports_martial_arts;
-      case 'core':
-      case 'abs':
-        return Icons.sports;
-      default:
-        return Icons.fitness_center;
-    }
-  }
 }

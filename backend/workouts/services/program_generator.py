@@ -760,28 +760,32 @@ def _build_exercise_bank_for_ai(
 ) -> list[dict[str, Any]]:
     """
     Fetch exercises relevant to the requested muscle groups and format
-    them for the AI prompt.
+    them for the AI prompt with rich v6.5 tags.
 
     Limits to _MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI per muscle group to
     keep the prompt size manageable. Prioritises trainer-custom exercises,
     then samples from public exercises for variety.
 
-    Returns a list of dicts with id, name, muscle_group, category.
+    Returns a list of dicts with id, name, muscle_group, category, and
+    v6.5 tag fields (pattern_tags, stance, plane, rom_bias, equipment).
     """
     privacy_q = Q(is_public=True)
     if trainer_id:
         privacy_q |= Q(created_by_id=trainer_id)
 
+    # Query both legacy muscle_group and v6.5 primary_muscle_group
     all_exercises = list(
         Exercise.objects.filter(
-            Q(muscle_group__in=muscle_groups) & privacy_q
+            (Q(muscle_group__in=muscle_groups) | Q(primary_muscle_group__in=muscle_groups))
+            & privacy_q
         ).order_by('muscle_group', 'name')
     )
 
-    # Group by muscle group and sample
+    # Group by the best available muscle group field
     by_group: dict[str, list[Exercise]] = {}
     for ex in all_exercises:
-        by_group.setdefault(ex.muscle_group, []).append(ex)
+        mg = ex.primary_muscle_group or ex.muscle_group
+        by_group.setdefault(mg, []).append(ex)
 
     result: list[dict[str, Any]] = []
     for mg in sorted(muscle_groups):
@@ -800,13 +804,32 @@ def _build_exercise_bank_for_ai(
             selected.extend(sampled)
 
         for ex in selected:
-            result.append({
+            entry: dict[str, Any] = {
                 'id': ex.id,
                 'name': ex.name,
                 'muscle_group': ex.muscle_group,
+                'primary_muscle_group': ex.primary_muscle_group or '',
                 'category': ex.category or '',
                 'image_url': ex.image_url or '',
-            })
+            }
+
+            # Include v6.5 rich tags when available
+            if ex.pattern_tags:
+                entry['pattern_tags'] = ex.pattern_tags
+            if ex.secondary_muscle_groups:
+                entry['secondary_muscle_groups'] = ex.secondary_muscle_groups
+            if ex.stance:
+                entry['stance'] = ex.stance
+            if ex.plane:
+                entry['plane'] = ex.plane
+            if ex.rom_bias:
+                entry['rom_bias'] = ex.rom_bias
+            if ex.equipment_required:
+                entry['equipment_required'] = ex.equipment_required
+            if ex.athletic_skill_tags:
+                entry['athletic_skill_tags'] = ex.athletic_skill_tags
+
+            result.append(entry)
 
     return result
 
@@ -848,12 +871,26 @@ def _parse_ai_response(raw_text: str) -> dict[str, Any]:
         raise ValueError(f"AI returned invalid JSON: {exc}") from exc
 
 
+_VALID_SLOT_ROLES: set[str] = {
+    'primary_compound', 'secondary_compound', 'accessory', 'isolation',
+}
+_VALID_SET_STRUCTURES: set[str] = {
+    'straight_sets', 'down_sets', 'drop_sets', 'supersets',
+    'myo_reps', 'controlled_eccentrics', 'giant_sets',
+    'pyramid_ascending', 'pyramid_descending', 'cluster_sets',
+    'rest_pause', 'circuit', 'static_sets', 'occlusion',
+}
+
+
 def _validate_ai_program(
     data: dict[str, Any],
     valid_exercise_ids: set[int],
 ) -> None:
     """
-    Validate the AI-generated program structure.
+    Validate the AI-generated program structure including v6.5 fields.
+
+    Validates slot_role, set_structure, and other v6.5 fields when present,
+    but does not fail on missing optional v6.5 fields for backwards compatibility.
 
     Raises:
         ValueError: If the structure is invalid.
@@ -877,6 +914,24 @@ def _validate_ai_program(
                     "AI selected exercise_id=%s (%s) not in bank — will be kept but flagged.",
                     ex_id, ex.get('exercise_name'),
                 )
+
+            # Validate v6.5 slot_role if present
+            slot_role = ex.get('slot_role')
+            if slot_role and slot_role not in _VALID_SLOT_ROLES:
+                logger.warning(
+                    "AI returned invalid slot_role='%s' for exercise '%s' — defaulting to 'accessory'.",
+                    slot_role, ex.get('exercise_name'),
+                )
+                ex['slot_role'] = 'accessory'
+
+            # Validate v6.5 set_structure if present
+            set_structure = ex.get('set_structure')
+            if set_structure and set_structure not in _VALID_SET_STRUCTURES:
+                logger.warning(
+                    "AI returned invalid set_structure='%s' for exercise '%s' — defaulting to 'straight_sets'.",
+                    set_structure, ex.get('exercise_name'),
+                )
+                ex['set_structure'] = 'straight_sets'
 
     if 'nutrition_template' not in data:
         raise ValueError("AI response missing 'nutrition_template'.")
@@ -950,7 +1005,7 @@ def _expand_weeks_from_template(
                     except (ValueError, IndexError):
                         adj_reps = base_reps
 
-                expanded_exercises.append({
+                expanded_ex: dict[str, Any] = {
                     'exercise_id': ex.get('exercise_id'),
                     'exercise_name': ex.get('exercise_name', ''),
                     'muscle_group': ex.get('muscle_group', ''),
@@ -960,14 +1015,30 @@ def _expand_weeks_from_template(
                     'weight': 0,
                     'unit': 'lbs',
                     'image_url': ex.get('image_url', ''),
-                })
+                }
 
-            expanded_days.append({
+                # Preserve v6.5 fields from AI response
+                for v65_field in (
+                    'slot_role', 'set_structure', 'tempo',
+                    'intensity_target_pct', 'selection_reason',
+                ):
+                    if ex.get(v65_field):
+                        expanded_ex[v65_field] = ex[v65_field]
+
+                expanded_exercises.append(expanded_ex)
+
+            expanded_day: dict[str, Any] = {
                 'day': day['day'],
                 'name': day.get('name', ''),
                 'is_rest_day': False,
                 'exercises': expanded_exercises,
-            })
+            }
+
+            # Preserve v6.5 session_role_labels if present
+            if day.get('session_role_labels'):
+                expanded_day['session_role_labels'] = day['session_role_labels']
+
+            expanded_days.append(expanded_day)
 
         intensity_mod = deload_intensity if is_deload else 1.0
         volume_mod = deload_volume if is_deload else 1.0
@@ -1044,7 +1115,7 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
         provider=config.provider,
         model_name=config.model_name,
         temperature=0.7,
-        max_tokens=4096,
+        max_tokens=8192,
     )
 
     try:
@@ -1087,7 +1158,19 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
             duration_weeks=request.duration_weeks,
         )
 
-        schedule = {'weeks': expanded_weeks}
+        schedule: dict[str, Any] = {'weeks': expanded_weeks}
+
+        # Preserve v6.5 metadata in the schedule
+        if progression.get('profile'):
+            schedule['progression_profile'] = progression['profile']
+        if progression.get('periodization_style'):
+            schedule['periodization_style'] = progression['periodization_style']
+        if progression.get('auto_progression_gates'):
+            schedule['auto_progression_gates'] = progression['auto_progression_gates']
+
+        weekly_volume_summary = ai_data.get('weekly_volume_summary')
+        if weekly_volume_summary:
+            schedule['weekly_volume_summary'] = weekly_volume_summary
 
         return GeneratedProgram(
             name=name,
@@ -1102,3 +1185,83 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
     except Exception:
         logger.exception("AI program generation failed — falling back to deterministic generator.")
         return generate_program(request)
+
+
+def modify_program_with_ai(
+    current_program: dict[str, Any],
+    modification_request: str,
+    trainer_id: int | None,
+) -> dict[str, Any]:
+    """
+    Modify an existing generated program using natural language via AI.
+
+    Args:
+        current_program: The full current program data (name, description, schedule, etc.)
+        modification_request: Natural language instruction from the trainer.
+        trainer_id: ID of the trainer making the request.
+
+    Returns:
+        Dict with name, description, modification_summary, schedule, nutrition_template.
+
+    Raises:
+        ValueError: If AI modification fails.
+    """
+    from trainer.ai_config import get_ai_config, get_api_key, AIModelConfig
+    from trainer.ai_chat import get_chat_model
+    from workouts.ai_prompts import get_program_modification_prompt
+    from langchain_core.messages import HumanMessage
+
+    # Get exercise bank for the AI to use
+    schedule = current_program.get('schedule', {})
+    weeks = schedule.get('weeks', [])
+
+    # Extract muscle groups from existing program
+    muscle_groups: set[str] = set()
+    for week in weeks[:1]:
+        for day in week.get('days', []):
+            for ex in day.get('exercises', []):
+                mg = ex.get('muscle_group', '')
+                if mg:
+                    muscle_groups.add(mg)
+
+    if not muscle_groups:
+        muscle_groups = {'chest', 'back', 'shoulders', 'arms', 'legs', 'glutes', 'core'}
+
+    exercise_bank = _build_exercise_bank_for_ai(muscle_groups, trainer_id)
+
+    prompt = get_program_modification_prompt(
+        current_program=current_program,
+        modification_request=modification_request,
+        exercise_bank=exercise_bank,
+    )
+
+    config = get_ai_config()
+    api_key = get_api_key(config.provider)
+
+    if not api_key:
+        raise ValueError("No AI API key configured. Cannot modify program without AI.")
+
+    gen_config = AIModelConfig(
+        provider=config.provider,
+        model_name=config.model_name,
+        temperature=0.7,
+        max_tokens=8192,
+    )
+
+    llm = get_chat_model(gen_config)
+    response = llm.invoke([HumanMessage(content=prompt)])
+    raw_text = str(response.content)
+
+    ai_data = _parse_ai_response(raw_text)
+
+    # Validate exercise IDs
+    valid_exercise_ids = {ex['id'] for ex in exercise_bank}
+    _validate_ai_program(ai_data, valid_exercise_ids)
+
+    return {
+        'name': ai_data.get('name', current_program.get('name', '')),
+        'description': ai_data.get('description', current_program.get('description', '')),
+        'modification_summary': ai_data.get('modification_summary', 'Program modified as requested.'),
+        'schedule': ai_data.get('schedule', schedule),
+        'nutrition_template': ai_data.get('nutrition_template', current_program.get('nutrition_template', {})),
+    }

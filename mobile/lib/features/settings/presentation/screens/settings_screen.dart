@@ -751,7 +751,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _handleLogout() async {
-    final unsyncedCount = await ref.read(unsyncedCountProvider.future);
+    int unsyncedCount = 0;
+    try {
+      unsyncedCount = await ref
+          .read(unsyncedCountProvider.future)
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Database not available or timeout — proceed with logout
+    }
 
     if (!mounted) return;
 
@@ -769,10 +776,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (confirmed != true || !mounted) return;
 
       // Clear local database for this user before logging out
-      final db = ref.read(databaseProvider);
-      final userId = ref.read(authStateProvider).user?.id;
-      if (userId != null) {
-        await db.clearUserData(userId);
+      try {
+        final db = ref.read(databaseProvider);
+        final userId = ref.read(authStateProvider).user?.id;
+        if (userId != null) {
+          await db.clearUserData(userId);
+        }
+      } catch (_) {
+        // Database not available — skip cleanup
       }
     }
 

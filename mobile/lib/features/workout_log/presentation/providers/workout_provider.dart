@@ -208,65 +208,72 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
   Future<void> loadInitialData() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    // Use offline-aware repository for programs (cache fallback).
-    // Fall back to online-only repository if offline repo not available.
-    final offlineRepo = _offlineRepo;
-    final Future<Map<String, dynamic>> programsFuture =
-        offlineRepo != null
-            ? offlineRepo.getPrograms()
-            : _repository.getPrograms();
+    try {
+      // Use offline-aware repository for programs (cache fallback).
+      // Fall back to online-only repository if offline repo not available.
+      final offlineRepo = _offlineRepo;
+      final Future<Map<String, dynamic>> programsFuture =
+          offlineRepo != null
+              ? offlineRepo.getPrograms()
+              : _repository.getPrograms();
 
-    // Load workout summary and programs in parallel
-    final results = await Future.wait([
-      _repository.getDailyWorkoutSummary(state.dateParam),
-      programsFuture,
-    ]);
+      // Load workout summary and programs in parallel
+      final results = await Future.wait([
+        _repository.getDailyWorkoutSummary(state.dateParam),
+        programsFuture,
+      ]);
 
-    final summaryResult = results[0];
-    final programsResult = results[1];
+      final summaryResult = results[0];
+      final programsResult = results[1];
 
-    ProgramModel? activeProgram;
-    List<ProgramModel> programs = [];
-    List<ProgramWeekData> programWeeks = [];
-    final fromCache = programsResult['fromCache'] == true;
+      ProgramModel? activeProgram;
+      List<ProgramModel> programs = [];
+      List<ProgramWeekData> programWeeks = [];
+      final fromCache = programsResult['fromCache'] == true;
 
-    if (programsResult['success'] == true) {
-      programs = programsResult['programs'] as List<ProgramModel>;
-      activeProgram = programs.isNotEmpty
-          ? programs
-              .cast<ProgramModel?>()
-              .firstWhere((p) => p!.isActive, orElse: () => programs.first)
-          : null;
+      if (programsResult['success'] == true) {
+        programs = programsResult['programs'] as List<ProgramModel>;
+        activeProgram = programs.isNotEmpty
+            ? programs
+                .cast<ProgramModel?>()
+                .firstWhere((p) => p!.isActive, orElse: () => programs.first)
+            : null;
 
-      if (activeProgram != null) {
-        programWeeks = _parseProgramWeeks(activeProgram);
-      }
-    }
-
-    // Find which week and day is current
-    int selectedWeekIndex = 0;
-    int currentDayIndex = 0;
-    if (programWeeks.isNotEmpty) {
-      for (int i = 0; i < programWeeks.length; i++) {
-        if (programWeeks[i].isCurrentWeek) {
-          selectedWeekIndex = i;
-          break;
+        if (activeProgram != null) {
+          programWeeks = _parseProgramWeeks(activeProgram);
         }
       }
-    }
 
-    state = state.copyWith(
-      isLoading: false,
-      dailySummary: summaryResult['success'] == true
-          ? summaryResult['summary'] as WorkoutSummary
-          : null,
-      programs: programs,
-      activeProgram: activeProgram,
-      programWeeks: programWeeks,
-      selectedWeekIndex: selectedWeekIndex,
-      currentDayIndex: currentDayIndex,
-      programsFromCache: fromCache,
-    );
+      // Find which week and day is current
+      int selectedWeekIndex = 0;
+      int currentDayIndex = 0;
+      if (programWeeks.isNotEmpty) {
+        for (int i = 0; i < programWeeks.length; i++) {
+          if (programWeeks[i].isCurrentWeek) {
+            selectedWeekIndex = i;
+            break;
+          }
+        }
+      }
+
+      state = state.copyWith(
+        isLoading: false,
+        dailySummary: summaryResult['success'] == true
+            ? summaryResult['summary'] as WorkoutSummary
+            : null,
+        programs: programs,
+        activeProgram: activeProgram,
+        programWeeks: programWeeks,
+        selectedWeekIndex: selectedWeekIndex,
+        currentDayIndex: currentDayIndex,
+        programsFromCache: fromCache,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
   }
 
   List<ProgramWeekData> _parseProgramWeeks(ProgramModel program) {
@@ -354,12 +361,26 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
   List<ProgramExercise> _parseExercises(List<dynamic> exercises) {
     return exercises.map((e) {
       final data = e as Map<String, dynamic>;
+
+      // reps can be int (legacy) or String range ("8-10") from v6.5 generator
+      final rawReps = data['reps'];
+      final int parsedReps;
+      if (rawReps is int) {
+        parsedReps = rawReps;
+      } else if (rawReps is String) {
+        // Take the first number from a range like "8-10"
+        final match = RegExp(r'\d+').firstMatch(rawReps);
+        parsedReps = match != null ? int.parse(match.group(0)!) : 10;
+      } else {
+        parsedReps = 10;
+      }
+
       return ProgramExercise(
         exerciseId: data['exercise_id'] as int? ?? 0,
         name: data['exercise_name'] as String? ?? 'Exercise',
         muscleGroup: data['muscle_group'] as String? ?? 'other',
         targetSets: data['sets'] as int? ?? 3,
-        targetReps: data['reps'] as int? ?? 10,
+        targetReps: parsedReps,
         restSeconds: data['rest_seconds'] as int?,
         videoUrl: data['video_url'] as String?,
         imageUrl: data['image_url'] as String?,

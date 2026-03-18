@@ -226,11 +226,19 @@ def get_structured_program_generation_prompt(
     training_days: list[str] | None = None,
 ) -> str:
     """
-    Generate prompt for AI program generation from structured parameters.
+    Generate prompt for AI program generation following v6.5 philosophy.
 
-    The AI generates a Week 1 template with intelligent exercise selection,
-    set/rep schemes, and progression guidelines. The caller then programmatically
-    expands the template across all weeks with progressive overload.
+    The AI generates a Week 1 template using tag-based exercise selection,
+    slot roles, set structure modalities, and progression profile recommendations.
+    The caller then programmatically expands the template across all weeks.
+
+    Core v6.5 principles embedded in this prompt:
+    - Tag-based exercise selection (pattern_tags, stance, plane, rom_bias)
+    - Slot role hierarchy (primary_compound → secondary → accessory → isolation)
+    - Set structure modalities with USE/AVOID rules
+    - Progression profile recommendations
+    - No "exercise difficulty levels" — use tags + constraints + guardrails
+    - Every decision must be explainable and deterministic by default
 
     Args:
         split_type: One of ppl, upper_lower, full_body, bro_split, custom.
@@ -238,12 +246,12 @@ def get_structured_program_generation_prompt(
         goal: One of build_muscle, fat_loss, strength, endurance, recomp, general_fitness.
         duration_weeks: Program duration (1-52).
         training_days_per_week: Training days per week (2-7).
-        exercise_bank: Available exercises with id, name, muscle_group, category.
+        exercise_bank: Available exercises with rich v6.5 tags.
         custom_day_config: For custom splits — list of dicts with label and muscle_groups.
-        training_days: Explicit list of day names to train (e.g. ["Monday", "Wednesday", "Friday"]).
+        training_days: Explicit list of day names to train.
 
     Returns:
-        Formatted system+user prompt pair as a single string.
+        Formatted prompt string.
     """
     split_labels = {
         'ppl': 'Push/Pull/Legs',
@@ -261,20 +269,8 @@ def get_structured_program_generation_prompt(
         'general_fitness': 'General Fitness',
     }
 
-    # Format exercise bank — group by muscle group for readability
-    exercises_by_group: dict[str, list[str]] = {}
-    for ex in exercise_bank:
-        mg = ex.get('muscle_group', 'other')
-        entry = f"[id={ex['id']}] {ex['name']}"
-        if ex.get('category'):
-            entry += f" ({ex['category']})"
-        exercises_by_group.setdefault(mg, []).append(entry)
-
-    exercise_bank_text = ""
-    for mg, exercises in sorted(exercises_by_group.items()):
-        exercise_bank_text += f"\n### {mg.title()}\n"
-        exercise_bank_text += "\n".join(f"  - {e}" for e in exercises)
-        exercise_bank_text += "\n"
+    # Format exercise bank with rich tags for tag-based selection
+    exercise_bank_text = _format_exercise_bank_with_tags(exercise_bank)
 
     # Day structure description
     if custom_day_config:
@@ -295,81 +291,190 @@ def get_structured_program_generation_prompt(
     else:
         day_schedule = f"Spread {training_days_per_week} training days across the week with rest days in between."
 
-    return f"""You are an elite strength & conditioning coach and certified personal trainer with 20+ years of experience designing programs for clients at every level. You design programs that are evidence-based, progressive, and practical.
+    return f"""You are a deterministic training plan engine following the v6.5 coaching operating system. You are NOT a generic fitness AI. You follow structured rules, use tags instead of subjective labels, and every choice you make must be explainable with a reason code.
+
+## NON-NEGOTIABLE RULES
+
+1. Everything is overrideable by trainer or user — you produce a DRAFT, not a final plan.
+2. Default behavior is deterministic. No randomness unless explicitly enabled.
+3. Do NOT use "exercise difficulty levels." They are subjective. Use tags + constraints + guardrails instead.
+4. Exercise selection is based on pattern_tags, primary_muscle_group, stance, plane, rom_bias, and equipment — NOT exercise names or subjective difficulty.
+5. Every exercise slot has a role: primary_compound, secondary_compound, accessory, or isolation. Slot role determines sets/reps/rest/intensity.
+6. Only progress one knob at a time (load OR reps OR sets) unless the user is clearly under-challenged.
+7. Cap hard sets per muscle/pattern: 8-20 per week depending on training age.
 
 ## YOUR TASK
 
-Design Week 1 of a training program with the following parameters:
+Design Week 1 of a training program with these parameters:
 
 - **Split:** {split_labels.get(split_type, split_type)}
-- **Difficulty:** {difficulty.title()}
+- **Training Age Context:** {difficulty.title()} (use this to determine exercise complexity, volume, and which constraints to apply — NOT to filter exercises by a "difficulty" label)
 - **Goal:** {goal_labels.get(goal, goal)}
 - **Duration:** {duration_weeks} weeks
 - **Training days/week:** {training_days_per_week}
 - **{day_structure}**
 - **{day_schedule}**
 
-## EXERCISE BANK
+## EXERCISE BANK (with v6.5 tags)
 
-You MUST select exercises ONLY from this bank. Use the exact exercise name and ID.
+Select exercises ONLY from this bank. Use the exact exercise ID. When tags are available, use them for selection. When tags are missing, fall back to muscle_group + category.
 {exercise_bank_text}
 
-## PROGRAM DESIGN GUIDELINES
+## SLOT ROLE HIERARCHY (mandatory for every session)
 
-1. **Exercise Selection:**
-   - Pick 4-6 exercises per training day (fewer for beginners, more for advanced)
-   - Start each day with compound movements, then isolation
-   - Match exercises to the muscle groups for that day
-   - Choose exercises appropriate for the difficulty level:
-     - Beginner: machines, cables, guided movements
-     - Intermediate: free weight compounds, dumbbells
-     - Advanced: barbell compounds, Olympic lifts, advanced variations
-   - Ensure exercise variety — avoid picking the same exercise for multiple days
+Each training session must follow this slot ordering:
 
-2. **Sets & Reps by Goal:**
-   - Build Muscle: 3-4 sets, 8-12 reps, 60-90s rest
-   - Fat Loss: 3 sets, 12-15 reps, 30-45s rest (circuit-style)
-   - Strength: 4-5 sets, 3-6 reps, 2-3min rest
-   - Endurance: 2-3 sets, 15-20 reps, 30s rest
-   - Recomp: 3-4 sets, 8-12 reps, 60-90s rest
-   - General Fitness: 3 sets, 10-12 reps, 60s rest
+1. **primary_compound** (slots 1): The heaviest, most technically demanding compound movement for the session's target pattern. Highest intensity, longest rest.
+2. **secondary_compound** (slot 2): A complementary compound that covers a different pattern or angle. Moderate intensity.
+3. **accessory** (slots 3-4): Targeted work for muscle groups that need additional volume. Moderate load, controlled tempo.
+4. **isolation** (slots 5+): Single-joint movements for lagging areas, pump work, or injury-prone muscles. Lower load, higher reps.
 
-3. **Day Layout:**
-   - Follow the user's weekly schedule EXACTLY — only assign workouts on days marked TRAINING
-   - Days marked REST must have is_rest_day=true and empty exercises
-   - Label rest days clearly
+## TAG-BASED EXERCISE SELECTION RULES
 
-4. **Nutrition Recommendations:**
-   - Provide daily macro targets for training days and rest days
-   - Base recommendations on the goal:
-     - Build Muscle: caloric surplus, high protein (1g/lb)
-     - Fat Loss: caloric deficit (500-750 cal below TDEE), high protein
-     - Strength: slight surplus, high protein
-     - Endurance: moderate calories, high carbs
-     - Recomp: training day surplus, rest day deficit
-     - General Fitness: maintenance calories, balanced macros
+When selecting exercises for each slot, reason about these tags (in order of priority):
+
+1. **pattern_tags** — Match the session's movement intent. A "Push" day needs horizontal_push and vertical_push patterns. A "Pull" day needs horizontal_pull and vertical_pull. A "Legs" day needs knee_dominant and hip_dominant.
+2. **primary_muscle_group** — Must match the session's target muscle groups.
+3. **stance** — Vary stances across slots: e.g., bilateral_standing for compounds, split_squat_lunge or single_leg for accessories, seated_supported or prone for isolations.
+4. **plane** — Ensure coverage across sagittal (most compounds), frontal (lateral work), and transverse (rotational) planes.
+5. **rom_bias** — Mix lengthened bias (stretch-focused), mid_range, and shortened bias exercises within a session for complete stimulus.
+6. **equipment_required** — Respect what's available. Don't stack exercises that compete for the same equipment.
+
+## SET STRUCTURE MODALITIES (v6.5 rules)
+
+For each exercise, select a set_structure from this list. Follow the USE/AVOID rules strictly:
+
+- **straight_sets**: USE for heavy compound work (5-10 reps), most training. AVOID when goal is metabolite training (20-30 reps). Count: 1.0x per set.
+- **down_sets**: USE when heavy sets drop below 5 reps and load is too high for hypertrophy rep range. AVOID when you could keep same weight and just lose reps. Count: 1.0x per set.
+- **drop_sets**: USE for metabolite drive on isolation/machine movements. AVOID when movement is systemically fatiguing AND in heavy (5-10) rep range. Count: 0.67x per drop set.
+- **supersets**: USE for pre-exhaust (hard-to-isolate muscles) or non-overlapping pairs (time-saving). AVOID when mind-muscle connection, technique, or performance are the focus. Count: pre-exhaust 2.0x, non-overlapping 2.0x total (1 per muscle).
+- **myo_reps**: USE when short on time AND exercise is not systemically fatiguing. AVOID when mind-muscle connection is the focus OR systemic fatigue is high. Count: 0.67x per mini-set.
+- **controlled_eccentrics**: USE for technique improvement or injury management/prevention. AVOID with 20+ reps (don't stack tempo difficulty on high-rep hypertrophy). Count: 1.0x per set.
+
+**Engine enforcement rules:**
+- If exercise is systemically fatiguing → ban drop_sets + myo_reps (unless explicitly allowed by coach)
+- If reps are 20+ → ban controlled_eccentrics (for hypertrophy-focused work)
+- primary_compound slots should default to straight_sets
+- isolation slots are good candidates for drop_sets, myo_reps, or supersets
+
+## SETS / REPS / REST BY GOAL AND SLOT ROLE
+
+| Goal | Slot Role | Sets | Reps | Rest (sec) | Intensity (%TM) |
+|------|-----------|------|------|------------|-----------------|
+| build_muscle | primary_compound | 4 | 6-10 | 120 | 70-80% |
+| build_muscle | secondary_compound | 3 | 8-12 | 90 | 65-75% |
+| build_muscle | accessory | 3 | 10-15 | 60 | 60-70% |
+| build_muscle | isolation | 3 | 12-15 | 45 | 55-65% |
+| strength | primary_compound | 5 | 3-5 | 180 | 80-90% |
+| strength | secondary_compound | 4 | 4-6 | 150 | 75-85% |
+| strength | accessory | 3 | 6-8 | 90 | 65-75% |
+| strength | isolation | 3 | 8-10 | 60 | 60-70% |
+| fat_loss | primary_compound | 3 | 10-15 | 45 | 60-70% |
+| fat_loss | secondary_compound | 3 | 12-15 | 45 | 55-65% |
+| fat_loss | accessory | 3 | 12-20 | 30 | 50-60% |
+| fat_loss | isolation | 2 | 15-20 | 30 | 45-55% |
+| endurance | primary_compound | 3 | 15-20 | 30 | 50-60% |
+| endurance | secondary_compound | 3 | 15-20 | 30 | 45-55% |
+| endurance | accessory | 2 | 15-25 | 30 | 40-50% |
+| endurance | isolation | 2 | 15-20 | 30 | 40-50% |
+| recomp | primary_compound | 4 | 8-12 | 90 | 70-80% |
+| recomp | secondary_compound | 3 | 8-12 | 75 | 65-75% |
+| recomp | accessory | 3 | 10-15 | 60 | 60-70% |
+| recomp | isolation | 3 | 12-15 | 45 | 55-65% |
+| general_fitness | primary_compound | 3 | 8-12 | 75 | 65-75% |
+| general_fitness | secondary_compound | 3 | 10-12 | 60 | 60-70% |
+| general_fitness | accessory | 3 | 10-15 | 45 | 55-65% |
+| general_fitness | isolation | 2 | 12-15 | 45 | 50-60% |
+
+## REP BUCKET DISTRIBUTION (hypertrophy & GPP goals)
+
+For build_muscle and general_fitness, target this weekly volume distribution:
+- 50% of sets in 10-20 rep range (primary hypertrophy zone)
+- 25% of sets in 5-10 rep range (mechanical tension zone)
+- 25% of sets in 20-30 rep range (metabolite zone)
+
+## TEMPO PRESETS (recommended defaults)
+
+Select a tempo for each exercise based on intent. Format: E-P-C-P (eccentric-pause-concentric-pause, seconds). "X" means explosive.
+
+- **Joint-friendly control**: 5-0-2-0 or 3-3-1-0 (reduce peak forces)
+- **Power / speed intent**: 2-0-X-0 (controlled down, fast up)
+- **Pause strength**: 2-3-X-0 (long pause in weakest position)
+- **Hypertrophy (lengthened-bias)**: 4-1-1-1 (long eccentric + double pause + forceful concentric)
+- **Technique / strategy**: 3-2-1-0 (slow down + own positions)
+- **Standard** (default): 2-0-1-0
+
+## PROGRESSION PROFILE RECOMMENDATION
+
+Based on the goal and duration, recommend ONE progression profile:
+
+1. **staircase_percent** — Keep reps stable, increase load % each week, then deload/reset. Best for strength/hypertrophy with predictable loading. Rules: 3-6 work weeks then 1 deload, +2.5-5% TM per step, deload at 30-50% volume drop.
+2. **rep_staircase** — Hold load constant, stair-step reps up week to week, then reset reps and bump load. Best for hypertrophy with stable technique. Rules: hold load, climb reps (6→7→8→9), bump load +2.5-5lb upper / +5-10lb lower, reset to bottom rung.
+3. **wave_by_month** — Each month is a wave (accumulation → intensification → realization/deload). Within the month, % varies in a planned pattern. Best for intermediates who respond to planned fatigue + recovery.
+4. **double_progression** — Pick a rep range (e.g. 8-12), earn load increases by first earning reps. Best for hypertrophy and general strength — highly auto-regulatable.
+
+## PERIODIZATION STYLE
+
+Based on the goal and days_per_week, recommend a periodization style:
+
+- **DUP** (Daily Undulating): Same lift 2-4x/week with different emphases per day. Best for 3+ days/week.
+- **WUP** (Weekly Undulating): Each week has a distinct emphasis. Good for 1-2x/week per lift.
+- **Linear**: Increase load or reps in a straight line. Best for novices or constrained lifts.
+- **Block**: Focus on one adaptation per block (accumulation → intensification → realization). Best for advanced or peaking.
+- **Concurrent**: Train multiple qualities same week with planned priority. Best for athletes.
+
+## IMPLEMENTATION GUARDRAILS
+
+- Only progress one knob at a time (load or reps or sets) unless user is clearly under-challenged.
+- Cap hard sets per muscle/pattern: 8-20 hard sets/week depending on training age context ({difficulty}).
+- Auto-deload triggers (any 2-3 of these): e1RM trending down 2+ weeks, RIR collapsing, soreness/pain flags rising, sleep/stress poor + performance drop.
+- Exercise substitutions must preserve the pattern (same movement goal) and optionally preserve the slot role.
+
+## DAY LAYOUT RULES
+
+- Follow the user's weekly schedule EXACTLY — only assign workouts on days marked TRAINING
+- Days marked REST must have is_rest_day=true and empty exercises
+- Each training day: 5-8 exercise slots following the slot role hierarchy
+- Compounds first, then accessories, then isolations
+- Ensure pattern coverage across the week (don't leave gaps in horizontal pull, vertical push, etc.)
+
+## NUTRITION RECOMMENDATIONS
+
+Provide daily macro targets for training and rest days based on the goal:
+- Build Muscle: caloric surplus (+300-500 cal), protein 1g/lb, high carbs
+- Fat Loss: caloric deficit (-500-750 cal from TDEE), protein 1g/lb, moderate carbs
+- Strength: slight surplus, high protein, pre/post workout carbs
+- Endurance: moderate calories, high carb ratio, adequate protein
+- Recomp: training day surplus, rest day deficit, high protein
+- General Fitness: maintenance calories, balanced macros
 
 ## REQUIRED JSON OUTPUT
 
 Return ONLY valid JSON matching this exact structure:
 
 {{
-  "name": "string — creative, descriptive program name",
-  "description": "string — 1-2 sentence description of the program",
+  "name": "string — descriptive program name",
+  "description": "string — 1-2 sentence description including the training philosophy",
   "week_template": {{
     "days": [
       {{
         "day": "Monday",
-        "name": "string — day label (e.g., 'Push', 'Upper Body', 'Rest')",
+        "name": "string — session role label (e.g., 'Heavy Upper', 'Push', 'Lower Hypertrophy')",
         "is_rest_day": false,
+        "session_role_labels": ["string — e.g., 'heavy upper', 'light lower', 'push hypertrophy'"],
         "exercises": [
           {{
             "exercise_id": 123,
-            "exercise_name": "Bench Press",
+            "exercise_name": "Barbell Bench Press",
             "muscle_group": "chest",
+            "slot_role": "primary_compound",
             "sets": 4,
-            "reps": "8-10",
-            "rest_seconds": 90
+            "reps": "6-10",
+            "rest_seconds": 120,
+            "intensity_target_pct": 75,
+            "set_structure": "straight_sets",
+            "tempo": "2-0-1-0",
+            "selection_reason": "string — brief reason for this exercise choice based on tags/pattern/slot role"
           }}
         ]
       }},
@@ -377,17 +482,25 @@ Return ONLY valid JSON matching this exact structure:
         "day": "Tuesday",
         "name": "Rest",
         "is_rest_day": true,
+        "session_role_labels": [],
         "exercises": []
       }}
     ]
   }},
   "progression": {{
+    "profile": "staircase_percent",
+    "periodization_style": "linear",
     "reps_increase_per_week": 1,
     "sets_increase_interval_weeks": 3,
     "deload_every_n_weeks": 4,
     "deload_volume_modifier": 0.6,
     "deload_intensity_modifier": 0.6,
-    "notes": "string — brief progression strategy"
+    "auto_progression_gates": {{
+      "completion": "hit all prescribed reps/sets within technique rules",
+      "effort": "average set RIR within ±1 of target (or RPE within ±1)",
+      "symptom_flags": "pain > threshold, form breakdown, unusual stiffness → hold/regress"
+    }},
+    "notes": "string — brief progression strategy explanation"
   }},
   "nutrition_template": {{
     "training_day": {{
@@ -403,14 +516,22 @@ Return ONLY valid JSON matching this exact structure:
       "fat": 80
     }},
     "note": "string — brief nutrition guidance"
+  }},
+  "weekly_volume_summary": {{
+    "total_hard_sets": 0,
+    "sets_by_muscle_group": {{"chest": 0, "back": 0}},
+    "pattern_coverage": ["horizontal_push", "horizontal_pull", "vertical_push", "vertical_pull", "knee_dominant", "hip_dominant"]
   }}
 }}
 
-IMPORTANT:
+## CRITICAL RULES
+
 - You MUST include all 7 days (Monday through Sunday) in the days array
 - Training days have exercises; rest days have is_rest_day=true and empty exercises array
 - Use ONLY exercise IDs and names from the exercise bank above
 - reps can be a number string ("12") or range string ("8-10")
+- Every exercise MUST have a slot_role, set_structure, tempo, and selection_reason
+- selection_reason must reference tags (pattern, muscle, stance, plane) — not subjective difficulty
 - Return ONLY the JSON, no markdown fences, no commentary"""
 
 
@@ -575,6 +696,157 @@ Return ONLY valid JSON:
 - Return ONLY the JSON. No markdown fences, no commentary."""
 
 
+def get_program_modification_prompt(
+    current_program: dict[str, Any],
+    modification_request: str,
+    exercise_bank: list[dict[str, Any]],
+) -> str:
+    """
+    Generate prompt for modifying an existing program based on natural language.
+
+    The trainer describes what they want changed (e.g., "focus week 1 more on squats",
+    "add drop sets to isolation exercises", "reduce volume on back day") and the AI
+    returns the modified program schedule.
+
+    Args:
+        current_program: The full current program data (name, description, schedule, etc.)
+        modification_request: Natural language instruction from the trainer.
+        exercise_bank: Available exercises with rich v6.5 tags.
+
+    Returns:
+        Formatted prompt string.
+    """
+    import json
+
+    exercise_bank_text = _format_exercise_bank_with_tags(exercise_bank)
+
+    # Compact the schedule for the prompt — only include week 1 template + metadata
+    schedule = current_program.get('schedule', {})
+    weeks = schedule.get('weeks', [])
+    schedule_preview = json.dumps(weeks[:1], indent=2) if weeks else '[]'
+
+    program_meta = json.dumps({
+        'name': current_program.get('name', ''),
+        'description': current_program.get('description', ''),
+        'difficulty_level': current_program.get('difficulty_level', ''),
+        'goal_type': current_program.get('goal_type', ''),
+        'duration_weeks': current_program.get('duration_weeks', 0),
+        'total_weeks': len(weeks),
+    }, indent=2)
+
+    return f"""You are a deterministic training plan engine following the v6.5 coaching operating system. A trainer has an existing generated program and wants to modify it using natural language.
+
+## CURRENT PROGRAM METADATA
+{program_meta}
+
+## CURRENT WEEK 1 SCHEDULE
+{schedule_preview}
+
+## TRAINER'S MODIFICATION REQUEST
+"{modification_request}"
+
+## AVAILABLE EXERCISE BANK
+{exercise_bank_text}
+
+## RULES
+
+1. Apply the trainer's modification request to the program.
+2. Only change what the trainer asked for — preserve everything else.
+3. If the trainer asks to change a specific week, only modify that week. If they say "all weeks" or don't specify, modify the week 1 template (which gets expanded to all weeks).
+4. You MUST use exercises from the exercise bank above. Use exact exercise IDs and names.
+5. Maintain the v6.5 slot role hierarchy: primary_compound → secondary_compound → accessory → isolation.
+6. Every exercise must have: slot_role, set_structure, tempo, sets, reps, rest_seconds.
+7. If the trainer asks to "focus more on X", add more exercises targeting X or replace less relevant exercises.
+8. If the trainer asks to change set structures, apply the USE/AVOID rules from v6.5.
+
+## REQUIRED JSON OUTPUT
+
+Return ONLY valid JSON with the modified program. The structure must match EXACTLY:
+
+{{
+  "name": "string — updated program name if appropriate, or keep original",
+  "description": "string — updated description reflecting the modification",
+  "modification_summary": "string — 1-2 sentence summary of what was changed and why",
+  "schedule": {{
+    "weeks": [
+      {{
+        "week_number": 1,
+        "is_deload": false,
+        "intensity_modifier": 1.0,
+        "volume_modifier": 1.0,
+        "days": [
+          {{
+            "day": "Monday",
+            "name": "Session Label",
+            "is_rest_day": false,
+            "session_role_labels": [],
+            "exercises": [
+              {{
+                "exercise_id": 123,
+                "exercise_name": "Exercise Name",
+                "muscle_group": "chest",
+                "slot_role": "primary_compound",
+                "sets": 4,
+                "reps": "6-10",
+                "rest_seconds": 120,
+                "intensity_target_pct": 75,
+                "set_structure": "straight_sets",
+                "tempo": "2-0-1-0",
+                "selection_reason": "brief reason"
+              }}
+            ]
+          }}
+        ]
+      }}
+    ]
+  }},
+  "nutrition_template": {json.dumps(current_program.get('nutrition_template', {}), indent=2)}
+}}
+
+IMPORTANT:
+- Return the FULL modified week(s), not just the changed exercises
+- Include ALL 7 days (Mon-Sun) — rest days have is_rest_day=true and empty exercises
+- Return ONLY the JSON, no markdown fences, no commentary"""
+
+
+def _format_exercise_bank_with_tags(exercise_bank: list[dict[str, Any]]) -> str:
+    """Format exercise bank with rich v6.5 tags for AI program generation prompt."""
+    exercises_by_group: dict[str, list[str]] = {}
+    for ex in exercise_bank:
+        mg = ex.get('primary_muscle_group') or ex.get('muscle_group', 'other')
+        parts = [f"[id={ex['id']}] {ex['name']}"]
+
+        # Add rich tag info when available
+        tag_parts: list[str] = []
+        if ex.get('pattern_tags'):
+            tag_parts.append(f"patterns: {', '.join(ex['pattern_tags'])}")
+        if ex.get('stance'):
+            tag_parts.append(f"stance: {ex['stance']}")
+        if ex.get('plane'):
+            tag_parts.append(f"plane: {ex['plane']}")
+        if ex.get('rom_bias'):
+            tag_parts.append(f"rom: {ex['rom_bias']}")
+        if ex.get('equipment_required'):
+            tag_parts.append(f"equip: {', '.join(ex['equipment_required'])}")
+        if ex.get('category'):
+            tag_parts.append(f"category: {ex['category']}")
+
+        if tag_parts:
+            parts.append(f"({'; '.join(tag_parts)})")
+        elif ex.get('category'):
+            parts.append(f"({ex['category']})")
+
+        exercises_by_group.setdefault(mg, []).append(' '.join(parts))
+
+    result = ""
+    for mg, exercises in sorted(exercises_by_group.items()):
+        result += f"\n### {mg.replace('_', ' ').title()}\n"
+        result += "\n".join(f"  - {e}" for e in exercises)
+        result += "\n"
+
+    return result
+
+
 def _format_existing_tags(tags: dict[str, Any]) -> str:
     """Format existing tags for prompt context."""
     parts: list[str] = []
@@ -610,3 +882,34 @@ Analyze this image and return ONLY valid JSON:
 - Observations should be specific and actionable (e.g., "knees caving inward" not "bad form").
 - Be honest about confidence — single frames provide limited information.
 - Return ONLY the JSON. No markdown fences, no commentary."""
+
+
+def get_exercise_thumbnail_prompt(
+    exercise_name: str,
+    muscle_group: str,
+    equipment: list[str] | None = None,
+) -> str:
+    """
+    Generate a DALL-E prompt for creating a professional exercise thumbnail image.
+
+    Args:
+        exercise_name: Name of the exercise (e.g., "Barbell Bench Press").
+        muscle_group: Primary muscle group targeted.
+        equipment: Optional list of equipment used.
+
+    Returns:
+        Formatted prompt string for DALL-E 3.
+    """
+    equipment_str = ""
+    if equipment:
+        equipment_str = f" using {', '.join(equipment)}"
+
+    return (
+        f"A clean, professional fitness photograph of an athletic person "
+        f"performing {exercise_name}{equipment_str}. "
+        f"The image shows proper form for this {muscle_group} exercise, "
+        f"shot from a 3/4 angle in a well-lit modern gym. "
+        f"Photorealistic style, shallow depth of field, "
+        f"neutral color palette, no text, no watermarks, no logos. "
+        f"The subject is mid-rep demonstrating correct technique."
+    )

@@ -113,6 +113,7 @@ class ApiConstants {
   static String get endImpersonation => '$apiBaseUrl/trainer/impersonate/end/';
   static String get programTemplates => '$apiBaseUrl/trainer/program-templates/';
   static String get generateProgram => '$apiBaseUrl/trainer/program-templates/generate/';
+  static String get modifyProgram => '$apiBaseUrl/trainer/program-templates/modify/';
   static String assignProgramTemplate(int templateId) =>
       '$apiBaseUrl/trainer/program-templates/$templateId/assign/';
   static String get trainerAnalyticsAdherence => '$apiBaseUrl/trainer/analytics/adherence/';
@@ -527,6 +528,12 @@ class ApiConstants {
       '$apiBaseUrl/trainer/export/trainee/$traineeId/nutrition-history/';
   static String trainerExportTraineeProgress(int traineeId) =>
       '$apiBaseUrl/trainer/export/trainee/$traineeId/progress/';
+
+  // Anatomy / Muscle Reference endpoints
+  static String get muscles => '$apiBaseUrl/workouts/muscles/';
+  static String muscleDetail(String slug) => '$apiBaseUrl/workouts/muscles/$slug/';
+  static String muscleExercises(String slug) => '$apiBaseUrl/workouts/muscles/$slug/exercises/';
+  static String get muscleCoverage => '$apiBaseUrl/workouts/muscle-coverage/';
 
   // Headers (these can stay const)
   static const String contentType = 'application/json';

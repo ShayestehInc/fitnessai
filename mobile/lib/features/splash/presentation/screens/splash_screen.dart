@@ -136,12 +136,31 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   void _navigateToNextScreen() async {
+    // Try to restore a previous session from saved tokens.
+    // Timeout after 8 seconds so the splash screen doesn't hang forever
+    // when the backend is unreachable.
+    final apiClient = ref.read(apiClientProvider);
+    try {
+      await ref
+          .read(authStateProvider.notifier)
+          .tryRestoreSession(apiClient)
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Network failure or timeout — proceed to login
+    }
+
     final authState = ref.read(authStateProvider);
     final user = authState.user;
 
-    // Fetch trainer branding for trainees (silent, non-blocking)
+    // Fetch trainer branding for trainees (silent, non-blocking).
+    // Timeout after 5 seconds — cached branding or defaults are fine.
     if (user != null && user.isTrainee) {
-      await _fetchTraineeBranding();
+      try {
+        await _fetchTraineeBranding()
+            .timeout(const Duration(seconds: 5));
+      } catch (_) {
+        // Branding fetch failed — cached or defaults will be used
+      }
     } else {
       // Non-trainees and logged-out users should not have trainer branding
       await ref.read(themeProvider.notifier).clearTrainerBranding();

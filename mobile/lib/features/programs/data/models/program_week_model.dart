@@ -11,6 +11,13 @@ class WorkoutExercise {
   final String? notes;
   final String? supersetGroupId; // Exercises with same ID are in a superset
 
+  // v6.5 fields — populated by the AI generator, null for legacy programs
+  final String? slotRole; // primary_compound, secondary_compound, accessory, isolation
+  final String? setStructure; // straight_sets, drop_sets, supersets, myo_reps, etc.
+  final String? tempo; // E-P-C-P format e.g. "2-0-1-0"
+  final int? intensityTargetPct; // Target %TM e.g. 75
+  final String? selectionReason; // AI explanation for why this exercise was chosen
+
   const WorkoutExercise({
     required this.exerciseId,
     required this.exerciseName,
@@ -20,6 +27,11 @@ class WorkoutExercise {
     this.restSeconds,
     this.notes,
     this.supersetGroupId,
+    this.slotRole,
+    this.setStructure,
+    this.tempo,
+    this.intensityTargetPct,
+    this.selectionReason,
   });
 
   WorkoutExercise copyWith({
@@ -32,6 +44,11 @@ class WorkoutExercise {
     String? notes,
     String? supersetGroupId,
     bool clearSupersetGroup = false,
+    String? slotRole,
+    String? setStructure,
+    String? tempo,
+    int? intensityTargetPct,
+    String? selectionReason,
   }) {
     return WorkoutExercise(
       exerciseId: exerciseId ?? this.exerciseId,
@@ -42,11 +59,16 @@ class WorkoutExercise {
       restSeconds: restSeconds ?? this.restSeconds,
       notes: notes ?? this.notes,
       supersetGroupId: clearSupersetGroup ? null : (supersetGroupId ?? this.supersetGroupId),
+      slotRole: slotRole ?? this.slotRole,
+      setStructure: setStructure ?? this.setStructure,
+      tempo: tempo ?? this.tempo,
+      intensityTargetPct: intensityTargetPct ?? this.intensityTargetPct,
+      selectionReason: selectionReason ?? this.selectionReason,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'exercise_id': exerciseId,
       'exercise_name': exerciseName,
       'muscle_group': muscleGroup,
@@ -56,6 +78,13 @@ class WorkoutExercise {
       'notes': notes,
       'superset_group_id': supersetGroupId,
     };
+    // Include v6.5 fields only when present
+    if (slotRole != null) json['slot_role'] = slotRole;
+    if (setStructure != null) json['set_structure'] = setStructure;
+    if (tempo != null) json['tempo'] = tempo;
+    if (intensityTargetPct != null) json['intensity_target_pct'] = intensityTargetPct;
+    if (selectionReason != null) json['selection_reason'] = selectionReason;
+    return json;
   }
 
   factory WorkoutExercise.fromJson(Map<String, dynamic> json) {
@@ -79,10 +108,44 @@ class WorkoutExercise {
       restSeconds: json['rest_seconds'] as int?,
       notes: json['notes'] as String?,
       supersetGroupId: json['superset_group_id'] as String?,
+      slotRole: json['slot_role'] as String?,
+      setStructure: json['set_structure'] as String?,
+      tempo: json['tempo'] as String?,
+      intensityTargetPct: json['intensity_target_pct'] as int?,
+      selectionReason: json['selection_reason'] as String?,
     );
   }
 
   bool get isInSuperset => supersetGroupId != null;
+
+  /// Human-readable slot role label
+  String get slotRoleLabel {
+    switch (slotRole) {
+      case 'primary_compound': return 'Primary';
+      case 'secondary_compound': return 'Secondary';
+      case 'accessory': return 'Accessory';
+      case 'isolation': return 'Isolation';
+      default: return '';
+    }
+  }
+
+  /// Human-readable set structure label
+  String get setStructureLabel {
+    switch (setStructure) {
+      case 'straight_sets': return 'Straight Sets';
+      case 'drop_sets': return 'Drop Sets';
+      case 'supersets': return 'Supersets';
+      case 'myo_reps': return 'Myo-Reps';
+      case 'controlled_eccentrics': return 'Controlled Eccentrics';
+      case 'down_sets': return 'Down Sets';
+      case 'giant_sets': return 'Giant Sets';
+      case 'rest_pause': return 'Rest-Pause';
+      case 'cluster_sets': return 'Cluster Sets';
+      case 'circuit': return 'Circuit';
+      case 'occlusion': return 'Occlusion';
+      default: return setStructure?.replaceAll('_', ' ') ?? '';
+    }
+  }
 }
 
 /// Represents a single workout day
@@ -90,31 +153,39 @@ class WorkoutDay {
   final String name;
   final bool isRestDay;
   final List<WorkoutExercise> exercises;
+  final List<String> sessionRoleLabels; // v6.5: e.g. ["heavy upper", "push hypertrophy"]
 
   const WorkoutDay({
     required this.name,
     required this.isRestDay,
     required this.exercises,
+    this.sessionRoleLabels = const [],
   });
 
   WorkoutDay copyWith({
     String? name,
     bool? isRestDay,
     List<WorkoutExercise>? exercises,
+    List<String>? sessionRoleLabels,
   }) {
     return WorkoutDay(
       name: name ?? this.name,
       isRestDay: isRestDay ?? this.isRestDay,
       exercises: exercises ?? this.exercises,
+      sessionRoleLabels: sessionRoleLabels ?? this.sessionRoleLabels,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'name': name,
       'is_rest_day': isRestDay,
       'exercises': exercises.map((e) => e.toJson()).toList(),
     };
+    if (sessionRoleLabels.isNotEmpty) {
+      json['session_role_labels'] = sessionRoleLabels;
+    }
+    return json;
   }
 
   factory WorkoutDay.fromJson(Map<String, dynamic> json) {
@@ -123,6 +194,10 @@ class WorkoutDay {
       isRestDay: json['is_rest_day'] as bool? ?? false,
       exercises: (json['exercises'] as List?)
               ?.map((e) => WorkoutExercise.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      sessionRoleLabels: (json['session_role_labels'] as List?)
+              ?.map((e) => e.toString())
               .toList() ??
           [],
     );

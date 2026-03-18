@@ -10,7 +10,7 @@ from .views import (
     StartImpersonationView, EndImpersonationView,
     ProgramTemplateListCreateView, ProgramTemplateDetailView,
     AssignProgramTemplateView, ProgramTemplateUploadImageView, ProgramUploadImageView,
-    GenerateProgramView,
+    GenerateProgramView, ModifyProgramView,
     AdherenceAnalyticsView, AdherenceTrendView, ProgressAnalyticsView, RevenueAnalyticsView,
     RetentionAnalyticsView, AtRiskTraineesView,
     GenerateMCPTokenView, AIChatView, AIChatTraineeContextView, AIProvidersView,
@@ -100,6 +100,7 @@ urlpatterns = [
     # Program templates
     path('program-templates/', ProgramTemplateListCreateView.as_view(), name='program-template-list-create'),
     path('program-templates/generate/', GenerateProgramView.as_view(), name='program-template-generate'),
+    path('program-templates/modify/', ModifyProgramView.as_view(), name='program-template-modify'),
     path('program-templates/<int:pk>/', ProgramTemplateDetailView.as_view(), name='program-template-detail'),
     path('program-templates/<int:pk>/assign/', AssignProgramTemplateView.as_view(), name='program-template-assign'),
     path('program-templates/<int:pk>/upload-image/', ProgramTemplateUploadImageView.as_view(), name='program-template-upload-image'),

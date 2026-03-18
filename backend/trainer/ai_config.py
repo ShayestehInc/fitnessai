@@ -35,7 +35,7 @@ MODEL_CONFIGS = {
     ),
     AIProvider.ANTHROPIC: AIModelConfig(
         provider=AIProvider.ANTHROPIC,
-        model_name="claude-sonnet-4-20250514",
+        model_name="claude-sonnet-4-6",
         temperature=0.7,
         max_tokens=4096,
     ),

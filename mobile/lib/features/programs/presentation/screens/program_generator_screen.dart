@@ -38,13 +38,17 @@ class _ProgramGeneratorScreenState
 
   // Step 3: Preview / generation
   bool _isGenerating = false;
+  bool _isModifying = false;
   String? _errorMessage;
   Map<String, dynamic>? _generatedData;
+  String? _modificationSummary;
+  final TextEditingController _modifyController = TextEditingController();
 
   static const _totalSteps = 3;
 
   @override
   void dispose() {
+    _modifyController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -184,6 +188,45 @@ class _ProgramGeneratorScreenState
         ),
       ),
     );
+  }
+
+  Future<void> _modifyProgram() async {
+    final text = _modifyController.text.trim();
+    if (text.isEmpty || _generatedData == null || _isModifying) return;
+
+    setState(() {
+      _isModifying = true;
+      _modificationSummary = null;
+    });
+
+    final repository = ref.read(programRepositoryProvider);
+    final result = await repository.modifyProgram(
+      modificationRequest: text,
+      currentProgram: _generatedData!,
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final data = result['data'] as Map<String, dynamic>;
+      setState(() {
+        _generatedData = {
+          ..._generatedData!,
+          'name': data['name'] ?? _generatedData!['name'],
+          'description': data['description'] ?? _generatedData!['description'],
+          'schedule': data['schedule'] ?? _generatedData!['schedule'],
+          'nutrition_template': data['nutrition_template'] ?? _generatedData!['nutrition_template'],
+        };
+        _modificationSummary = data['modification_summary'] as String?;
+        _isModifying = false;
+        _modifyController.clear();
+      });
+    } else {
+      setState(() {
+        _isModifying = false;
+        _modificationSummary = 'Modification failed: ${result['error']}';
+      });
+    }
   }
 
   @override
@@ -578,6 +621,11 @@ class _ProgramGeneratorScreenState
     final schedule = data['schedule'] as Map<String, dynamic>?;
     final weeksList = schedule?['weeks'] as List<dynamic>? ?? [];
 
+    // v6.5 metadata
+    final progressionProfile = schedule?['progression_profile'] as String?;
+    final periodizationStyle = schedule?['periodization_style'] as String?;
+    final volumeSummary = schedule?['weekly_volume_summary'] as Map<String, dynamic>?;
+
     return Column(
       children: [
         Expanded(
@@ -655,6 +703,18 @@ class _ProgramGeneratorScreenState
                 ),
               ),
 
+              // v6.5: Progression & Periodization card
+              if (progressionProfile != null || periodizationStyle != null) ...[
+                const SizedBox(height: 12),
+                _buildProgressionCard(theme, progressionProfile, periodizationStyle),
+              ],
+
+              // v6.5: Volume Summary card
+              if (volumeSummary != null) ...[
+                const SizedBox(height: 12),
+                _buildVolumeSummaryCard(theme, volumeSummary),
+              ],
+
               const SizedBox(height: 20),
 
               // Week preview
@@ -674,22 +734,119 @@ class _ProgramGeneratorScreenState
               ],
 
               const SizedBox(height: 16),
+
+              // Modification summary
+              if (_modificationSummary != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _modificationSummary!.startsWith('Modification failed')
+                        ? colorScheme.errorContainer.withValues(alpha: 0.3)
+                        : colorScheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        _modificationSummary!.startsWith('Modification failed')
+                            ? Icons.error_outline
+                            : Icons.check_circle_outline,
+                        size: 18,
+                        color: _modificationSummary!.startsWith('Modification failed')
+                            ? colorScheme.error
+                            : colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _modificationSummary!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              const SizedBox(height: 60),
             ],
           ),
         ),
+        // Modify input + Open in Builder
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _openInBuilder,
-                icon: const Icon(Icons.edit),
-                label: Text(context.l10n.programsOpenInBuilder),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              border: Border(top: BorderSide(color: theme.dividerColor)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // AI modify input
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _modifyController,
+                        enabled: !_isModifying,
+                        decoration: InputDecoration(
+                          hintText: 'Modify program... e.g. "more squats in week 1"',
+                          hintStyle: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        style: theme.textTheme.bodyMedium,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _modifyProgram(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _isModifying
+                        ? const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Padding(
+                              padding: EdgeInsets.all(8),
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: _modifyController.text.trim().isNotEmpty
+                                ? _modifyProgram
+                                : null,
+                            icon: Icon(Icons.send, color: colorScheme.primary),
+                            style: IconButton.styleFrom(
+                              backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                            ),
+                          ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                // Open in Builder button
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: _openInBuilder,
+                    icon: const Icon(Icons.edit),
+                    label: Text(context.l10n.programsOpenInBuilder),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -729,6 +886,7 @@ class _ProgramGeneratorScreenState
         final dayName = day['name'] as String? ?? 'Day ${entry.key + 1}';
         final isRestDay = day['is_rest_day'] as bool? ?? false;
         final exercises = (day['exercises'] as List<dynamic>?) ?? [];
+        final sessionRoles = (day['session_role_labels'] as List<dynamic>?) ?? [];
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
@@ -739,53 +897,357 @@ class _ProgramGeneratorScreenState
                 : theme.colorScheme.primary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                isRestDay ? Icons.bed : Icons.fitness_center,
-                size: 18,
-                color: isRestDay
-                    ? theme.textTheme.bodySmall?.color
-                    : theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      dayName,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    isRestDay ? Icons.bed : Icons.fitness_center,
+                    size: 18,
+                    color: isRestDay
+                        ? theme.textTheme.bodySmall?.color
+                        : theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          dayName,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (sessionRoles.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            sessionRoles.join(' / '),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                        if (!isRestDay && exercises.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '${exercises.length} exercises',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                        if (isRestDay) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Recovery day',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (!isRestDay && exercises.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '${exercises.length} exercises',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    if (isRestDay) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'Recovery day',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
+              // v6.5: Show exercise details with slot roles and set structures
+              if (!isRestDay && exercises.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                ...exercises.map((e) {
+                  final ex = e as Map<String, dynamic>;
+                  return _buildExerciseRow(theme, ex);
+                }),
+              ],
             ],
           ),
         );
       }).toList(),
     );
+  }
+
+  Widget _buildExerciseRow(ThemeData theme, Map<String, dynamic> ex) {
+    final name = ex['exercise_name'] as String? ?? '';
+    final sets = ex['sets'] ?? 0;
+    final reps = ex['reps'] ?? '';
+    final slotRole = ex['slot_role'] as String?;
+    final setStructure = ex['set_structure'] as String?;
+    final tempo = ex['tempo'] as String?;
+    final intensityPct = ex['intensity_target_pct'] as int?;
+    final reason = ex['selection_reason'] as String?;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 28, bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // Slot role indicator
+              if (slotRole != null)
+                Container(
+                  width: 3,
+                  height: 20,
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: _slotRoleColor(theme, slotRole),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              Expanded(
+                child: Text(
+                  name,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Sets x Reps
+              Text(
+                '${sets}x$reps',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+          // v6.5 tags row
+          if (slotRole != null || setStructure != null || tempo != null || intensityPct != null)
+            Padding(
+              padding: EdgeInsets.only(left: slotRole != null ? 11 : 0, top: 2),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 2,
+                children: [
+                  if (slotRole != null)
+                    _buildMicroTag(theme, _slotRoleLabel(slotRole), _slotRoleColor(theme, slotRole)),
+                  if (setStructure != null && setStructure != 'straight_sets')
+                    _buildMicroTag(theme, _setStructureLabel(setStructure), theme.colorScheme.tertiary),
+                  if (tempo != null && tempo != '2-0-1-0')
+                    _buildMicroTag(theme, 'Tempo $tempo', theme.colorScheme.secondary),
+                  if (intensityPct != null)
+                    _buildMicroTag(theme, '$intensityPct%', theme.colorScheme.onSurfaceVariant),
+                ],
+              ),
+            ),
+          // Selection reason
+          if (reason != null && reason.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(left: slotRole != null ? 11 : 0, top: 2),
+              child: Text(
+                reason,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMicroTag(ThemeData theme, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressionCard(
+    ThemeData theme,
+    String? progressionProfile,
+    String? periodizationStyle,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.trending_up, size: 18, color: theme.colorScheme.secondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Progression Strategy',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (progressionProfile != null)
+                      Text(
+                        _progressionLabel(progressionProfile),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    if (periodizationStyle != null)
+                      Text(
+                        _periodizationLabel(periodizationStyle),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVolumeSummaryCard(ThemeData theme, Map<String, dynamic> summary) {
+    final totalHardSets = summary['total_hard_sets'] as int?;
+    final setsByMuscle = summary['sets_by_muscle_group'] as Map<String, dynamic>?;
+    final patternCoverage = (summary['pattern_coverage'] as List<dynamic>?)
+        ?.map((e) => e.toString())
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.bar_chart, size: 18, color: theme.colorScheme.tertiary),
+              const SizedBox(width: 8),
+              Text(
+                'Weekly Volume',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (totalHardSets != null) ...[
+                const Spacer(),
+                Text(
+                  '$totalHardSets hard sets',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (setsByMuscle != null && setsByMuscle.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: setsByMuscle.entries.map((e) {
+                return _buildInfoChip(
+                  theme,
+                  '${e.key.replaceAll('_', ' ')}: ${e.value}',
+                  Icons.circle,
+                );
+              }).toList(),
+            ),
+          ],
+          if (patternCoverage != null && patternCoverage.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Patterns: ${patternCoverage.map((p) => p.replaceAll('_', ' ')).join(', ')}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _slotRoleColor(ThemeData theme, String slotRole) {
+    switch (slotRole) {
+      case 'primary_compound': return theme.colorScheme.error;
+      case 'secondary_compound': return theme.colorScheme.primary;
+      case 'accessory': return theme.colorScheme.tertiary;
+      case 'isolation': return theme.colorScheme.onSurfaceVariant;
+      default: return theme.colorScheme.onSurfaceVariant;
+    }
+  }
+
+  String _slotRoleLabel(String slotRole) {
+    switch (slotRole) {
+      case 'primary_compound': return 'Primary';
+      case 'secondary_compound': return 'Secondary';
+      case 'accessory': return 'Accessory';
+      case 'isolation': return 'Isolation';
+      default: return slotRole;
+    }
+  }
+
+  String _setStructureLabel(String structure) {
+    switch (structure) {
+      case 'straight_sets': return 'Straight Sets';
+      case 'drop_sets': return 'Drop Sets';
+      case 'supersets': return 'Supersets';
+      case 'myo_reps': return 'Myo-Reps';
+      case 'controlled_eccentrics': return 'Controlled Eccentrics';
+      case 'down_sets': return 'Down Sets';
+      case 'rest_pause': return 'Rest-Pause';
+      default: return structure.replaceAll('_', ' ');
+    }
+  }
+
+  String _progressionLabel(String profile) {
+    switch (profile) {
+      case 'staircase_percent': return 'Staircase %';
+      case 'rep_staircase': return 'Rep Staircase';
+      case 'wave_by_month': return 'Monthly Waves';
+      case 'double_progression': return 'Double Progression';
+      default: return profile.replaceAll('_', ' ');
+    }
+  }
+
+  String _periodizationLabel(String style) {
+    switch (style) {
+      case 'DUP': return 'Daily Undulating';
+      case 'WUP': return 'Weekly Undulating';
+      case 'linear': return 'Linear';
+      case 'block': return 'Block';
+      case 'concurrent': return 'Concurrent';
+      default: return style;
+    }
   }
 
   String _goalLabel(String key) {

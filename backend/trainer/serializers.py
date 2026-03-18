@@ -484,6 +484,26 @@ class GeneratedProgramResponseSerializer(serializers.Serializer[dict[str, Any]])
     duration_weeks = serializers.IntegerField()
 
 
+class ModifyProgramRequestSerializer(serializers.Serializer[dict[str, Any]]):
+    """Input serializer for the AI program modification endpoint."""
+    modification_request = serializers.CharField(
+        max_length=1000,
+        help_text="Natural language instruction, e.g. 'focus week 1 more on squats'",
+    )
+    current_program = serializers.JSONField(
+        help_text="The full current program data (name, description, schedule, nutrition_template, etc.)",
+    )
+
+
+class ModifiedProgramResponseSerializer(serializers.Serializer[dict[str, Any]]):
+    """Output serializer for the AI program modification endpoint."""
+    name = serializers.CharField()
+    description = serializers.CharField()
+    modification_summary = serializers.CharField()
+    schedule = serializers.JSONField()
+    nutrition_template = serializers.JSONField()
+
+
 class AssignProgramSerializer(serializers.Serializer[dict[str, Any]]):
     """Serializer for assigning a program template to a trainee."""
     trainee_id = serializers.IntegerField()

@@ -119,6 +119,10 @@ class ProgramRepository {
       final response = await _apiClient.dio.post(
         ApiConstants.generateProgram,
         data: data,
+        options: Options(
+          receiveTimeout: const Duration(seconds: 120),
+          sendTimeout: const Duration(seconds: 30),
+        ),
       );
 
       final rawData = response.data;
@@ -137,6 +141,44 @@ class ProgramRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to generate program',
+      };
+    }
+  }
+
+  /// Modify an existing generated program using natural language.
+  Future<Map<String, dynamic>> modifyProgram({
+    required String modificationRequest,
+    required Map<String, dynamic> currentProgram,
+  }) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.modifyProgram,
+        data: {
+          'modification_request': modificationRequest,
+          'current_program': currentProgram,
+        },
+        options: Options(
+          receiveTimeout: const Duration(seconds: 120),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+      final rawData = response.data;
+      if (rawData is! Map<String, dynamic>) {
+        return {
+          'success': false,
+          'error': 'Unexpected response format',
+        };
+      }
+
+      return {
+        'success': true,
+        'data': rawData,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ?? 'Failed to modify program',
       };
     }
   }

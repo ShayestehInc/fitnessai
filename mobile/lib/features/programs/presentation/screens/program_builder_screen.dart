@@ -54,12 +54,21 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   late ProgramBuilderState _programState;
   int _selectedWeekIndex = 0;
   late DateTime _startDate;
+  bool _isModifying = false;
+  String? _modificationSummary;
+  final TextEditingController _modifyController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _startDate = widget.startDate ?? DateTime.now();
     _initializeProgram();
+  }
+
+  @override
+  void dispose() {
+    _modifyController.dispose();
+    super.dispose();
   }
 
   void _initializeProgram() {
@@ -222,10 +231,48 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           // Week selector tabs
           _buildWeekSelector(context),
 
+          // Modification summary banner
+          if (_modificationSummary != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: _modificationSummary!.startsWith('Modification failed')
+                  ? Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.3)
+                  : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+              child: Row(
+                children: [
+                  Icon(
+                    _modificationSummary!.startsWith('Modification failed')
+                        ? Icons.error_outline : Icons.auto_awesome,
+                    size: 16,
+                    color: _modificationSummary!.startsWith('Modification failed')
+                        ? Theme.of(context).colorScheme.error
+                        : Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _modificationSummary!,
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: () => setState(() => _modificationSummary = null),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+
           // Week content
           Expanded(
             child: _buildWeekContent(context, _programState.weeks[_selectedWeekIndex]),
           ),
+
+          // AI modify input bar
+          _buildModifyInputBar(context),
         ],
       ),
       floatingActionButton: Theme.of(context).platform == TargetPlatform.iOS
@@ -236,6 +283,137 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               label: Text(context.l10n.programsEditWeek),
             ),
     );
+  }
+
+  Widget _buildModifyInputBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: theme.dividerColor)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome, size: 18, color: colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _modifyController,
+                enabled: !_isModifying,
+                decoration: InputDecoration(
+                  hintText: 'AI: "add drop sets to isolations"',
+                  hintStyle: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  filled: true,
+                  fillColor: colorScheme.surfaceContainerHighest,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: BorderSide.none,
+                  ),
+                  isDense: true,
+                ),
+                style: theme.textTheme.bodySmall,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _modifyProgram(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            _isModifying
+                ? const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    onPressed: _modifyController.text.trim().isNotEmpty
+                        ? _modifyProgram
+                        : null,
+                    icon: Icon(Icons.send, size: 20, color: colorScheme.primary),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _modifyProgram() async {
+    final text = _modifyController.text.trim();
+    if (text.isEmpty || _isModifying) return;
+
+    setState(() {
+      _isModifying = true;
+      _modificationSummary = null;
+    });
+
+    // Build current program data for the AI
+    final currentProgram = <String, dynamic>{
+      'name': _programState.name,
+      'description': _programState.description ?? '',
+      'difficulty_level': _programState.difficulty,
+      'goal_type': _programState.goal,
+      'duration_weeks': _programState.durationWeeks,
+      'schedule': {
+        'weeks': _programState.weeks.map((w) => w.toJson()).toList(),
+      },
+      'nutrition_template': {},
+    };
+
+    final repository = ref.read(programRepositoryProvider);
+    final result = await repository.modifyProgram(
+      modificationRequest: text,
+      currentProgram: currentProgram,
+    );
+
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      final data = result['data'] as Map<String, dynamic>;
+      final newSchedule = data['schedule'] as Map<String, dynamic>?;
+      final newWeeks = newSchedule?['weeks'] as List<dynamic>?;
+
+      if (newWeeks != null && newWeeks.isNotEmpty) {
+        final parsedWeeks = newWeeks
+            .map((w) => ProgramWeek.fromJson(w as Map<String, dynamic>))
+            .toList();
+
+        setState(() {
+          _programState = _programState.copyWith(
+            name: data['name'] as String? ?? _programState.name,
+            description: data['description'] as String? ?? _programState.description,
+            weeks: parsedWeeks,
+          );
+          _modificationSummary = data['modification_summary'] as String?;
+          _isModifying = false;
+          _modifyController.clear();
+          // Clamp selected week index
+          if (_selectedWeekIndex >= parsedWeeks.length) {
+            _selectedWeekIndex = 0;
+          }
+        });
+      } else {
+        setState(() {
+          _isModifying = false;
+          _modificationSummary = 'Modification failed: No schedule returned';
+        });
+      }
+    } else {
+      setState(() {
+        _isModifying = false;
+        _modificationSummary = 'Modification failed: ${result['error']}';
+      });
+    }
   }
 
   Widget _buildStartDateSelector(BuildContext context) {

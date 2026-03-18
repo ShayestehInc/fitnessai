@@ -672,6 +672,47 @@ class GenerateProgramView(views.APIView):
         return Response(response_serializer.data)
 
 
+class ModifyProgramView(views.APIView):
+    """
+    POST: Modify an existing generated program using natural language.
+
+    The trainer sends a modification request (e.g., "focus week 1 more on squats")
+    along with the current program data, and the AI returns the modified program.
+    """
+    permission_classes = [IsAuthenticated, IsTrainer]
+
+    def post(self, request: Request) -> Response:
+        from trainer.serializers import ModifyProgramRequestSerializer, ModifiedProgramResponseSerializer
+        from workouts.services.program_generator import modify_program_with_ai
+
+        serializer = ModifyProgramRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        trainer = cast(User, request.user)
+
+        try:
+            result = modify_program_with_ai(
+                current_program=serializer.validated_data['current_program'],
+                modification_request=serializer.validated_data['modification_request'],
+                trainer_id=trainer.id,
+            )
+        except ValueError as exc:
+            return Response(
+                {'error': str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            logger.exception("Program modification failed")
+            return Response(
+                {'error': 'Program modification failed. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        response_serializer = ModifiedProgramResponseSerializer(result)
+        return Response(response_serializer.data)
+
+
 class AssignProgramTemplateView(views.APIView):
     """
     POST: Assign a program template to a trainee.
