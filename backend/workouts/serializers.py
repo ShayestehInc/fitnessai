@@ -28,6 +28,7 @@ from .models import (
     NutritionGoal,
     NutritionTemplate,
     ModalityGuardrail,
+    MuscleReference,
     NutritionTemplateAssignment,
     PlanSession,
     PlanSlot,
@@ -125,6 +126,20 @@ class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
                 f"Invalid athletic attribute tags: {sorted(invalid)}. Valid options: {sorted(valid_tags)}"
             )
         return value
+
+
+class MuscleReferenceSerializer(serializers.ModelSerializer[MuscleReference]):
+    """Read-only serializer for MuscleReference anatomical data."""
+
+    class Meta:
+        model = MuscleReference
+        fields = [
+            'slug', 'display_name', 'latin_name', 'body_region',
+            'description', 'origin', 'insertion',
+            'primary_movements', 'function_description', 'training_tips',
+            'common_exercises', 'sub_muscles', 'sort_order',
+        ]
+        read_only_fields = fields
 
 
 class UndoSnapshotSerializer(serializers.ModelSerializer[UndoSnapshot]):
@@ -1234,6 +1249,8 @@ class LiftSetLogSerializer(serializers.ModelSerializer[LiftSetLog]):
             'standardization_pass',
             'set_workload_value',
             'set_workload_unit',
+            'set_type',
+            'set_structure_modality',
             'tempo_modifier',
             'notes',
             'created_at',

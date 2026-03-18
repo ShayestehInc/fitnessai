@@ -75,6 +75,10 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     _exerciseLogs = widget.workout.exercises.map((exercise) {
       return ExerciseLogState(
         exercise: exercise,
+        setStructure: exercise.setStructure,
+        supersetGroupId: exercise.supersetGroupId,
+        tempo: exercise.tempo,
+        modalityDetails: exercise.modalityDetails,
         sets: List.generate(
           exercise.targetSets,
           (index) => SetLogState(
@@ -82,6 +86,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
             targetReps: exercise.targetReps,
             lastWeight: exercise.lastWeight,
             lastReps: exercise.lastReps,
+            tempoDisplay: exercise.tempo,
           ),
         ),
       );
@@ -500,8 +505,19 @@ enum WorkoutPhase {
 class ExerciseLogState {
   final ProgramExercise exercise;
   List<SetLogState> sets;
+  final String? setStructure;
+  final String? supersetGroupId;
+  final String? tempo;
+  final Map<String, dynamic>? modalityDetails;
 
-  ExerciseLogState({required this.exercise, required this.sets});
+  ExerciseLogState({
+    required this.exercise,
+    required this.sets,
+    this.setStructure,
+    this.supersetGroupId,
+    this.tempo,
+    this.modalityDetails,
+  });
 }
 
 class SetLogState {
@@ -512,6 +528,10 @@ class SetLogState {
   double? weight;
   int? reps;
   bool isCompleted;
+  final String setType; // working, drop, activation, mini, cluster, back_off, top
+  final double? targetWeight; // Prescribed weight for pyramids, drops, etc.
+  final String? tempoDisplay; // Tempo cue
+  final int? restAfterSet; // Per-set rest override (micro-rest)
 
   SetLogState({
     required this.setNumber,
@@ -521,6 +541,10 @@ class SetLogState {
     this.weight,
     this.reps,
     this.isCompleted = false,
+    this.setType = 'working',
+    this.targetWeight,
+    this.tempoDisplay,
+    this.restAfterSet,
   });
 
   SetLogState copyWith({
@@ -531,6 +555,10 @@ class SetLogState {
     double? weight,
     int? reps,
     bool? isCompleted,
+    String? setType,
+    double? targetWeight,
+    String? tempoDisplay,
+    int? restAfterSet,
   }) {
     return SetLogState(
       setNumber: setNumber ?? this.setNumber,
@@ -540,6 +568,10 @@ class SetLogState {
       weight: weight ?? this.weight,
       reps: reps ?? this.reps,
       isCompleted: isCompleted ?? this.isCompleted,
+      setType: setType ?? this.setType,
+      targetWeight: targetWeight ?? this.targetWeight,
+      tempoDisplay: tempoDisplay ?? this.tempoDisplay,
+      restAfterSet: restAfterSet ?? this.restAfterSet,
     );
   }
 }
@@ -812,17 +844,6 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     ),
                   ),
                 ),
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    'PREVIOUS',
-                    style: TextStyle(
-                      color: theme.textTheme.bodySmall?.color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
                 Expanded(
                   child: Text(
                     'LBS',
@@ -863,10 +884,6 @@ class _ExerciseCardState extends State<_ExerciseCard> {
   }
 
   Widget _buildSetRow(ThemeData theme, int index, SetLogState set) {
-    final previousText = set.lastWeight != null && set.lastReps != null
-        ? '${set.lastWeight!.round()} x ${set.lastReps}'
-        : '-';
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -899,18 +916,6 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     fontSize: 13,
                   ),
                 ),
-              ),
-            ),
-          ),
-
-          // Previous
-          SizedBox(
-            width: 80,
-            child: Text(
-              previousText,
-              style: TextStyle(
-                color: theme.textTheme.bodySmall?.color,
-                fontSize: 13,
               ),
             ),
           ),

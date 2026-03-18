@@ -2019,6 +2019,30 @@ class LiftSetLog(models.Model):
         help_text="Tempo prescription if any (e.g., '3-1-2-0' = eccentric-pause-concentric-pause).",
     )
 
+    class SetType(models.TextChoices):
+        WORKING = 'working', 'Working'
+        DROP = 'drop', 'Drop'
+        ACTIVATION = 'activation', 'Activation'  # Myo-rep activation
+        MINI = 'mini', 'Mini'  # Myo-rep mini-set
+        CLUSTER = 'cluster', 'Cluster'
+        BACK_OFF = 'back_off', 'Back-Off'
+        TOP = 'top', 'Top'  # Down sets top set
+
+    set_type = models.CharField(
+        max_length=20,
+        choices=SetType.choices,
+        default=SetType.WORKING,
+        help_text='Type of set within the modality context',
+    )
+    set_structure_modality = models.ForeignKey(
+        'SetStructureModality',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lift_set_logs',
+        help_text='The set structure modality used for this set',
+    )
+
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -3682,3 +3706,39 @@ class VideoAnalysis(models.Model):
 
     def __str__(self) -> str:
         return f"VideoAnalysis({self.trainee_id}, {self.exercise_detected or 'unknown'})"
+
+
+class MuscleReference(models.Model):
+    """
+    Anatomical reference data for each detailed muscle group.
+    Used by the anatomy visualization feature on mobile.
+    Seeded via management command, read-only for API consumers.
+    """
+
+    class BodyRegion(models.TextChoices):
+        UPPER_BODY = 'upper_body', 'Upper Body'
+        LOWER_BODY = 'lower_body', 'Lower Body'
+        CORE = 'core', 'Core'
+
+    slug = models.CharField(max_length=30, unique=True, db_index=True)
+    display_name = models.CharField(max_length=100)
+    latin_name = models.CharField(max_length=100, blank=True, default='')
+    body_region = models.CharField(max_length=20, choices=BodyRegion.choices)
+    description = models.TextField()
+    origin = models.TextField(blank=True, default='')
+    insertion = models.TextField(blank=True, default='')
+    primary_movements = models.JSONField(default=list)
+    function_description = models.TextField(blank=True, default='')
+    training_tips = models.TextField(blank=True, default='')
+    common_exercises = models.JSONField(default=list)
+    sub_muscles = models.JSONField(default=list)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'muscle_references'
+        ordering = ['sort_order', 'display_name']
+
+    def __str__(self) -> str:
+        return f"{self.display_name} ({self.slug})"

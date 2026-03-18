@@ -56,6 +56,12 @@ class ProgramExercise {
   final double? lastWeight;
   final int? lastReps;
   final String? notes;
+  final String? setStructure;
+  final String? supersetGroupId;
+  final String? tempo;
+  final String? slotRole;
+  final int? intensityTargetPct;
+  final Map<String, dynamic>? modalityDetails;
 
   const ProgramExercise({
     required this.exerciseId,
@@ -69,6 +75,12 @@ class ProgramExercise {
     this.lastWeight,
     this.lastReps,
     this.notes,
+    this.setStructure,
+    this.supersetGroupId,
+    this.tempo,
+    this.slotRole,
+    this.intensityTargetPct,
+    this.modalityDetails,
   });
 }
 
@@ -385,6 +397,14 @@ class WorkoutNotifier extends StateNotifier<WorkoutState> {
         videoUrl: data['video_url'] as String?,
         imageUrl: data['image_url'] as String?,
         notes: data['notes'] as String?,
+        setStructure: data['set_structure'] as String?,
+        supersetGroupId: data['superset_group_id'] as String?,
+        tempo: data['tempo'] as String?,
+        slotRole: data['slot_role'] as String?,
+        intensityTargetPct: data['intensity_target_pct'] as int?,
+        modalityDetails: data['modality_details'] != null
+            ? Map<String, dynamic>.from(data['modality_details'] as Map)
+            : null,
       );
     }).toList();
   }

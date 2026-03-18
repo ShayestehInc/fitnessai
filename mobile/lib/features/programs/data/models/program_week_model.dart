@@ -17,6 +17,7 @@ class WorkoutExercise {
   final String? tempo; // E-P-C-P format e.g. "2-0-1-0"
   final int? intensityTargetPct; // Target %TM e.g. 75
   final String? selectionReason; // AI explanation for why this exercise was chosen
+  final Map<String, dynamic>? modalityDetails; // Drop %, cluster reps, myo-rep targets, etc.
 
   const WorkoutExercise({
     required this.exerciseId,
@@ -32,6 +33,7 @@ class WorkoutExercise {
     this.tempo,
     this.intensityTargetPct,
     this.selectionReason,
+    this.modalityDetails,
   });
 
   WorkoutExercise copyWith({
@@ -49,6 +51,7 @@ class WorkoutExercise {
     String? tempo,
     int? intensityTargetPct,
     String? selectionReason,
+    Map<String, dynamic>? modalityDetails,
   }) {
     return WorkoutExercise(
       exerciseId: exerciseId ?? this.exerciseId,
@@ -64,6 +67,7 @@ class WorkoutExercise {
       tempo: tempo ?? this.tempo,
       intensityTargetPct: intensityTargetPct ?? this.intensityTargetPct,
       selectionReason: selectionReason ?? this.selectionReason,
+      modalityDetails: modalityDetails ?? this.modalityDetails,
     );
   }
 
@@ -84,6 +88,7 @@ class WorkoutExercise {
     if (tempo != null) json['tempo'] = tempo;
     if (intensityTargetPct != null) json['intensity_target_pct'] = intensityTargetPct;
     if (selectionReason != null) json['selection_reason'] = selectionReason;
+    if (modalityDetails != null) json['modality_details'] = modalityDetails;
     return json;
   }
 
@@ -113,6 +118,9 @@ class WorkoutExercise {
       tempo: json['tempo'] as String?,
       intensityTargetPct: json['intensity_target_pct'] as int?,
       selectionReason: json['selection_reason'] as String?,
+      modalityDetails: json['modality_details'] != null
+          ? Map<String, dynamic>.from(json['modality_details'] as Map)
+          : null,
     );
   }
 
