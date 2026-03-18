@@ -751,7 +751,7 @@ def _to_nutrition_json(nutrition: NutritionTemplate) -> dict[str, Any]:
 # AI-Powered Program Generation
 # ──────────────────────────────────────────────────────────────────────────
 
-_MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI: int = 15
+_MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI: int = 8
 
 
 def _build_exercise_bank_for_ai(
@@ -778,6 +778,11 @@ def _build_exercise_bank_for_ai(
         Exercise.objects.filter(
             (Q(muscle_group__in=muscle_groups) | Q(primary_muscle_group__in=muscle_groups))
             & privacy_q
+        ).only(
+            'id', 'name', 'muscle_group', 'primary_muscle_group', 'category',
+            'image_url', 'is_public', 'created_by_id',
+            'pattern_tags', 'secondary_muscle_groups', 'stance', 'plane',
+            'rom_bias', 'equipment_required', 'athletic_skill_tags',
         ).order_by('muscle_group', 'name')
     )
 
@@ -795,7 +800,8 @@ def _build_exercise_bank_for_ai(
 
         # Prioritise trainer's custom exercises
         custom = [ex for ex in pool if ex.created_by_id == trainer_id] if trainer_id else []
-        public = [ex for ex in pool if ex not in custom]
+        custom_ids = {ex.id for ex in custom}
+        public = [ex for ex in pool if ex.id not in custom_ids]
 
         selected: list[Exercise] = list(custom)
         remaining_slots = _MAX_EXERCISES_PER_MUSCLE_GROUP_FOR_AI - len(selected)
@@ -1115,7 +1121,7 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
         provider=config.provider,
         model_name=config.model_name,
         temperature=0.7,
-        max_tokens=8192,
+        max_tokens=4096,
     )
 
     try:
@@ -1245,7 +1251,7 @@ def modify_program_with_ai(
         provider=config.provider,
         model_name=config.model_name,
         temperature=0.7,
-        max_tokens=8192,
+        max_tokens=4096,
     )
 
     llm = get_chat_model(gen_config)
