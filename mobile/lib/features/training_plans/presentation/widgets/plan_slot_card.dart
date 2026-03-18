@@ -134,15 +134,13 @@ class PlanSlotCard extends StatelessWidget {
 
   Color get _roleColor {
     switch (slot.slotRole) {
-      case 'primary':
+      case 'primary_compound':
         return AppTheme.primary;
-      case 'secondary':
+      case 'secondary_compound':
         return const Color(0xFF22C55E);
       case 'accessory':
         return const Color(0xFFF59E0B);
-      case 'warmup':
-        return const Color(0xFF3B82F6);
-      case 'cooldown':
+      case 'isolation':
         return const Color(0xFF8B5CF6);
       default:
         return AppTheme.mutedForeground;

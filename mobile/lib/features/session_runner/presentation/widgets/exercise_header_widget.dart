@@ -111,20 +111,23 @@ class _SlotRoleBadge extends StatelessWidget {
 
     Color badgeColor;
     switch (slotRole) {
-      case 'compound':
+      case 'primary_compound':
         badgeColor = colorScheme.primary;
+      case 'secondary_compound':
+        badgeColor = const Color(0xFF22C55E);
       case 'accessory':
         badgeColor = colorScheme.tertiary;
-      case 'mobility':
-        badgeColor = colorScheme.secondary;
+      case 'isolation':
+        badgeColor = const Color(0xFF8B5CF6);
       default:
         badgeColor = colorScheme.outline;
     }
 
     final displayName = switch (slotRole) {
-      'compound' => 'Compound',
+      'primary_compound' => 'Primary',
+      'secondary_compound' => 'Secondary',
       'accessory' => 'Accessory',
-      'mobility' => 'Mobility',
+      'isolation' => 'Isolation',
       _ => slotRole,
     };
 

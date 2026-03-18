@@ -76,12 +76,14 @@ class SessionSlotModel with _$SessionSlotModel {
 
   String get slotRoleDisplay {
     switch (slotRole) {
-      case 'compound':
-        return 'Compound';
+      case 'primary_compound':
+        return 'Primary';
+      case 'secondary_compound':
+        return 'Secondary';
       case 'accessory':
         return 'Accessory';
-      case 'mobility':
-        return 'Mobility';
+      case 'isolation':
+        return 'Isolation';
       default:
         return slotRole;
     }

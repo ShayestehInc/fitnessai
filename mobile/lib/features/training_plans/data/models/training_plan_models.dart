@@ -169,16 +169,14 @@ class PlanSlotModel {
 
   String get roleDisplay {
     switch (slotRole) {
-      case 'primary':
+      case 'primary_compound':
         return 'Primary';
-      case 'secondary':
+      case 'secondary_compound':
         return 'Secondary';
       case 'accessory':
         return 'Accessory';
-      case 'warmup':
-        return 'Warm-up';
-      case 'cooldown':
-        return 'Cool-down';
+      case 'isolation':
+        return 'Isolation';
       default:
         return slotRole;
     }
