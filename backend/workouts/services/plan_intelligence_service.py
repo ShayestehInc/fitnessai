@@ -391,11 +391,12 @@ def estimate_session_duration(
         work_per_set = sec_per_rep * avg_reps
         work_time = work_per_set * spec.sets
 
-        # Rest time: paired slots share rest (only count once per pair)
+        # Rest time: (sets - 1) inter-set rests; paired slots share rest (halved)
+        inter_set_rests = max(0, spec.sets - 1)
         if spec.order in paired_orders:
-            rest_time = spec.rest_seconds * spec.sets * 0.5  # Shared rest
+            rest_time = spec.rest_seconds * inter_set_rests * 0.5
         else:
-            rest_time = spec.rest_seconds * (spec.sets - 1)  # No rest after last set
+            rest_time = spec.rest_seconds * inter_set_rests
 
         transition_time = _TRANSITION_SECONDS_PER_EXERCISE
         log_time = _LOG_SECONDS_PER_SET * spec.sets
@@ -417,11 +418,9 @@ def auto_trim_session(
     Trim order: optional finishers first, then low-priority support, then isolation.
     Never trim primary compounds.
     """
-    removed: list[int] = []
     current_duration = estimate_session_duration(specs, pairings)
-
     if current_duration <= target_minutes:
-        return removed
+        return []
 
     # Priority for trimming (first to cut → last to cut)
     trim_priority = [
@@ -430,31 +429,31 @@ def auto_trim_session(
         'accessory',
     ]
 
-    # First pass: remove optional slots
+    # Build ordered removal candidates: optional first, then non-optional
+    candidates: list[int] = []
     for role in trim_priority:
-        if current_duration <= target_minutes:
-            break
-        for spec in reversed(list(specs)):
+        for spec in reversed(specs):
             if spec.is_optional and spec.slot_role == role:
-                removed.append(spec.order)
-                specs.remove(spec)
-                current_duration = estimate_session_duration(specs, pairings)
-                if current_duration <= target_minutes:
-                    break
+                candidates.append(spec.order)
+    for role in trim_priority:
+        for spec in reversed(specs):
+            if not spec.is_optional and spec.slot_role == role and spec.order not in candidates:
+                candidates.append(spec.order)
 
-    # Second pass: remove non-optional low-priority if still over
-    if current_duration > target_minutes:
-        for role in trim_priority:
-            if current_duration <= target_minutes:
-                break
-            for spec in reversed(list(specs)):
-                if spec.slot_role == role and spec.order not in removed:
-                    removed.append(spec.order)
-                    specs.remove(spec)
-                    current_duration = estimate_session_duration(specs, pairings)
-                    if current_duration <= target_minutes:
-                        break
+    # Remove one at a time until under target
+    removed: list[int] = []
+    orders_to_remove: set[int] = set()
+    for order in candidates:
+        orders_to_remove.add(order)
+        remaining = [s for s in specs if s.order not in orders_to_remove]
+        if estimate_session_duration(remaining, pairings) <= target_minutes:
+            removed = list(orders_to_remove)
+            break
+    else:
+        removed = list(orders_to_remove)
 
+    # Apply removal in a single pass
+    specs[:] = [s for s in specs if s.order not in set(removed)]
     return removed
 
 

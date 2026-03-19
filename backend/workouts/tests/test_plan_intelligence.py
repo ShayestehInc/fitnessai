@@ -56,7 +56,12 @@ class PhaseAssignmentTests(TestCase):
     def test_fallback_for_unknown_duration(self) -> None:
         weeks = self._make_weeks(11)
         assign_phases(weeks, 'build_muscle')
-        self.assertEqual(len([w for w in weeks if w.phase == 'deload']), len([w for w in weeks if w.phase == 'deload']))
+        # Should have at least one deload in an 11-week plan
+        deload_count = len([w for w in weeks if w.phase == 'deload'])
+        self.assertGreaterEqual(deload_count, 1)
+        # All weeks should have a valid phase
+        for w in weeks:
+            self.assertIn(w.phase, ['on_ramp', 'accumulation', 'intensification', 'realization', 'deload', 'bridge'])
 
 
 class SessionClassificationTests(TestCase):

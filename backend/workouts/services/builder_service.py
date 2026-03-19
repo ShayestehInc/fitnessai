@@ -277,8 +277,12 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         PlanWeek.objects.bulk_update(all_weeks, ['phase', 'is_deload', 'intensity_modifier', 'volume_modifier'])
 
         # NEW: Classify sessions (day roles, session families, day stress)
+        from collections import defaultdict
+        sessions_by_week: dict[str, list[PlanSession]] = defaultdict(list)
+        for s in all_sessions:
+            sessions_by_week[str(s.week_id)].append(s)
         for week in all_weeks:
-            week_sessions = [s for s in all_sessions if s.week_id == week.pk]
+            week_sessions = sessions_by_week.get(str(week.pk), [])
             classify_sessions(week_sessions, session_defs, brief.goal, week.phase)
         PlanSession.objects.bulk_update(
             all_sessions, ['day_role', 'session_family', 'day_stress'],
@@ -635,7 +639,10 @@ def _advance_from_split(
         privacy_q = Q(is_system=True)
         if brief.trainer_id:
             privacy_q |= Q(created_by_id=brief.trainer_id)
-        template = SplitTemplate.objects.get(privacy_q, pk=template_id)
+        try:
+            template = SplitTemplate.objects.get(privacy_q, pk=template_id)
+        except SplitTemplate.DoesNotExist:
+            raise ValueError("Split template not found or not accessible.")
     else:
         template, _, _, _ = _explain_split(brief)
 
