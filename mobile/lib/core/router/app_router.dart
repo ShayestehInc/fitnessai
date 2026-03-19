@@ -1386,7 +1386,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/plan-detail/:planId',
         name: 'plan-detail',
         pageBuilder: (context, state) {
-          final planId = int.parse(state.pathParameters['planId']!);
+          final planId = state.pathParameters['planId']!;
           return adaptivePage(
             key: state.pageKey,
             child: PlanDetailScreen(planId: planId),
@@ -1397,7 +1397,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/plan-session/:sessionId',
         name: 'plan-session',
         pageBuilder: (context, state) {
-          final sessionId = int.parse(state.pathParameters['sessionId']!);
+          final sessionId = state.pathParameters['sessionId']!;
           return adaptivePage(
             key: state.pageKey,
             child: PlanSessionScreen(sessionId: sessionId),

@@ -344,13 +344,13 @@ class ApiConstants {
 
   // Training Plan endpoints
   static String get trainingPlans => '$apiBaseUrl/workouts/training-plans/';
-  static String trainingPlanDetail(int id) =>
+  static String trainingPlanDetail(String id) =>
       '$apiBaseUrl/workouts/training-plans/$id/';
   static String get planSessions => '$apiBaseUrl/workouts/plan-sessions/';
-  static String planSessionDetail(int id) =>
+  static String planSessionDetail(String id) =>
       '$apiBaseUrl/workouts/plan-sessions/$id/';
   static String get planSlots => '$apiBaseUrl/workouts/plan-slots/';
-  static String planSlotDetail(int id) =>
+  static String planSlotDetail(String id) =>
       '$apiBaseUrl/workouts/plan-slots/$id/';
   static String get splitTemplates => '$apiBaseUrl/workouts/split-templates/';
   static String get modalities => '$apiBaseUrl/workouts/modalities/';

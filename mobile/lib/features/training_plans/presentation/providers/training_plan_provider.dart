@@ -73,7 +73,7 @@ final trainingPlansProvider =
 
 /// Fetches full plan detail by ID.
 final planDetailProvider = FutureProvider.autoDispose
-    .family<TrainingPlanModel, int>((ref, planId) async {
+    .family<TrainingPlanModel, String>((ref, planId) async {
   final repository = ref.watch(trainingPlanRepositoryProvider);
   final result = await repository.getPlanDetail(planId);
   if (result['success'] == true) {
@@ -84,7 +84,7 @@ final planDetailProvider = FutureProvider.autoDispose
 
 /// Fetches session detail by ID.
 final sessionDetailProvider = FutureProvider.autoDispose
-    .family<PlanSessionModel, int>((ref, sessionId) async {
+    .family<PlanSessionModel, String>((ref, sessionId) async {
   final repository = ref.watch(trainingPlanRepositoryProvider);
   final result = await repository.getSessionDetail(sessionId);
   if (result['success'] == true) {

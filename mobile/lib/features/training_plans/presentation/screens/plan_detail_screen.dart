@@ -8,7 +8,7 @@ import '../providers/training_plan_provider.dart';
 import '../widgets/plan_week_card.dart';
 
 class PlanDetailScreen extends ConsumerStatefulWidget {
-  final int planId;
+  final String planId;
 
   const PlanDetailScreen({super.key, required this.planId});
 
@@ -17,7 +17,7 @@ class PlanDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
-  int? _expandedWeekId;
+  String? _expandedWeekId;
 
   @override
   Widget build(BuildContext context) {

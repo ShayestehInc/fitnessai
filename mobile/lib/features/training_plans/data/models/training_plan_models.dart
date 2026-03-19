@@ -4,12 +4,12 @@ part 'training_plan_models.g.dart';
 
 @JsonSerializable()
 class TrainingPlanModel {
-  final int id;
-  final int trainee;
+  final String id;
+  final dynamic trainee;
   final String goal;
   final String status;
   @JsonKey(name: 'split_template')
-  final int? splitTemplate;
+  final String? splitTemplate;
   @JsonKey(name: 'split_template_name')
   final String? splitTemplateName;
   @JsonKey(name: 'weeks_count')
@@ -20,7 +20,7 @@ class TrainingPlanModel {
 
   const TrainingPlanModel({
     required this.id,
-    required this.trainee,
+    this.trainee,
     required this.goal,
     required this.status,
     this.splitTemplate,
@@ -43,7 +43,7 @@ class TrainingPlanModel {
 
 @JsonSerializable()
 class PlanWeekModel {
-  final int id;
+  final String id;
   @JsonKey(name: 'week_number')
   final int weekNumber;
   @JsonKey(name: 'is_deload')
@@ -73,7 +73,7 @@ class PlanWeekModel {
 
 @JsonSerializable()
 class PlanSessionModel {
-  final int id;
+  final String id;
   @JsonKey(name: 'day_of_week')
   final int dayOfWeek;
   final String label;
@@ -114,8 +114,8 @@ class PlanSessionModel {
 
 @JsonSerializable()
 class PlanSlotModel {
-  final int id;
-  final int? exercise;
+  final String id;
+  final String? exercise;
   @JsonKey(name: 'exercise_name')
   final String? exerciseName;
   @JsonKey(name: 'slot_role')
@@ -128,7 +128,7 @@ class PlanSlotModel {
   @JsonKey(name: 'rest_seconds')
   final int restSeconds;
   @JsonKey(name: 'set_structure_modality')
-  final int? setStructureModality;
+  final String? setStructureModality;
   @JsonKey(name: 'modality_name')
   final String? modalityName;
   @JsonKey(name: 'modality_details')
@@ -190,7 +190,7 @@ class PlanSlotModel {
 
 @JsonSerializable()
 class SplitTemplateModel {
-  final int id;
+  final String id;
   final String name;
   final String? description;
   @JsonKey(name: 'days_per_week')
@@ -220,7 +220,7 @@ class SplitTemplateModel {
 
 @JsonSerializable()
 class ModalityModel {
-  final int id;
+  final String id;
   final String name;
   final String slug;
   @JsonKey(name: 'volume_multiplier')

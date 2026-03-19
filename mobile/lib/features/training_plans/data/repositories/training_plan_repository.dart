@@ -47,7 +47,7 @@ class TrainingPlanRepository {
   }
 
   /// Fetches a single training plan with all weeks, sessions, and slots.
-  Future<Map<String, dynamic>> getPlanDetail(int planId) async {
+  Future<Map<String, dynamic>> getPlanDetail(String planId) async {
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.trainingPlanDetail(planId),
@@ -102,7 +102,7 @@ class TrainingPlanRepository {
 
   /// Updates an existing training plan.
   Future<Map<String, dynamic>> updatePlan(
-    int planId, {
+    String planId, {
     String? goal,
     String? status,
   }) async {
@@ -132,7 +132,7 @@ class TrainingPlanRepository {
   }
 
   /// Fetches a single session with its slots.
-  Future<Map<String, dynamic>> getSessionDetail(int sessionId) async {
+  Future<Map<String, dynamic>> getSessionDetail(String sessionId) async {
     try {
       final response = await _apiClient.dio.get(
         ApiConstants.planSessionDetail(sessionId),
@@ -298,13 +298,13 @@ class TrainingPlanRepository {
 
   /// Updates a plan slot (e.g., swap exercise, change sets/reps).
   Future<Map<String, dynamic>> updateSlot(
-    int slotId, {
+    String slotId, {
     int? exerciseId,
     int? sets,
     int? repsMin,
     int? repsMax,
     int? restSeconds,
-    int? modalityId,
+    String? modalityId,
   }) async {
     try {
       final body = <String, dynamic>{};

@@ -7,7 +7,7 @@ import '../providers/training_plan_provider.dart';
 import '../widgets/plan_slot_card.dart';
 
 class PlanSessionScreen extends ConsumerStatefulWidget {
-  final int sessionId;
+  final String sessionId;
 
   const PlanSessionScreen({super.key, required this.sessionId});
 
