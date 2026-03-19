@@ -1329,9 +1329,21 @@ def _explain_split(
     alternatives: list[dict[str, Any]] = []
     for c in candidates:
         if c.pk != selected.pk:
+            # Build a short description from session definitions
+            session_labels = [
+                sd.get('label', '') for sd in (c.session_definitions or [])
+            ]
+            muscles = set()
+            for sd in (c.session_definitions or []):
+                for mg in sd.get('muscle_groups', []):
+                    muscles.add(mg)
+            desc = f"{c.days_per_week} days/week: {', '.join(session_labels[:4])}"
+            if muscles:
+                desc += f". Targets {', '.join(sorted(muscles)[:5])}"
             alternatives.append({
                 'template_id': str(c.pk),
                 'name': c.name,
+                'description': desc,
                 'days_per_week': c.days_per_week,
                 'goal_match': c.goal_type == brief.goal,
                 'session_definitions': c.session_definitions,
