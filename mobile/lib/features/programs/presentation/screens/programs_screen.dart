@@ -1996,11 +1996,18 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
 
     showAdaptiveBottomSheet(
       context: context,
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      isScrollControlled: true,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (_, scrollController) => SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Center(
               child: Container(
                 width: 40,
@@ -2112,6 +2119,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
           ],
         ),
       ),
+    ),
     );
   }
 
