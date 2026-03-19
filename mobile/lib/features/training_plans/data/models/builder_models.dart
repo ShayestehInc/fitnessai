@@ -1,4 +1,4 @@
-/// Models for the dual-mode program builder (Quick Build + Advanced Builder).
+// Models for the dual-mode program builder (Quick Build + Advanced Builder).
 
 class StepExplanation {
   final String stepName;
