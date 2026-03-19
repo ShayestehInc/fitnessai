@@ -1539,7 +1539,7 @@ class BuilderBriefSerializer(serializers.Serializer[None]):
         child=serializers.CharField(max_length=100),
         required=False, default=list,
     )
-    style = serializers.CharField(max_length=100, required=False, default='')
+    style = serializers.CharField(max_length=100, required=False, default='', allow_blank=True)
     priorities = serializers.ListField(
         child=serializers.CharField(max_length=50),
         required=False, default=list,
@@ -1557,7 +1557,7 @@ class BuilderBriefSerializer(serializers.Serializer[None]):
         required=False, default=list,
     )
     # Expanded brief fields per UI/UX spec
-    secondary_goal = serializers.CharField(max_length=30, required=False, default='')
+    secondary_goal = serializers.CharField(max_length=30, required=False, default='', allow_blank=True)
     body_part_emphasis = serializers.ListField(
         child=serializers.CharField(max_length=50),
         required=False, default=list,
@@ -1565,8 +1565,8 @@ class BuilderBriefSerializer(serializers.Serializer[None]):
     training_age_years = serializers.IntegerField(
         min_value=0, max_value=50, required=False, allow_null=True,
     )
-    skill_level = serializers.CharField(max_length=20, required=False, default='')
-    barbell_familiarity = serializers.CharField(max_length=20, required=False, default='')
+    skill_level = serializers.CharField(max_length=20, required=False, default='', allow_blank=True)
+    barbell_familiarity = serializers.CharField(max_length=20, required=False, default='', allow_blank=True)
     recovery_profile = serializers.DictField(required=False, default=dict)
     pain_tolerances = serializers.DictField(required=False, default=dict)
     favorite_lifts = serializers.ListField(
@@ -1577,7 +1577,7 @@ class BuilderBriefSerializer(serializers.Serializer[None]):
         child=serializers.CharField(max_length=100),
         required=False, default=list,
     )
-    complexity_tolerance = serializers.CharField(max_length=20, required=False, default='')
+    complexity_tolerance = serializers.CharField(max_length=20, required=False, default='', allow_blank=True)
 
 
 # Aliases for clarity at the view layer
