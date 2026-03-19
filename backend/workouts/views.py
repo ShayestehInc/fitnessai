@@ -4290,6 +4290,14 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Only the plan creator (or admin) can advance the builder
+        if (
+            plan.created_by_id
+            and plan.created_by_id != request.user.pk
+            and request.user.role != 'ADMIN'
+        ):
+            raise PermissionDenied("Only the plan creator can advance the builder session.")
+
         serializer = BuilderAdvanceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         override = serializer.validated_data.get('override')

@@ -415,8 +415,6 @@ def builder_advance(
     choices = state.get('choices', {})
     decision_log_ids: list[str] = state.get('decision_log_ids', [])
 
-    step_idx = BUILDER_STEPS.index(current_step) if current_step in BUILDER_STEPS else 1
-
     # Apply the current step's choice
     if current_step == 'length':
         return _advance_from_length(plan, brief, override, choices, decision_log_ids)
@@ -497,7 +495,11 @@ def _advance_from_split(
     """User confirmed split. Move to skeleton preview."""
     template_id = override.get('template_id') if override else None
     if template_id:
-        template = SplitTemplate.objects.get(pk=template_id)
+        # Ownership check: only system templates or trainer's own templates
+        privacy_q = Q(is_system=True)
+        if brief.trainer_id:
+            privacy_q |= Q(created_by_id=brief.trainer_id)
+        template = SplitTemplate.objects.get(privacy_q, pk=template_id)
     else:
         template, _, _, _ = _explain_split(brief)
 
@@ -571,10 +573,10 @@ def _advance_from_skeleton(
         'overridden': override is not None,
     }
 
-    # Delete existing weeks/sessions if re-running
-    PlanWeek.objects.filter(plan=plan).delete()
-
     with transaction.atomic():
+        # Delete existing weeks/sessions if re-running (inside transaction)
+        PlanWeek.objects.filter(plan=plan).delete()
+
         all_weeks, all_sessions, all_specs, log_a3 = _a3_build_skeleton(
             plan=plan,
             split_template=plan.split_template,
@@ -584,15 +586,15 @@ def _advance_from_skeleton(
         )
         decision_log_ids.append(str(log_a3.pk))
 
-    # Store specs in builder_state for subsequent steps
-    specs_data = _specs_to_state(all_specs)
-    choices['_specs'] = specs_data
-    choices['_sessions_count'] = len(all_sessions)
+        # Store specs in builder_state for subsequent steps
+        specs_data = _specs_to_state(all_specs)
+        choices['_specs'] = specs_data
+        choices['_sessions_count'] = len(all_sessions)
 
-    # Show role assignments preview
-    role_preview = _build_role_preview(all_specs)
+        # Show role assignments preview
+        role_preview = _build_role_preview(all_specs)
 
-    _save_builder_state(plan, 'roles', 4, choices, decision_log_ids)
+        _save_builder_state(plan, 'roles', 4, choices, decision_log_ids)
 
     return BuilderStepResult(
         plan_id=str(plan.pk),
@@ -924,9 +926,13 @@ def _advance_from_publish(
             plan.status = TrainingPlan.Status.DRAFT
 
         choices['publish'] = {'action': 'save_draft' if save_draft else 'publish'}
-        plan.builder_state['choices'] = choices
-        plan.builder_state['current_step'] = 'complete'
-        plan.builder_state['current_step_number'] = 10
+        # Reassign builder_state to trigger Django JSONField change detection
+        plan.builder_state = {
+            **plan.builder_state,
+            'choices': choices,
+            'current_step': 'complete',
+            'current_step_number': 10,
+        }
         plan.save(update_fields=['status', 'builder_state', 'updated_at'])
 
     return BuilderStepResult(
@@ -1137,8 +1143,10 @@ def _brief_to_dict(brief: BuilderBrief) -> dict[str, Any]:
 
 
 def _dict_to_brief(data: dict[str, Any]) -> BuilderBrief:
+    if 'trainee_id' not in data:
+        raise ValueError("builder_state.brief.trainee_id is missing")
     return BuilderBrief(
-        trainee_id=data.get('trainee_id', 0),
+        trainee_id=data['trainee_id'],
         goal=data.get('goal', 'general_fitness'),
         days_per_week=data.get('days_per_week', 4),
         difficulty=data.get('difficulty', 'intermediate'),
@@ -1246,23 +1254,29 @@ def _reconstruct_specs(plan: TrainingPlan, choices: dict[str, Any]) -> list[Slot
 
 def _build_role_preview(all_specs: list[SlotSpec]) -> list[dict[str, Any]]:
     """Build a preview of slot role assignments for the first week."""
-    seen_sessions: set[str] = set()
-    preview: list[dict[str, Any]] = []
+    from collections import defaultdict
+
+    # Pre-group specs by session to avoid O(N^2)
+    specs_by_session: dict[str, list[SlotSpec]] = defaultdict(list)
+    session_order: list[str] = []
     for spec in all_specs:
         session_key = str(spec.session.pk)
-        if session_key in seen_sessions:
-            continue
-        # Only show first occurrence of each session (week 1)
-        session_specs = [s for s in all_specs if str(s.session.pk) == session_key]
+        if session_key not in specs_by_session:
+            session_order.append(session_key)
+        specs_by_session[session_key].append(spec)
+
+    preview: list[dict[str, Any]] = []
+    for session_key in session_order:
+        session_specs = specs_by_session[session_key]
+        first_spec = session_specs[0]
         preview.append({
-            'session_label': spec.session.label,
-            'day_of_week': spec.session.day_of_week,
+            'session_label': first_spec.session.label,
+            'day_of_week': first_spec.session.day_of_week,
             'slots': [
                 {'order': s.order, 'role': s.slot_role}
                 for s in session_specs
             ],
         })
-        seen_sessions.add(session_key)
         if len(preview) >= 7:
             break
     return preview

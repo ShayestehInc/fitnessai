@@ -1519,8 +1519,8 @@ class SwapExecuteSerializer(serializers.Serializer[None]):
     reason = serializers.CharField(required=False, default='')
 
 
-class QuickBuildSerializer(serializers.Serializer[None]):
-    """Input for the Quick Build endpoint — expanded brief with lifestyle context."""
+class BuilderBriefSerializer(serializers.Serializer[None]):
+    """Shared brief input for both Quick Build and Advanced Builder."""
     trainee_id = serializers.IntegerField()
     goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
     days_per_week = serializers.IntegerField(min_value=1, max_value=7)
@@ -1558,43 +1558,9 @@ class QuickBuildSerializer(serializers.Serializer[None]):
     )
 
 
-class BuilderStartSerializer(serializers.Serializer[None]):
-    """Input for starting an Advanced Builder session — same fields as Quick Build."""
-    trainee_id = serializers.IntegerField()
-    goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
-    days_per_week = serializers.IntegerField(min_value=1, max_value=7)
-    difficulty = serializers.ChoiceField(
-        choices=Exercise.DifficultyLevel.choices,
-        default='intermediate',
-    )
-    session_length_minutes = serializers.IntegerField(
-        min_value=15, max_value=180, default=60,
-    )
-    equipment = serializers.ListField(
-        child=serializers.CharField(max_length=50),
-        required=False, default=list,
-    )
-    injuries = serializers.ListField(
-        child=serializers.CharField(max_length=100),
-        required=False, default=list,
-    )
-    style = serializers.CharField(max_length=100, required=False, default='')
-    priorities = serializers.ListField(
-        child=serializers.CharField(max_length=50),
-        required=False, default=list,
-    )
-    dislikes = serializers.ListField(
-        child=serializers.CharField(max_length=100),
-        required=False, default=list,
-    )
-    duration_weeks = serializers.IntegerField(
-        min_value=1, max_value=52, required=False, allow_null=True,
-    )
-    split_template_id = serializers.UUIDField(required=False, allow_null=True)
-    training_day_indices = serializers.ListField(
-        child=serializers.IntegerField(min_value=0, max_value=6),
-        required=False, default=list,
-    )
+# Aliases for clarity at the view layer
+QuickBuildSerializer = BuilderBriefSerializer
+BuilderStartSerializer = BuilderBriefSerializer
 
 
 class BuilderAdvanceSerializer(serializers.Serializer[None]):
