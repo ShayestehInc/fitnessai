@@ -186,10 +186,38 @@ class BuilderStepResult:
 # Quick Build
 # ---------------------------------------------------------------------------
 
+def _try_ai_step(step_name: str, brief: BuilderBrief, context: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """Try to get AI recommendation for a builder step. Returns None if AI unavailable."""
+    try:
+        from workouts.services.ai_builder_service import ai_step_recommendation
+        result = ai_step_recommendation(step_name, _brief_to_dict(brief), context or {})
+        if result.used_ai and result.data:
+            return result.data
+        return None
+    except Exception:
+        logger.exception("AI step recommendation failed for '%s'.", step_name)
+        return None
+
+
+def _try_ai_quick_build(brief: BuilderBrief) -> dict[str, Any] | None:
+    """Try to get AI-powered program design. Returns None if AI unavailable."""
+    try:
+        from workouts.services.ai_builder_service import ai_quick_build
+        result = ai_quick_build(_brief_to_dict(brief))
+        if result.used_ai and result.data:
+            logger.info("AI quick build succeeded.")
+            return result.data
+        return None
+    except Exception:
+        logger.exception("AI quick build failed — using deterministic fallback.")
+        return None
+
+
 def quick_build(brief: BuilderBrief) -> QuickBuildResult:
     """
-    Run the full pipeline with intelligence features from the UI/UX spec.
-    Phases, day roles, pairing, timing, exercise tag filtering, tempo presets.
+    Run the full pipeline with AI-powered intelligence.
+    AI designs the program, deterministic pipeline creates the DB records.
+    Falls back to rule-based logic if AI is unavailable.
     """
     from workouts.services.plan_intelligence_service import (
         assign_pairings,
@@ -201,6 +229,9 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         estimate_session_duration,
         filter_exercises_by_tags,
     )
+
+    # Try AI-powered design first
+    ai_result = _try_ai_quick_build(brief)
 
     decision_log_ids: list[str] = []
     explanations: list[StepExplanation] = []
@@ -469,9 +500,18 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         plan_slots = _specs_to_plan_slots(all_specs)
         PlanSlot.objects.bulk_create(plan_slots)
 
+        # Override explanations with AI-generated ones if available
+        if ai_result:
+            ai_explanations = ai_result.get('step_explanations', {})
+            for exp in explanations:
+                ai_why = ai_explanations.get(exp.step_name)
+                if ai_why:
+                    exp.why = ai_why
+
         # Save explanations to builder_state
         plan.builder_state = {
             'brief': _brief_to_dict(brief),
+            'ai_used': ai_result is not None,
             'step_explanations': [
                 {
                     'step_name': e.step_name,
@@ -506,8 +546,16 @@ def builder_start(brief: BuilderBrief) -> BuilderStepResult:
     """
     Start an advanced builder session.
     Creates a DRAFT plan and returns the first decision step (length).
+    Uses AI for the recommendation if available.
     """
     weeks_count, why_length, alts_length = _explain_length(brief)
+
+    # Try AI recommendation for length
+    ai_why = _try_ai_step('length', brief)
+    if ai_why:
+        why_length = ai_why.get('why', why_length)
+        if ai_why.get('weeks'):
+            weeks_count = ai_why['weeks']
 
     plan = TrainingPlan.objects.create(
         trainee_id=brief.trainee_id,
@@ -531,7 +579,7 @@ def builder_start(brief: BuilderBrief) -> BuilderStepResult:
         plan_id=str(plan.pk),
         current_step='length',
         current_step_number=1,
-        total_steps=len(BUILDER_STEPS) - 1,  # exclude 'brief'
+        total_steps=len(BUILDER_STEPS) - 1,
         recommendation={'weeks': weeks_count},
         alternatives=alts_length,
         why=why_length,
@@ -598,9 +646,17 @@ def _advance_from_length(
     plan.duration_weeks = weeks
     choices['length'] = {'weeks': weeks, 'overridden': override is not None}
 
-    # Now present split options
+    # Now present split options — try AI first
     split_template, why_split, alts_split, log = _explain_split(brief)
     decision_log_ids.append(str(log.pk))
+
+    ai_split = _try_ai_step('split', brief, {
+        'available_splits': [
+            {'name': a.get('name', '')} for a in alts_split
+        ] + [{'name': split_template.name}],
+    })
+    if ai_split and ai_split.get('why'):
+        why_split = ai_split['why']
 
     _save_builder_state(plan, 'split', 2, choices, decision_log_ids)
 
