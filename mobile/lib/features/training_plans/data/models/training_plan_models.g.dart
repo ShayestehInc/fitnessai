@@ -10,11 +10,16 @@ TrainingPlanModel _$TrainingPlanModelFromJson(Map<String, dynamic> json) =>
     TrainingPlanModel(
       id: json['id'].toString(),
       trainee: json['trainee'],
+      name: json['name'] as String?,
+      description: json['description'] as String?,
       goal: json['goal'] as String,
       status: json['status'] as String,
+      difficulty: json['difficulty'] as String?,
       splitTemplate: json['split_template']?.toString(),
       splitTemplateName: json['split_template_name'] as String?,
+      durationWeeks: (json['duration_weeks'] as num?)?.toInt(),
       weeksCount: (json['weeks_count'] as num?)?.toInt() ?? 0,
+      buildMode: json['build_mode'] as String?,
       createdAt: json['created_at'] as String,
       weeks: (json['weeks'] as List<dynamic>?)
           ?.map((e) => PlanWeekModel.fromJson(e as Map<String, dynamic>))
@@ -25,11 +30,16 @@ Map<String, dynamic> _$TrainingPlanModelToJson(TrainingPlanModel instance) =>
     <String, dynamic>{
       'id': instance.id,
       'trainee': instance.trainee,
+      'name': instance.name,
+      'description': instance.description,
       'goal': instance.goal,
       'status': instance.status,
+      'difficulty': instance.difficulty,
       'split_template': instance.splitTemplate,
       'split_template_name': instance.splitTemplateName,
+      'duration_weeks': instance.durationWeeks,
       'weeks_count': instance.weeksCount,
+      'build_mode': instance.buildMode,
       'created_at': instance.createdAt,
       'weeks': instance.weeks,
     };

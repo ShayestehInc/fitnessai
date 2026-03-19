@@ -100,7 +100,10 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
           Row(
             children: [
               Expanded(
-                child: Text(plan.goal, style: theme.textTheme.titleLarge),
+                child: Text(
+                  plan.name ?? plan.goal.replaceAll('_', ' '),
+                  style: theme.textTheme.titleLarge,
+                ),
               ),
               _buildStatusChip(theme, plan.status),
             ],
@@ -225,7 +228,7 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
 
   Widget _buildSessionTile(ThemeData theme, PlanSessionModel session) {
     return GestureDetector(
-      onTap: () => context.push('/training-plans/session/${session.id}'),
+      onTap: () => context.push('/plan-session/${session.id}'),
       child: Container(
         margin: const EdgeInsets.only(left: 16, top: 8),
         padding: const EdgeInsets.all(14),
