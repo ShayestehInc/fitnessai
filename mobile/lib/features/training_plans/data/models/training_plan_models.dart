@@ -53,6 +53,12 @@ class TrainingPlanModel {
   Map<String, dynamic> toJson() => _$TrainingPlanModelToJson(this);
 }
 
+double _parseDouble(dynamic v, double fallback) {
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v) ?? fallback;
+  return fallback;
+}
+
 @JsonSerializable()
 class PlanWeekModel {
   final String id;
@@ -60,11 +66,15 @@ class PlanWeekModel {
   final int weekNumber;
   @JsonKey(name: 'is_deload')
   final bool isDeload;
-  @JsonKey(name: 'intensity_modifier')
+  @JsonKey(name: 'intensity_modifier', fromJson: _intensityFromJson)
   final double intensityModifier;
-  @JsonKey(name: 'volume_modifier')
+  @JsonKey(name: 'volume_modifier', fromJson: _volumeFromJson)
   final double volumeModifier;
+  final String? phase;
   final List<PlanSessionModel>? sessions;
+
+  static double _intensityFromJson(dynamic v) => _parseDouble(v, 1.0);
+  static double _volumeFromJson(dynamic v) => _parseDouble(v, 1.0);
 
   const PlanWeekModel({
     required this.id,
@@ -72,6 +82,7 @@ class PlanWeekModel {
     this.isDeload = false,
     this.intensityModifier = 1.0,
     this.volumeModifier = 1.0,
+    this.phase,
     this.sessions,
   });
 
@@ -90,6 +101,14 @@ class PlanSessionModel {
   final int dayOfWeek;
   final String label;
   final int order;
+  @JsonKey(name: 'day_role')
+  final String? dayRole;
+  @JsonKey(name: 'session_family')
+  final String? sessionFamily;
+  @JsonKey(name: 'day_stress')
+  final String? dayStress;
+  @JsonKey(name: 'estimated_duration_minutes')
+  final int? estimatedDurationMinutes;
   final List<PlanSlotModel>? slots;
 
   const PlanSessionModel({
@@ -97,6 +116,10 @@ class PlanSessionModel {
     required this.dayOfWeek,
     required this.label,
     this.order = 0,
+    this.dayRole,
+    this.sessionFamily,
+    this.dayStress,
+    this.estimatedDurationMinutes,
     this.slots,
   });
 
@@ -112,8 +135,9 @@ class PlanSessionModel {
       'Saturday',
       'Sunday',
     ];
-    if (dayOfWeek >= 1 && dayOfWeek <= 7) {
-      return days[dayOfWeek - 1];
+    // Backend sends 0-6 (Mon-Sun)
+    if (dayOfWeek >= 0 && dayOfWeek <= 6) {
+      return days[dayOfWeek];
     }
     return 'Day $dayOfWeek';
   }
@@ -127,7 +151,7 @@ class PlanSessionModel {
 @JsonSerializable()
 class PlanSlotModel {
   final String id;
-  final String? exercise;
+  final int? exercise;
   @JsonKey(name: 'exercise_name')
   final String? exerciseName;
   @JsonKey(name: 'slot_role')

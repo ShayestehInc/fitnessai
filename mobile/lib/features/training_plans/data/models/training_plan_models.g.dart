@@ -8,14 +8,14 @@ part of 'training_plan_models.dart';
 
 TrainingPlanModel _$TrainingPlanModelFromJson(Map<String, dynamic> json) =>
     TrainingPlanModel(
-      id: json['id'].toString(),
+      id: json['id'] as String,
       trainee: json['trainee'],
       name: json['name'] as String?,
       description: json['description'] as String?,
       goal: json['goal'] as String,
       status: json['status'] as String,
       difficulty: json['difficulty'] as String?,
-      splitTemplate: json['split_template']?.toString(),
+      splitTemplate: json['split_template'] as String?,
       splitTemplateName: json['split_template_name'] as String?,
       durationWeeks: (json['duration_weeks'] as num?)?.toInt(),
       weeksCount: (json['weeks_count'] as num?)?.toInt() ?? 0,
@@ -46,12 +46,16 @@ Map<String, dynamic> _$TrainingPlanModelToJson(TrainingPlanModel instance) =>
 
 PlanWeekModel _$PlanWeekModelFromJson(Map<String, dynamic> json) =>
     PlanWeekModel(
-      id: json['id'].toString(),
+      id: json['id'] as String,
       weekNumber: (json['week_number'] as num).toInt(),
       isDeload: json['is_deload'] as bool? ?? false,
-      intensityModifier:
-          (json['intensity_modifier'] as num?)?.toDouble() ?? 1.0,
-      volumeModifier: (json['volume_modifier'] as num?)?.toDouble() ?? 1.0,
+      intensityModifier: json['intensity_modifier'] == null
+          ? 1.0
+          : PlanWeekModel._intensityFromJson(json['intensity_modifier']),
+      volumeModifier: json['volume_modifier'] == null
+          ? 1.0
+          : PlanWeekModel._volumeFromJson(json['volume_modifier']),
+      phase: json['phase'] as String?,
       sessions: (json['sessions'] as List<dynamic>?)
           ?.map((e) => PlanSessionModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -64,15 +68,21 @@ Map<String, dynamic> _$PlanWeekModelToJson(PlanWeekModel instance) =>
       'is_deload': instance.isDeload,
       'intensity_modifier': instance.intensityModifier,
       'volume_modifier': instance.volumeModifier,
+      'phase': instance.phase,
       'sessions': instance.sessions,
     };
 
 PlanSessionModel _$PlanSessionModelFromJson(Map<String, dynamic> json) =>
     PlanSessionModel(
-      id: json['id'].toString(),
+      id: json['id'] as String,
       dayOfWeek: (json['day_of_week'] as num).toInt(),
       label: json['label'] as String,
       order: (json['order'] as num?)?.toInt() ?? 0,
+      dayRole: json['day_role'] as String?,
+      sessionFamily: json['session_family'] as String?,
+      dayStress: json['day_stress'] as String?,
+      estimatedDurationMinutes:
+          (json['estimated_duration_minutes'] as num?)?.toInt(),
       slots: (json['slots'] as List<dynamic>?)
           ?.map((e) => PlanSlotModel.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -84,20 +94,24 @@ Map<String, dynamic> _$PlanSessionModelToJson(PlanSessionModel instance) =>
       'day_of_week': instance.dayOfWeek,
       'label': instance.label,
       'order': instance.order,
+      'day_role': instance.dayRole,
+      'session_family': instance.sessionFamily,
+      'day_stress': instance.dayStress,
+      'estimated_duration_minutes': instance.estimatedDurationMinutes,
       'slots': instance.slots,
     };
 
 PlanSlotModel _$PlanSlotModelFromJson(Map<String, dynamic> json) =>
     PlanSlotModel(
-      id: json['id'].toString(),
-      exercise: json['exercise']?.toString(),
+      id: json['id'] as String,
+      exercise: (json['exercise'] as num?)?.toInt(),
       exerciseName: json['exercise_name'] as String?,
       slotRole: json['slot_role'] as String,
       sets: (json['sets'] as num).toInt(),
       repsMin: (json['reps_min'] as num).toInt(),
       repsMax: (json['reps_max'] as num).toInt(),
       restSeconds: (json['rest_seconds'] as num?)?.toInt() ?? 60,
-      setStructureModality: json['set_structure_modality']?.toString(),
+      setStructureModality: json['set_structure_modality'] as String?,
       modalityName: json['modality_name'] as String?,
       modalityDetails: json['modality_details'] as Map<String, dynamic>?,
     );
@@ -119,7 +133,7 @@ Map<String, dynamic> _$PlanSlotModelToJson(PlanSlotModel instance) =>
 
 SplitTemplateModel _$SplitTemplateModelFromJson(Map<String, dynamic> json) =>
     SplitTemplateModel(
-      id: json['id'].toString(),
+      id: json['id'] as String,
       name: json['name'] as String,
       description: json['description'] as String?,
       daysPerWeek: (json['days_per_week'] as num).toInt(),
@@ -141,7 +155,7 @@ Map<String, dynamic> _$SplitTemplateModelToJson(SplitTemplateModel instance) =>
 
 ModalityModel _$ModalityModelFromJson(Map<String, dynamic> json) =>
     ModalityModel(
-      id: json['id'].toString(),
+      id: json['id'] as String,
       name: json['name'] as String,
       slug: json['slug'] as String,
       volumeMultiplier: (json['volume_multiplier'] as num?)?.toDouble() ?? 1.0,
