@@ -20,6 +20,9 @@ class AdvancedBuilderScreen extends ConsumerStatefulWidget {
 
 class _AdvancedBuilderScreenState
     extends ConsumerState<AdvancedBuilderScreen> {
+  // Selected alternative override (null = use recommendation)
+  Map<String, dynamic>? _selectedOverride;
+
   // Brief form state (shown as step 0 before calling the API)
   bool _briefSubmitted = false;
   String _goal = 'build_muscle';
@@ -81,10 +84,12 @@ class _AdvancedBuilderScreenState
   }
 
   Future<void> _acceptStep() async {
-    await ref.read(advancedBuilderProvider.notifier).advance();
+    await ref.read(advancedBuilderProvider.notifier).advance(override: _selectedOverride);
+    setState(() => _selectedOverride = null);
   }
 
   void _goBack() {
+    setState(() => _selectedOverride = null);
     ref.read(advancedBuilderProvider.notifier).goBack();
   }
 
@@ -310,7 +315,8 @@ class _AdvancedBuilderScreenState
           if (step.alternatives.isNotEmpty) ...[
             AlternativesPanel(
               alternatives: step.alternatives,
-              onSelect: (alt) => _overrideStep(alt),
+              selectedOverride: _selectedOverride,
+              onSelect: (alt) => setState(() => _selectedOverride = alt),
             ),
             const SizedBox(height: 16),
           ],

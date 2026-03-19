@@ -118,13 +118,26 @@ class _WhyPanelState extends State<WhyPanel> {
 /// A panel showing alternatives the user can pick from.
 class AlternativesPanel extends StatelessWidget {
   final List<Map<String, dynamic>> alternatives;
+  final Map<String, dynamic>? selectedOverride;
   final void Function(Map<String, dynamic> selected)? onSelect;
 
   const AlternativesPanel({
     super.key,
     required this.alternatives,
+    this.selectedOverride,
     this.onSelect,
   });
+
+  bool _isSelected(Map<String, dynamic> alt) {
+    if (selectedOverride == null) return false;
+    // Compare by first meaningful key
+    for (final key in ['template_id', 'weeks', 'profile', 'rule', 'scheme']) {
+      if (alt.containsKey(key) && selectedOverride!.containsKey(key)) {
+        return alt[key].toString() == selectedOverride![key].toString();
+      }
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,7 +155,9 @@ class AlternativesPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        ...alternatives.map((alt) => Padding(
+        ...alternatives.map((alt) {
+          final selected = _isSelected(alt);
+          return Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: GestureDetector(
                 onTap: onSelect != null ? () => onSelect!(alt) : null,
@@ -150,9 +165,13 @@ class AlternativesPanel extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: AppTheme.zinc800,
+                    color: selected
+                        ? AppTheme.primary.withValues(alpha: 0.12)
+                        : AppTheme.zinc800,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.border),
+                    border: Border.all(
+                      color: selected ? AppTheme.primary : AppTheme.border,
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -185,16 +204,17 @@ class AlternativesPanel extends StatelessWidget {
                         ),
                       ),
                       if (onSelect != null)
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 16,
-                          color: AppTheme.mutedForeground,
+                        Icon(
+                          selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                          size: 18,
+                          color: selected ? AppTheme.primary : AppTheme.mutedForeground,
                         ),
                     ],
                   ),
                 ),
               ),
-            )),
+            );
+          }),
       ],
     );
   }
