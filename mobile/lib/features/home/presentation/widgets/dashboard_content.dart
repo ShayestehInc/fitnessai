@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
 import '../providers/home_provider.dart';
 import 'activity_rings_card.dart';
@@ -14,6 +16,7 @@ import 'todays_workouts_section.dart';
 import 'week_calendar_strip.dart';
 import 'v65_feature_cards.dart';
 import 'weight_log_card.dart';
+import '../../../anatomy/presentation/widgets/weekly_coverage_card.dart';
 
 /// Main scrollable dashboard content composed of section widgets.
 class DashboardContent extends StatelessWidget {
@@ -82,6 +85,12 @@ class DashboardContent extends StatelessWidget {
           const SizedBox(height: 16),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _BuildProgramCard(),
+          ),
+
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: QuickLogCard(),
           ),
 
@@ -89,6 +98,12 @@ class DashboardContent extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ActivityRingsCard(homeState: homeState),
+          ),
+
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: WeeklyCoverageCard(),
           ),
 
           const SizedBox(height: 12),
@@ -130,10 +145,79 @@ class DashboardContent extends StatelessWidget {
       try {
         final d = DateTime.parse(w.date);
         days.add(d.weekday);
-      } catch (_) {
-        // Silently skip unparseable dates — they are non-critical.
-      }
+      } catch (_) {}
     }
     return days;
+  }
+}
+
+class _BuildProgramCard extends StatelessWidget {
+  const _BuildProgramCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/build-program'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppTheme.primary.withValues(alpha: 0.15),
+              AppTheme.primary.withValues(alpha: 0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppTheme.primary.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: AppTheme.primary,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Build a Program',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.foreground,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Quick Build or step-by-step Advanced Builder',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppTheme.mutedForeground,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
