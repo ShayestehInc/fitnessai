@@ -84,6 +84,10 @@ class _AdvancedBuilderScreenState
     await ref.read(advancedBuilderProvider.notifier).advance();
   }
 
+  void _goBack() {
+    ref.read(advancedBuilderProvider.notifier).goBack();
+  }
+
   Future<void> _overrideStep(Map<String, dynamic> override) async {
     await ref
         .read(advancedBuilderProvider.notifier)
@@ -318,16 +322,35 @@ class _AdvancedBuilderScreenState
           ],
 
           // Action buttons
-          SizedBox(
-            height: 52,
-            child: FilledButton(
-              onPressed: state.isLoading ? null : _acceptStep,
-              child: Text(
-                step.currentStep == 'publish'
-                    ? 'Publish Plan'
-                    : 'Accept & Continue',
+          Row(
+            children: [
+              if (state.stepHistory.length > 1)
+                Expanded(
+                  flex: 1,
+                  child: SizedBox(
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: state.isLoading ? null : _goBack,
+                      child: const Text('Back'),
+                    ),
+                  ),
+                ),
+              if (state.stepHistory.length > 1) const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: state.isLoading ? null : _acceptStep,
+                    child: Text(
+                      step.currentStep == 'publish'
+                          ? 'Publish Plan'
+                          : 'Accept & Continue',
+                    ),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
           if (step.currentStep == 'publish') ...[
             const SizedBox(height: 12),

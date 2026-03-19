@@ -249,6 +249,16 @@ class AdvancedBuilderNotifier extends StateNotifier<AdvancedBuilderState> {
     }
   }
 
+  void goBack() {
+    if (state.stepHistory.length <= 1) return;
+    final newHistory = List<BuilderStepResult>.from(state.stepHistory)
+      ..removeLast();
+    state = state.copyWith(
+      currentStepResult: newHistory.last,
+      stepHistory: newHistory,
+    );
+  }
+
   void reset() {
     state = const AdvancedBuilderState();
   }
