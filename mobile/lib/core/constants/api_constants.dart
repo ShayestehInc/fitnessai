@@ -362,6 +362,8 @@ class ApiConstants {
       '$apiBaseUrl/workouts/training-plans/builder/start/';
   static String builderAdvance(String planId) =>
       '$apiBaseUrl/workouts/training-plans/$planId/builder/advance/';
+  static String convertToProgram(String planId) =>
+      '$apiBaseUrl/workouts/training-plans/$planId/convert-to-program/';
   static String builderState(String planId) =>
       '$apiBaseUrl/workouts/training-plans/$planId/builder/state/';
 

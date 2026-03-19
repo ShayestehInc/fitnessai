@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/api/api_client.dart';
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/training_plan_models.dart';
 import '../providers/training_plan_provider.dart';
 import '../widgets/plan_week_card.dart';
@@ -81,8 +84,74 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
             _buildNoWeeks(theme)
           else
             ...weeks.map((week) => _buildWeekSection(theme, week)),
+          const SizedBox(height: 24),
+          _buildActionButtons(theme, plan),
+          const SizedBox(height: 40),
         ],
       ),
+    );
+  }
+
+  bool _isConverting = false;
+
+  Future<void> _convertToProgram({int? traineeId}) async {
+    setState(() => _isConverting = true);
+    final repo = ref.read(trainingPlanRepositoryProvider);
+    final result = await repo.convertToProgram(
+      widget.planId,
+      traineeId: traineeId,
+    );
+    setState(() => _isConverting = false);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      final data = result['data'] as Map<String, dynamic>;
+      final msg = traineeId != null
+          ? 'Program assigned to ${data['assigned_to']}'
+          : 'Saved as template: ${data['template_name']}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['error']?.toString() ?? 'Failed')),
+      );
+    }
+  }
+
+  void _showTraineePicker() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => _TraineePickerSheet(
+        onSelected: (traineeId) {
+          Navigator.pop(ctx);
+          _convertToProgram(traineeId: traineeId);
+        },
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(ThemeData theme, TrainingPlanModel plan) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 48,
+          child: FilledButton.icon(
+            onPressed: _isConverting ? null : () => _convertToProgram(),
+            icon: const Icon(Icons.save_outlined, size: 18),
+            label: const Text('Save as Template'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _isConverting ? null : _showTraineePicker,
+            icon: const Icon(Icons.person_add_outlined, size: 18),
+            label: const Text('Assign to Trainee'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -276,5 +345,81 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Bottom sheet that fetches and displays trainer's trainees for assignment.
+class _TraineePickerSheet extends ConsumerWidget {
+  final ValueChanged<int> onSelected;
+
+  const _TraineePickerSheet({required this.onSelected});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _fetchTrainees(ref),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final trainees = snapshot.data?['trainees'] as List<dynamic>? ?? [];
+        if (trainees.isEmpty) {
+          return const SizedBox(
+            height: 200,
+            child: Center(child: Text('No trainees found', style: TextStyle(color: AppTheme.mutedForeground))),
+          );
+        }
+        return ListView.builder(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(16),
+          itemCount: trainees.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Select Trainee',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+            final trainee = trainees[index - 1] as Map<String, dynamic>;
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppTheme.zinc700,
+                child: Text(
+                  (trainee['first_name']?.toString() ?? trainee['email']?.toString() ?? '?')[0].toUpperCase(),
+                  style: const TextStyle(color: AppTheme.foreground),
+                ),
+              ),
+              title: Text(
+                '${trainee['first_name'] ?? ''} ${trainee['last_name'] ?? ''}'.trim().isEmpty
+                    ? trainee['email']?.toString() ?? 'Unknown'
+                    : '${trainee['first_name'] ?? ''} ${trainee['last_name'] ?? ''}'.trim(),
+              ),
+              subtitle: Text(trainee['email']?.toString() ?? ''),
+              onTap: () => onSelected(trainee['id'] as int),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchTrainees(WidgetRef ref) async {
+    final apiClient = ref.read(apiClientProvider);
+    try {
+      final response = await apiClient.dio.get(
+        '${ApiConstants.apiBaseUrl}/trainer/trainees/',
+      );
+      final data = response.data;
+      final results = data is Map ? (data['results'] ?? data) : data;
+      return {'trainees': results is List ? results : []};
+    } catch (_) {
+      return {'trainees': []};
+    }
   }
 }

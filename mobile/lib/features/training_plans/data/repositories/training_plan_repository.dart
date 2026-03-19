@@ -296,6 +296,32 @@ class TrainingPlanRepository {
     }
   }
 
+  /// Convert a TrainingPlan to a legacy Program (optionally assign to trainee).
+  Future<Map<String, dynamic>> convertToProgram(
+    String planId, {
+    int? traineeId,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (traineeId != null) body['trainee_id'] = traineeId;
+      final response = await _apiClient.dio.post(
+        ApiConstants.convertToProgram(planId),
+        data: body,
+      );
+      return {
+        'success': true,
+        'data': response.data as Map<String, dynamic>,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Failed to convert plan',
+      };
+    }
+  }
+
   /// Updates a plan slot (e.g., swap exercise, change sets/reps).
   Future<Map<String, dynamic>> updateSlot(
     String slotId, {
