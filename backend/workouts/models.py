@@ -2395,6 +2395,14 @@ class PlanWeek(models.Model):
     Contains modifiers for intensity/volume and deload flag.
     """
 
+    class Phase(models.TextChoices):
+        ON_RAMP = 'on_ramp', 'On-Ramp / Re-Entry'
+        ACCUMULATION = 'accumulation', 'Accumulation / Build'
+        INTENSIFICATION = 'intensification', 'Intensification'
+        REALIZATION = 'realization', 'Realization / Peak'
+        DELOAD = 'deload', 'Deload / Reset'
+        BRIDGE = 'bridge', 'Bridge / Maintenance'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     plan = models.ForeignKey(
         TrainingPlan,
@@ -2402,6 +2410,12 @@ class PlanWeek(models.Model):
         related_name='weeks',
     )
     week_number = models.PositiveIntegerField()
+    phase = models.CharField(
+        max_length=20,
+        choices=Phase.choices,
+        default=Phase.ACCUMULATION,
+        help_text="Training phase for this week (on_ramp, accumulation, intensification, realization, deload, bridge).",
+    )
     is_deload = models.BooleanField(default=False)
     intensity_modifier = models.DecimalField(
         max_digits=3,
@@ -2449,6 +2463,24 @@ class PlanSession(models.Model):
         SATURDAY = 5, 'Saturday'
         SUNDAY = 6, 'Sunday'
 
+    class SessionFamily(models.TextChoices):
+        STRENGTH = 'strength', 'Strength'
+        HYPERTROPHY = 'hypertrophy', 'Hypertrophy'
+        POWER_ATHLETIC = 'power_athletic', 'Power / Athletic'
+        CONDITIONING = 'conditioning', 'Conditioning'
+        TECHNIQUE = 'technique', 'Technique'
+        REHAB_TOLERANCE = 'rehab_tolerance', 'Rehab / Tolerance'
+        MIXED_HYBRID = 'mixed_hybrid', 'Mixed Hybrid'
+
+    class DayStress(models.TextChoices):
+        HIGH_NEURAL = 'high_neural', 'High Neural'
+        MEDIUM_MIXED = 'medium_mixed', 'Medium Mixed'
+        LOW_NEURAL = 'low_neural', 'Low Neural / Low Ortho'
+        LOCAL_FATIGUE = 'local_fatigue', 'Local Fatigue Dominant'
+        AEROBIC = 'aerobic', 'Aerobic Dominant'
+        RESTORE = 'restore', 'Restore'
+        OPTIONAL = 'optional', 'Optional'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     week = models.ForeignKey(
         PlanWeek,
@@ -2462,6 +2494,29 @@ class PlanSession(models.Model):
     label = models.CharField(
         max_length=100,
         help_text="Human-readable label, e.g., 'Upper A', 'Push Day'.",
+    )
+    day_role = models.CharField(
+        max_length=50,
+        blank=True,
+        default='',
+        help_text="Day role: upper_strength, lower_strength, hypertrophy, push, pull, legs, power, conditioning, rehab, etc.",
+    )
+    session_family = models.CharField(
+        max_length=20,
+        choices=SessionFamily.choices,
+        default=SessionFamily.MIXED_HYBRID,
+        help_text="Session family classification.",
+    )
+    day_stress = models.CharField(
+        max_length=20,
+        choices=DayStress.choices,
+        default=DayStress.MEDIUM_MIXED,
+        help_text="Neural/orthopedic stress level of this day.",
+    )
+    estimated_duration_minutes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Estimated session duration including warm-up, work, rest, transitions.",
     )
     order = models.PositiveIntegerField(
         default=0,
@@ -2489,10 +2544,42 @@ class PlanSlot(models.Model):
     """
 
     class SlotRole(models.TextChoices):
+        # Core strength roles
         PRIMARY_COMPOUND = 'primary_compound', 'Primary Compound'
         SECONDARY_COMPOUND = 'secondary_compound', 'Secondary Compound'
         ACCESSORY = 'accessory', 'Accessory'
         ISOLATION = 'isolation', 'Isolation'
+        # Expanded roles from v6.5 UI/UX spec
+        PREP = 'prep', 'Prep / Warm-Up / Activation'
+        TECHNIQUE = 'technique', 'Technique / Power / Sprint'
+        MAIN_STRENGTH = 'main_strength', 'Main Strength'
+        HYPERTROPHY_COMPOUND = 'hypertrophy_compound', 'Hypertrophy Compound'
+        HYPERTROPHY_ISOLATION = 'hypertrophy_isolation', 'Hypertrophy Isolation'
+        UNILATERAL_SUPPORT = 'unilateral_support', 'Unilateral Support'
+        TRUNK = 'trunk', 'Trunk / Core'
+        CARRY = 'carry', 'Carry'
+        CONDITIONING = 'conditioning', 'Conditioning'
+        COOLDOWN = 'cooldown', 'Cooldown'
+
+    class PairingType(models.TextChoices):
+        STRAIGHT = 'straight', 'Straight Sequencing'
+        SUPERSET_ANTAGONIST = 'superset_antagonist', 'Superset (Antagonist)'
+        SUPERSET_NON_COMPETING = 'superset_non_competing', 'Superset (Non-Competing)'
+        SUPERSET_AGONIST = 'superset_agonist', 'Superset (Agonist)'
+        TRI_SET = 'tri_set', 'Tri-Set'
+        GIANT_SET = 'giant_set', 'Giant Set'
+        CONTRAST = 'contrast', 'Contrast Pair'
+        COMPLEX = 'complex', 'Complex'
+        POTENTIATION = 'potentiation', 'Potentiation Pair'
+
+    class TempoPreset(models.TextChoices):
+        POWER_SPEED = 'power_speed', 'Power / Speed'
+        GENERAL_STRENGTH = 'general_strength', 'General Strength'
+        PAUSE_STRENGTH = 'pause_strength', 'Pause Strength'
+        JOINT_FRIENDLY = 'joint_friendly', 'Joint-Friendly Control'
+        LENGTHENED_HYPERTROPHY = 'lengthened_hypertrophy', 'Lengthened-Bias Hypertrophy'
+        TECHNIQUE_PRESET = 'technique_preset', 'Technique / Strategy'
+        REHAB_TOLERANCE = 'rehab_tolerance', 'Rehab Tolerance'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(
@@ -2574,6 +2661,28 @@ class PlanSlot(models.Model):
         blank=True,
         related_name='plan_slots',
         help_text="Slot-level progression profile override. Falls back to plan default if null.",
+    )
+    pairing_group = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Shared integer for paired slots (supersets, tri-sets). Null = standalone.",
+    )
+    pairing_type = models.CharField(
+        max_length=25,
+        choices=PairingType.choices,
+        default=PairingType.STRAIGHT,
+        help_text="How this slot is paired with others in its pairing_group.",
+    )
+    tempo_preset = models.CharField(
+        max_length=25,
+        choices=TempoPreset.choices,
+        null=True,
+        blank=True,
+        help_text="Tempo preset for this slot. Null = use default for the slot role.",
+    )
+    is_optional = models.BooleanField(
+        default=False,
+        help_text="Optional slots (finishers) are the first to be cut when session runs long.",
     )
 
     class Meta:
