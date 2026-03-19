@@ -1521,7 +1521,7 @@ class SwapExecuteSerializer(serializers.Serializer[None]):
 
 class BuilderBriefSerializer(serializers.Serializer[None]):
     """Shared brief input for both Quick Build and Advanced Builder."""
-    trainee_id = serializers.IntegerField()
+    trainee_id = serializers.IntegerField(required=False, allow_null=True)
     goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
     days_per_week = serializers.IntegerField(min_value=1, max_value=7)
     difficulty = serializers.ChoiceField(

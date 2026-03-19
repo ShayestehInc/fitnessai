@@ -4192,10 +4192,16 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        trainee = self._resolve_trainee(data['trainee_id'])
+        trainee_id = data.get('trainee_id')
+        if trainee_id:
+            trainee = self._resolve_trainee(trainee_id)
+            resolved_trainee_id = trainee.pk
+        else:
+            # Trainer building a template — use trainer's own ID
+            resolved_trainee_id = request.user.pk
 
         brief = BuilderBrief(
-            trainee_id=trainee.pk,
+            trainee_id=resolved_trainee_id,
             goal=data['goal'],
             days_per_week=data['days_per_week'],
             difficulty=data.get('difficulty', 'intermediate'),
@@ -4253,10 +4259,16 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        trainee = self._resolve_trainee(data['trainee_id'])
+        trainee_id = data.get('trainee_id')
+        if trainee_id:
+            trainee = self._resolve_trainee(trainee_id)
+            resolved_trainee_id = trainee.pk
+        else:
+            # Trainer building a template — use trainer's own ID
+            resolved_trainee_id = request.user.pk
 
         brief = BuilderBrief(
-            trainee_id=trainee.pk,
+            trainee_id=resolved_trainee_id,
             goal=data['goal'],
             days_per_week=data['days_per_week'],
             difficulty=data.get('difficulty', 'intermediate'),
