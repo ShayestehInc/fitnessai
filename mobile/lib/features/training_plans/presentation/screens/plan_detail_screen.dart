@@ -111,6 +111,8 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
       );
+      // Navigate back to Programs page
+      if (mounted) context.pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['error']?.toString() ?? 'Failed')),
