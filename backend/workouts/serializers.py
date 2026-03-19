@@ -1450,7 +1450,8 @@ class TrainingPlanSerializer(serializers.ModelSerializer[TrainingPlan]):
         fields = [
             'id', 'trainee', 'trainee_email', 'name', 'description', 'goal',
             'status', 'split_template', 'split_template_name', 'difficulty',
-            'duration_weeks', 'created_by', 'created_at', 'updated_at', 'weeks',
+            'duration_weeks', 'build_mode', 'builder_state',
+            'created_by', 'created_at', 'updated_at', 'weeks',
         ]
         read_only_fields = [
             'id', 'created_by', 'created_at', 'updated_at',
@@ -1475,7 +1476,8 @@ class TrainingPlanListSerializer(serializers.ModelSerializer[TrainingPlan]):
         fields = [
             'id', 'trainee', 'trainee_email', 'name', 'description', 'goal',
             'status', 'split_template', 'split_template_name', 'difficulty',
-            'duration_weeks', 'weeks_count', 'created_by', 'created_at', 'updated_at',
+            'duration_weeks', 'weeks_count', 'build_mode',
+            'created_by', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
 
@@ -1515,6 +1517,55 @@ class SwapExecuteSerializer(serializers.Serializer[None]):
     """Input serializer for executing an exercise swap."""
     new_exercise_id = serializers.IntegerField()
     reason = serializers.CharField(required=False, default='')
+
+
+class BuilderBriefSerializer(serializers.Serializer[None]):
+    """Shared brief input for both Quick Build and Advanced Builder."""
+    trainee_id = serializers.IntegerField()
+    goal = serializers.ChoiceField(choices=TrainingPlan.GoalType.choices)
+    days_per_week = serializers.IntegerField(min_value=1, max_value=7)
+    difficulty = serializers.ChoiceField(
+        choices=Exercise.DifficultyLevel.choices,
+        default='intermediate',
+    )
+    session_length_minutes = serializers.IntegerField(
+        min_value=15, max_value=180, default=60,
+    )
+    equipment = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False, default=list,
+    )
+    injuries = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False, default=list,
+    )
+    style = serializers.CharField(max_length=100, required=False, default='')
+    priorities = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False, default=list,
+    )
+    dislikes = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False, default=list,
+    )
+    duration_weeks = serializers.IntegerField(
+        min_value=1, max_value=52, required=False, allow_null=True,
+    )
+    split_template_id = serializers.UUIDField(required=False, allow_null=True)
+    training_day_indices = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=6),
+        required=False, default=list,
+    )
+
+
+# Aliases for clarity at the view layer
+QuickBuildSerializer = BuilderBriefSerializer
+BuilderStartSerializer = BuilderBriefSerializer
+
+
+class BuilderAdvanceSerializer(serializers.Serializer[None]):
+    """Input for advancing to the next builder step. Override is step-specific."""
+    override = serializers.DictField(required=False, allow_null=True, default=None)
 
 
 class SplitTemplateSerializer(serializers.ModelSerializer[SplitTemplate]):

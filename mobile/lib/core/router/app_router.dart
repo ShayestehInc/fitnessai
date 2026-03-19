@@ -113,6 +113,9 @@ import '../../features/session_feedback/presentation/screens/feedback_history_sc
 import '../../features/training_plans/presentation/screens/my_plans_screen.dart';
 import '../../features/training_plans/presentation/screens/plan_detail_screen.dart';
 import '../../features/training_plans/presentation/screens/plan_session_screen.dart';
+import '../../features/training_plans/presentation/screens/builder_mode_screen.dart';
+import '../../features/training_plans/presentation/screens/quick_build_screen.dart';
+import '../../features/training_plans/presentation/screens/advanced_builder_screen.dart';
 import '../../features/decision_log/presentation/screens/decision_log_screen.dart';
 import '../../features/trainer_analytics/presentation/screens/correlation_screen.dart';
 import '../../features/trainer_analytics/presentation/screens/trainee_patterns_screen.dart';
@@ -126,6 +129,8 @@ import '../../features/program_import/presentation/screens/import_review_screen.
 import '../../features/auto_tagging/presentation/screens/auto_tag_screen.dart';
 import '../../features/auto_tagging/presentation/screens/tag_history_screen.dart';
 import '../../features/sharing/presentation/screens/share_preview_screen.dart';
+import '../../features/anatomy/presentation/screens/anatomy_explorer_screen.dart';
+import '../../features/anatomy/presentation/screens/muscle_detail_screen.dart';
 import '../../features/checkins/data/models/checkin_models.dart';
 import '../../features/checkins/presentation/screens/checkin_form_screen.dart';
 import '../../features/checkins/presentation/screens/checkin_builder_screen.dart';
@@ -1354,6 +1359,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/build-program',
+        name: 'build-program',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const BuilderModeScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/quick-build',
+        name: 'quick-build',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const QuickBuildScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/advanced-builder',
+        name: 'advanced-builder',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AdvancedBuilderScreen(),
+        ),
+      ),
+      GoRoute(
         path: '/plan-detail/:planId',
         name: 'plan-detail',
         pageBuilder: (context, state) {
@@ -1384,6 +1413,27 @@ final routerProvider = Provider<GoRouter>((ref) {
           key: state.pageKey,
           child: const DecisionLogScreen(),
         ),
+      ),
+
+      // Anatomy
+      GoRoute(
+        path: '/anatomy',
+        name: 'anatomy',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const AnatomyExplorerScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/anatomy/muscles/:slug',
+        name: 'muscle-detail',
+        pageBuilder: (context, state) {
+          final slug = state.pathParameters['slug']!;
+          return adaptivePage(
+            key: state.pageKey,
+            child: MuscleDetailScreen(slug: slug),
+          );
+        },
       ),
 
       // Trainer Analytics (correlations, patterns, audit)

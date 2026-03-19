@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../models/builder_models.dart';
 import '../models/training_plan_models.dart';
 
 class TrainingPlanRepository {
@@ -203,6 +204,94 @@ class TrainingPlanRepository {
         'error': e.response?.data?['error'] ??
             e.response?.data?['detail'] ??
             'Failed to load modalities',
+      };
+    }
+  }
+
+  /// Quick Build: send brief, get completed plan + explanations.
+  Future<Map<String, dynamic>> quickBuild(BuilderBrief brief) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.quickBuild,
+        data: brief.toJson(),
+      );
+      final result = QuickBuildResult.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+      return {'success': true, 'data': result};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Quick build failed',
+      };
+    }
+  }
+
+  /// Advanced Builder: start a builder session with brief.
+  Future<Map<String, dynamic>> builderStart(BuilderBrief brief) async {
+    try {
+      final response = await _apiClient.dio.post(
+        ApiConstants.builderStart,
+        data: brief.toJson(),
+      );
+      final result = BuilderStepResult.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+      return {'success': true, 'data': result};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Builder start failed',
+      };
+    }
+  }
+
+  /// Advanced Builder: advance to the next step with optional override.
+  Future<Map<String, dynamic>> builderAdvance(
+    String planId, {
+    Map<String, dynamic>? override,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (override != null) body['override'] = override;
+      final response = await _apiClient.dio.post(
+        ApiConstants.builderAdvance(planId),
+        data: body,
+      );
+      final result = BuilderStepResult.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+      return {'success': true, 'data': result};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Builder advance failed',
+      };
+    }
+  }
+
+  /// Advanced Builder: get current builder state.
+  Future<Map<String, dynamic>> builderGetState(String planId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.builderState(planId),
+      );
+      return {
+        'success': true,
+        'data': response.data as Map<String, dynamic>,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Failed to get builder state',
       };
     }
   }

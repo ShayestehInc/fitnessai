@@ -39,6 +39,13 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Training Plans'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Build Program',
+            onPressed: () => context.push('/build-program'),
+          ),
+        ],
       ),
       body: Column(
         children: [
