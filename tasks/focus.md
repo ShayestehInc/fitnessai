@@ -1,13 +1,19 @@
-# Focus: Dual-Mode Program Builder (Quick Build + Advanced Builder)
+# Focus: Builder Intelligence Upgrade — Must-Haves + Nice-to-Haves
 
-## Quick Build
+Align the Quick Build / Advanced Builder pipeline with the Plain English Master UI/UX Packet.
 
-- Ask only highest-leverage inputs: goal, days/week, session length, equipment, pain/injuries, style, priorities, dislikes
-- AI chooses program length, split, weekly layout, session roles, set structures, exercises, swaps, progression, default rest/load
-- User sees: finished week, short "why this fits" explanation, day previews, and big-lever tweaks only
+## Must-Haves
 
-## Advanced Builder
+1. **Expand brief inputs** — secondary goal, body-part emphasis, training age/experience, recovery profile (sleep, stress, soreness tolerance), detailed pain tolerances (overhead, axial, unilateral, impact), favorite/hated lifts, complexity tolerance
+2. **Day roles + session families** — classify each day (strength, hypertrophy, power, conditioning, rehab, etc.) and each session family; replace simple label-only approach
+3. **Program phases** — on-ramp, accumulation, intensification, realization/peak, deload, bridge; assign phase to each week instead of just deload-every-4th
+4. **Pairing logic** — supersets (antagonist, non-competing, agonist), tri-sets, contrast pairs, straight sequencing; pair slots within a session
+5. **Session timing** — estimate warm-up + work + rest + transitions + logging time per session; auto-trim optional finishers if over the time cap
 
-- Same build logic step by step so coaches can guide or override every layer
-- Steps: detailed brief → choose length → choose split → build weekly skeleton → assign slot roles → choose set structures → choose exercises → build swaps → review progression → publish
-- Every important choice needs: Why panel, alternatives, override state, history, diff, undo
+## Nice-to-Haves
+
+6. Expand set structure library (cluster, wave, EMOM, AMRAP, ladders, rest-pause, paused reps)
+7. Use exercise tag fields (stance, plane, ROM bias, stability) in exercise selection logic
+8. Add swap buckets: pain-safe regression, equipment-limited fallback
+9. Tempo presets (power/speed, general strength, pause-strength, lengthened-bias hypertrophy, rehab)
+10. Seed full 24-type split library from the PDF

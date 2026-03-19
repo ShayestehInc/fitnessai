@@ -110,7 +110,7 @@ _LENGTH_EXPLANATIONS: dict[str, str] = {
 
 @dataclass(frozen=True)
 class BuilderBrief:
-    """Expanded brief with lifestyle & preference context."""
+    """Expanded brief with lifestyle & preference context per UI/UX spec."""
     trainee_id: int
     goal: str
     days_per_week: int
@@ -125,6 +125,22 @@ class BuilderBrief:
     split_template_id: str | None = None
     training_day_indices: list[int] = field(default_factory=list)
     trainer_id: int | None = None
+    # Must-have expansions from UI/UX spec
+    secondary_goal: str = ''
+    body_part_emphasis: list[str] = field(default_factory=list)
+    training_age_years: int | None = None
+    skill_level: str = ''  # novice, intermediate, advanced, elite
+    barbell_familiarity: str = ''  # none, basic, proficient, advanced
+    recovery_profile: dict[str, Any] = field(default_factory=dict)
+    # recovery_profile keys: sleep (poor/fair/good), stress (low/moderate/high),
+    # soreness_tolerance (low/moderate/high), recovery_capacity (low/moderate/high),
+    # neural_tolerance (low/moderate/high), simplicity_need (low/moderate/high)
+    pain_tolerances: dict[str, Any] = field(default_factory=dict)
+    # pain_tolerances keys: overhead (ok/limited/avoid), axial_loading (ok/limited/avoid),
+    # unilateral (ok/limited/avoid), impact (ok/limited/avoid), painful_ranges (list of str)
+    favorite_lifts: list[str] = field(default_factory=list)
+    hated_lifts: list[str] = field(default_factory=list)
+    complexity_tolerance: str = ''  # low, moderate, high
 
 
 @dataclass
@@ -172,9 +188,20 @@ class BuilderStepResult:
 
 def quick_build(brief: BuilderBrief) -> QuickBuildResult:
     """
-    Run the full 7-step pipeline with the expanded brief.
-    Returns the completed plan plus per-step explanations.
+    Run the full pipeline with intelligence features from the UI/UX spec.
+    Phases, day roles, pairing, timing, exercise tag filtering, tempo presets.
     """
+    from workouts.services.plan_intelligence_service import (
+        assign_pairings,
+        assign_phases,
+        assign_slot_roles_intelligent,
+        assign_tempo_presets,
+        auto_trim_session,
+        classify_sessions,
+        estimate_session_duration,
+        filter_exercises_by_tags,
+    )
+
     decision_log_ids: list[str] = []
     explanations: list[StepExplanation] = []
 
@@ -244,6 +271,23 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
             trainer_id=brief.trainer_id,
         )
         decision_log_ids.append(str(log_a3.pk))
+
+        # NEW: Assign phases to weeks
+        assign_phases(all_weeks, brief.goal, brief.training_age_years)
+        PlanWeek.objects.bulk_update(all_weeks, ['phase', 'is_deload', 'intensity_modifier', 'volume_modifier'])
+
+        # NEW: Classify sessions (day roles, session families, day stress)
+        from collections import defaultdict
+        sessions_by_week: dict[str, list[PlanSession]] = defaultdict(list)
+        for s in all_sessions:
+            sessions_by_week[str(s.week_id)].append(s)
+        for week in all_weeks:
+            week_sessions = sessions_by_week.get(str(week.pk), [])
+            classify_sessions(week_sessions, session_defs, brief.goal, week.phase)
+        PlanSession.objects.bulk_update(
+            all_sessions, ['day_role', 'session_family', 'day_stress'],
+        )
+
         explanations.append(StepExplanation(
             step_name='skeleton',
             step_number=3,
@@ -251,23 +295,48 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
                 'weeks': len(all_weeks),
                 'sessions_per_week': len(session_defs),
                 'day_indices': day_indices,
+                'phases': [w.phase for w in all_weeks],
             },
             alternatives=[],
             why=_explain_skeleton_why(session_defs, day_indices, weeks_count),
         ))
 
-        # A4: Roles
-        log_a4 = _a4_assign_slot_roles(all_specs, brief.trainer_id, str(plan.pk))
+        # A4: Roles — NEW: intelligent role assignment based on session family
+        # Group specs by session for intelligent role assignment
+        session_spec_map: dict[str, list[Any]] = {}
+        for spec in all_specs:
+            session_spec_map.setdefault(str(spec.session.pk), []).append(spec)
+
+        for session in all_sessions:
+            session_specs = session_spec_map.get(str(session.pk), [])
+            assign_slot_roles_intelligent(
+                session_specs,
+                session.session_family,
+                brief.goal,
+                brief.session_length_minutes,
+            )
+
+        log_a4 = _log_decision(
+            decision_type='plan_generation_a4_slot_roles',
+            actor_id=brief.trainer_id,
+            context={'plan_id': str(plan.pk)},
+            inputs_snapshot={'total_slots': len(all_specs), 'method': 'session_family_based'},
+            constraints={},
+            options=[],
+            final_choice={'method': 'intelligent_session_family'},
+            reason_codes=['session_family_based'],
+        )
         decision_log_ids.append(str(log_a4.pk))
         explanations.append(StepExplanation(
             step_name='roles',
             step_number=4,
-            recommendation={'assignment_rule': 'position_based'},
+            recommendation={'assignment_rule': 'session_family_based'},
             alternatives=[],
             why=(
-                'Slot 1 is the primary compound (heaviest, longest rest). '
-                'Slot 2 is secondary compound. Slots 3-4 are accessories for '
-                'targeted volume. Remaining slots are isolation work for pump and detail.'
+                'Slot roles are assigned based on the session family. '
+                'Strength sessions protect the main lift from early fatigue. '
+                'Hypertrophy sessions prioritize compound → accessory → isolation flow. '
+                'Low-priority finishers are marked optional for auto-trimming.'
             ),
         ))
 
@@ -282,6 +351,10 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
             deload_week_numbers, modality_by_slug,
         )
         decision_log_ids.append(str(log_a5.pk))
+
+        # NEW: Assign tempo presets
+        assign_tempo_presets(all_specs, brief.goal)
+
         explanations.append(StepExplanation(
             step_name='structures',
             step_number=5,
@@ -290,7 +363,18 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
             why=_explain_structures_why(brief.goal),
         ))
 
-        # A6: Exercises
+        # A6: Exercises — with tag filtering
+        # Apply tag-based filtering to each muscle group pool
+        if brief.pain_tolerances or brief.equipment or brief.hated_lifts:
+            for mg, exercises in pool.items():
+                pool[mg] = filter_exercises_by_tags(
+                    exercises,
+                    slot_role='',
+                    pain_tolerances=brief.pain_tolerances or None,
+                    equipment=brief.equipment or None,
+                    hated_lifts=brief.hated_lifts or None,
+                )
+
         log_a6 = _a6_select_exercises(
             all_specs, all_sessions, session_defs, pool,
             brief.trainer_id, str(plan.pk),
@@ -302,13 +386,13 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
             recommendation={'pool_size': sum(len(v) for v in pool.values())},
             alternatives=[],
             why=(
-                'Exercises were selected from the pool matching your difficulty level '
-                'and muscle group targets. Compounds fill the heavy slots, '
-                'isolations fill the detail slots. Variety is maximized within each week.'
+                'Exercises filtered by your equipment, pain tolerances, and preferences. '
+                'Hated lifts excluded. Tag-based matching (stance, plane, ROM bias) '
+                'sorts best-fit exercises to the top of each pool.'
             ),
         ))
 
-        # A7: Swaps
+        # A7: Swaps — with expanded buckets
         log_a7 = _a7_build_swap_recommendations(
             all_specs, all_exercises, brief.trainer_id, str(plan.pk),
         )
@@ -316,12 +400,68 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         explanations.append(StepExplanation(
             step_name='swaps',
             step_number=7,
-            recommendation={'tabs': ['same_muscle', 'same_pattern', 'explore']},
+            recommendation={'tabs': ['same_muscle', 'same_pattern', 'explore', 'pain_safe', 'equipment_limited']},
             alternatives=[],
             why=(
-                'Each exercise has pre-computed swap alternatives: '
-                'same muscle group, same movement pattern, or explore new options. '
-                'Tap any exercise in the plan to swap it instantly.'
+                'Swap alternatives include same muscle, same pattern, explore all, '
+                'plus pain-safe regressions and equipment-limited fallbacks.'
+            ),
+        ))
+
+        # NEW: Pairing logic
+        for session in all_sessions:
+            session_specs = session_spec_map.get(str(session.pk), [])
+            pairings = assign_pairings(
+                session_specs, session.session_family, brief.goal,
+                brief.session_length_minutes,
+            )
+            for pd in pairings:
+                for spec in session_specs:
+                    if spec.order == pd.slot_order:
+                        spec.pairing_group = pd.pairing_group
+                        spec.pairing_type = pd.pairing_type
+
+        explanations.append(StepExplanation(
+            step_name='pairing',
+            step_number=8,
+            recommendation={'method': 'auto_paired'},
+            alternatives=[],
+            why=(
+                'Exercises are paired where beneficial: antagonist supersets for '
+                'efficiency, non-competing pairs to save time. Main lifts and '
+                'technique work always stand alone.'
+            ),
+        ))
+
+        # NEW: Session timing + auto-trim
+        trimmed_total = 0
+        for session in all_sessions:
+            session_specs = session_spec_map.get(str(session.pk), [])
+            duration = estimate_session_duration(session_specs)
+            session.estimated_duration_minutes = duration
+
+            if brief.session_length_minutes and duration > brief.session_length_minutes:
+                removed = auto_trim_session(
+                    session_specs, brief.session_length_minutes,
+                )
+                trimmed_total += len(removed)
+                if removed:
+                    session.estimated_duration_minutes = estimate_session_duration(session_specs)
+
+        PlanSession.objects.bulk_update(all_sessions, ['estimated_duration_minutes'])
+
+        explanations.append(StepExplanation(
+            step_name='timing',
+            step_number=9,
+            recommendation={
+                'target_minutes': brief.session_length_minutes,
+                'slots_trimmed': trimmed_total,
+            },
+            alternatives=[],
+            why=(
+                f'Sessions estimated at target length of {brief.session_length_minutes} min. '
+                f'Optional finishers trimmed to fit: {trimmed_total} slots removed. '
+                'Core exercises are always protected.'
             ),
         ))
 
@@ -499,7 +639,10 @@ def _advance_from_split(
         privacy_q = Q(is_system=True)
         if brief.trainer_id:
             privacy_q |= Q(created_by_id=brief.trainer_id)
-        template = SplitTemplate.objects.get(privacy_q, pk=template_id)
+        try:
+            template = SplitTemplate.objects.get(privacy_q, pk=template_id)
+        except SplitTemplate.DoesNotExist:
+            raise ValueError("Split template not found or not accessible.")
     else:
         template, _, _, _ = _explain_split(brief)
 
@@ -1139,6 +1282,16 @@ def _brief_to_dict(brief: BuilderBrief) -> dict[str, Any]:
         'split_template_id': brief.split_template_id,
         'training_day_indices': brief.training_day_indices,
         'trainer_id': brief.trainer_id,
+        'secondary_goal': brief.secondary_goal,
+        'body_part_emphasis': brief.body_part_emphasis,
+        'training_age_years': brief.training_age_years,
+        'skill_level': brief.skill_level,
+        'barbell_familiarity': brief.barbell_familiarity,
+        'recovery_profile': brief.recovery_profile,
+        'pain_tolerances': brief.pain_tolerances,
+        'favorite_lifts': brief.favorite_lifts,
+        'hated_lifts': brief.hated_lifts,
+        'complexity_tolerance': brief.complexity_tolerance,
     }
 
 
@@ -1160,6 +1313,16 @@ def _dict_to_brief(data: dict[str, Any]) -> BuilderBrief:
         split_template_id=data.get('split_template_id'),
         training_day_indices=data.get('training_day_indices', []),
         trainer_id=data.get('trainer_id'),
+        secondary_goal=data.get('secondary_goal', ''),
+        body_part_emphasis=data.get('body_part_emphasis', []),
+        training_age_years=data.get('training_age_years'),
+        skill_level=data.get('skill_level', ''),
+        barbell_familiarity=data.get('barbell_familiarity', ''),
+        recovery_profile=data.get('recovery_profile', {}),
+        pain_tolerances=data.get('pain_tolerances', {}),
+        favorite_lifts=data.get('favorite_lifts', []),
+        hated_lifts=data.get('hated_lifts', []),
+        complexity_tolerance=data.get('complexity_tolerance', ''),
     )
 
 
@@ -1197,6 +1360,10 @@ def _specs_to_state(all_specs: list[SlotSpec]) -> list[dict[str, Any]]:
             'modality_slug': spec.set_structure_modality.slug if spec.set_structure_modality else None,
             'modality_volume': str(spec.modality_volume_contribution),
             'swap_options_cache': spec.swap_options_cache,
+            'pairing_group': spec.pairing_group,
+            'pairing_type': spec.pairing_type,
+            'tempo_preset': spec.tempo_preset,
+            'is_optional': spec.is_optional,
         })
     return result
 
@@ -1248,6 +1415,10 @@ def _reconstruct_specs(plan: TrainingPlan, choices: dict[str, Any]) -> list[Slot
             set_structure_modality=modalities_by_slug.get(s.get('modality_slug', '')),
             modality_volume_contribution=Decimal(s.get('modality_volume', '0.00')),
             swap_options_cache=s.get('swap_options_cache', {}),
+            pairing_group=s.get('pairing_group'),
+            pairing_type=s.get('pairing_type', 'straight'),
+            tempo_preset=s.get('tempo_preset'),
+            is_optional=s.get('is_optional', False),
         ))
     return result
 

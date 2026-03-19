@@ -4209,6 +4209,16 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             split_template_id=str(data['split_template_id']) if data.get('split_template_id') else None,
             training_day_indices=data.get('training_day_indices', []),
             trainer_id=request.user.pk if request.user.role in ('TRAINER', 'ADMIN') else None,
+            secondary_goal=data.get('secondary_goal', ''),
+            body_part_emphasis=data.get('body_part_emphasis', []),
+            training_age_years=data.get('training_age_years'),
+            skill_level=data.get('skill_level', ''),
+            barbell_familiarity=data.get('barbell_familiarity', ''),
+            recovery_profile=data.get('recovery_profile', {}),
+            pain_tolerances=data.get('pain_tolerances', {}),
+            favorite_lifts=data.get('favorite_lifts', []),
+            hated_lifts=data.get('hated_lifts', []),
+            complexity_tolerance=data.get('complexity_tolerance', ''),
         )
 
         result = quick_build(brief)
@@ -4260,6 +4270,16 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             split_template_id=str(data['split_template_id']) if data.get('split_template_id') else None,
             training_day_indices=data.get('training_day_indices', []),
             trainer_id=request.user.pk if request.user.role in ('TRAINER', 'ADMIN') else None,
+            secondary_goal=data.get('secondary_goal', ''),
+            body_part_emphasis=data.get('body_part_emphasis', []),
+            training_age_years=data.get('training_age_years'),
+            skill_level=data.get('skill_level', ''),
+            barbell_familiarity=data.get('barbell_familiarity', ''),
+            recovery_profile=data.get('recovery_profile', {}),
+            pain_tolerances=data.get('pain_tolerances', {}),
+            favorite_lifts=data.get('favorite_lifts', []),
+            hated_lifts=data.get('hated_lifts', []),
+            complexity_tolerance=data.get('complexity_tolerance', ''),
         )
 
         result = builder_start(brief)

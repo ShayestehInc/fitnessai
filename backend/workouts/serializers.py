@@ -1556,6 +1556,28 @@ class BuilderBriefSerializer(serializers.Serializer[None]):
         child=serializers.IntegerField(min_value=0, max_value=6),
         required=False, default=list,
     )
+    # Expanded brief fields per UI/UX spec
+    secondary_goal = serializers.CharField(max_length=30, required=False, default='')
+    body_part_emphasis = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False, default=list,
+    )
+    training_age_years = serializers.IntegerField(
+        min_value=0, max_value=50, required=False, allow_null=True,
+    )
+    skill_level = serializers.CharField(max_length=20, required=False, default='')
+    barbell_familiarity = serializers.CharField(max_length=20, required=False, default='')
+    recovery_profile = serializers.DictField(required=False, default=dict)
+    pain_tolerances = serializers.DictField(required=False, default=dict)
+    favorite_lifts = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False, default=list,
+    )
+    hated_lifts = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False, default=list,
+    )
+    complexity_tolerance = serializers.CharField(max_length=20, required=False, default='')
 
 
 # Aliases for clarity at the view layer

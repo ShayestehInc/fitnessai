@@ -83,6 +83,11 @@ class SlotSpec:
     swap_options_cache: dict[str, Any] = field(default_factory=dict)
     set_structure_modality: SetStructureModality | None = None
     modality_volume_contribution: Decimal = field(default_factory=lambda: Decimal('0.00'))
+    # Intelligence fields
+    pairing_group: int | None = None
+    pairing_type: str = 'straight'
+    tempo_preset: str | None = None
+    is_optional: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -785,6 +790,10 @@ def _specs_to_plan_slots(all_specs: list[SlotSpec]) -> list[PlanSlot]:
             swap_options_cache=spec.swap_options_cache,
             set_structure_modality=spec.set_structure_modality,
             modality_volume_contribution=spec.modality_volume_contribution,
+            pairing_group=spec.pairing_group,
+            pairing_type=spec.pairing_type,
+            tempo_preset=spec.tempo_preset,
+            is_optional=spec.is_optional,
         ))
     return slots
 
