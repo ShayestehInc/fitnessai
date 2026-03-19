@@ -4406,7 +4406,12 @@ class PlanSlotViewSet(
         if user.role == 'ADMIN':
             return qs
         elif user.role == 'TRAINER':
-            return qs.filter(session__week__plan__trainee__parent_trainer=user)
+            from django.db.models import Q
+            return qs.filter(
+                Q(session__week__plan__trainee__parent_trainer=user)
+                | Q(session__week__plan__trainee=user)
+                | Q(session__week__plan__created_by=user)
+            ).distinct()
         else:
             return qs.filter(session__week__plan__trainee=user)
 
@@ -4782,12 +4787,18 @@ class PlanSessionViewSet(
     serializer_class = PlanSessionSerializer
 
     def get_queryset(self) -> QuerySet[PlanSession]:
+        from django.db.models import Q
+
         user = self.request.user
         qs = PlanSession.objects.select_related('week__plan__trainee')
         if user.role == 'ADMIN':
             return qs
         elif user.role == 'TRAINER':
-            return qs.filter(week__plan__trainee__parent_trainer=user)
+            return qs.filter(
+                Q(week__plan__trainee__parent_trainer=user)
+                | Q(week__plan__trainee=user)
+                | Q(week__plan__created_by=user)
+            ).distinct()
         else:
             return qs.filter(week__plan__trainee=user)
 
