@@ -229,6 +229,8 @@ class AdvancedBuilderNotifier extends StateNotifier<AdvancedBuilderState> {
 
   Future<void> advance({Map<String, dynamic>? override}) async {
     if (state.planId == null) return;
+    // Preserve history before setting loading state
+    final previousHistory = List<BuilderStepResult>.from(state.stepHistory);
     state = state.copyWith(isLoading: true, error: null);
     final result = await _repository.builderAdvance(
       state.planId!,
@@ -236,10 +238,10 @@ class AdvancedBuilderNotifier extends StateNotifier<AdvancedBuilderState> {
     );
     if (result['success'] == true) {
       final step = result['data'] as BuilderStepResult;
-      state = state.copyWith(
-        isLoading: false,
+      state = AdvancedBuilderState(
+        planId: state.planId,
         currentStepResult: step,
-        stepHistory: [...state.stepHistory, step],
+        stepHistory: [...previousHistory, step],
       );
     } else {
       state = state.copyWith(
