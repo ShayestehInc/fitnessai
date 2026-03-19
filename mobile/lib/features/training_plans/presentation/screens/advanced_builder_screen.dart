@@ -510,20 +510,32 @@ class _AdvancedBuilderScreenState
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Rule: ${rec['assignment_rule']?.toString().replaceAll('_', ' ') ?? ''}',
-              style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.foreground,
-                  fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            ...roles.take(3).map((r) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '${r['session_label']} — ${(r['slots'] as List?)?.map((s) => s['role']).join(', ') ?? ''}',
-                    style: const TextStyle(
-                        fontSize: 12, color: AppTheme.zinc400),
+            ...roles.take(5).map((r) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          r['session_label']?.toString() ?? '',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.foreground,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          r['summary']?.toString() ?? '${r['slot_count'] ?? 0} slots',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.zinc400,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )),
           ],

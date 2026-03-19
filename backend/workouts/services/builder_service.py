@@ -1610,17 +1610,40 @@ def _build_role_preview(all_specs: list[SlotSpec]) -> list[dict[str, Any]]:
             session_order.append(session_key)
         specs_by_session[session_key].append(spec)
 
+    role_labels: dict[str, str] = {
+        'primary_compound': 'Main Lift',
+        'secondary_compound': 'Secondary',
+        'main_strength': 'Main Strength',
+        'hypertrophy_compound': 'Hypertrophy',
+        'accessory': 'Accessory',
+        'isolation': 'Isolation',
+        'hypertrophy_isolation': 'Isolation',
+        'trunk': 'Core',
+        'unilateral_support': 'Unilateral',
+        'prep': 'Warm-Up',
+        'technique': 'Technique',
+        'conditioning': 'Conditioning',
+        'carry': 'Carry',
+        'cooldown': 'Cooldown',
+    }
+
     preview: list[dict[str, Any]] = []
     for session_key in session_order:
         session_specs = specs_by_session[session_key]
         first_spec = session_specs[0]
+
+        # Build a role summary like "1 Main Lift, 1 Secondary, 3 Accessory, 2 Isolation"
+        role_counts: dict[str, int] = defaultdict(int)
+        for s in session_specs:
+            label = role_labels.get(s.slot_role, s.slot_role.replace('_', ' ').title())
+            role_counts[label] += 1
+        summary = ', '.join(f'{count} {role}' for role, count in role_counts.items())
+
         preview.append({
             'session_label': first_spec.session.label,
             'day_of_week': first_spec.session.day_of_week,
-            'slots': [
-                {'order': s.order, 'role': s.slot_role}
-                for s in session_specs
-            ],
+            'summary': summary,
+            'slot_count': len(session_specs),
         })
         if len(preview) >= 7:
             break

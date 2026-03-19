@@ -761,16 +761,22 @@ def _assign_conditioning_roles(specs: list[Any]) -> None:
 
 
 def _assign_mixed_roles(specs: list[Any], goal: str) -> None:
-    """Fallback mixed assignment (similar to original position-based but with expanded roles)."""
+    """Mixed assignment with variety — compound → secondary → accessory → isolation → support."""
+    n = len(specs)
     for i, spec in enumerate(specs):
         if i == 0:
             spec.slot_role = 'primary_compound'
         elif i == 1:
             spec.slot_role = 'secondary_compound'
-        elif i <= 3:
+        elif i == 2:
             spec.slot_role = 'accessory'
-        elif i == len(specs) - 1 and len(specs) >= 6:
+        elif i == 3:
+            spec.slot_role = 'accessory' if goal in ('strength', 'build_muscle') else 'isolation'
+        elif i == n - 1 and n >= 6:
             spec.slot_role = 'trunk'
+            spec.is_optional = True
+        elif i == n - 2 and n >= 7:
+            spec.slot_role = 'unilateral_support'
             spec.is_optional = True
         else:
             spec.slot_role = 'isolation'
