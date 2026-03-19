@@ -126,6 +126,17 @@ class BuilderBrief {
   final List<String> dislikes;
   final int? durationWeeks;
   final List<int> trainingDayIndices;
+  // Expanded fields per UI/UX spec
+  final String secondaryGoal;
+  final List<String> bodyPartEmphasis;
+  final int? trainingAgeYears;
+  final String skillLevel;
+  final String barbellFamiliarity;
+  final Map<String, String> recoveryProfile;
+  final Map<String, String> painTolerances;
+  final List<String> favoriteLIfts;
+  final List<String> hatedLifts;
+  final String complexityTolerance;
 
   const BuilderBrief({
     required this.traineeId,
@@ -140,6 +151,16 @@ class BuilderBrief {
     this.dislikes = const [],
     this.durationWeeks,
     this.trainingDayIndices = const [],
+    this.secondaryGoal = '',
+    this.bodyPartEmphasis = const [],
+    this.trainingAgeYears,
+    this.skillLevel = '',
+    this.barbellFamiliarity = '',
+    this.recoveryProfile = const {},
+    this.painTolerances = const {},
+    this.favoriteLIfts = const [],
+    this.hatedLifts = const [],
+    this.complexityTolerance = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -155,5 +176,17 @@ class BuilderBrief {
         'dislikes': dislikes,
         if (durationWeeks != null) 'duration_weeks': durationWeeks,
         'training_day_indices': trainingDayIndices,
+        if (secondaryGoal.isNotEmpty) 'secondary_goal': secondaryGoal,
+        if (bodyPartEmphasis.isNotEmpty) 'body_part_emphasis': bodyPartEmphasis,
+        if (trainingAgeYears != null) 'training_age_years': trainingAgeYears,
+        if (skillLevel.isNotEmpty) 'skill_level': skillLevel,
+        if (barbellFamiliarity.isNotEmpty)
+          'barbell_familiarity': barbellFamiliarity,
+        if (recoveryProfile.isNotEmpty) 'recovery_profile': recoveryProfile,
+        if (painTolerances.isNotEmpty) 'pain_tolerances': painTolerances,
+        if (favoriteLIfts.isNotEmpty) 'favorite_lifts': favoriteLIfts,
+        if (hatedLifts.isNotEmpty) 'hated_lifts': hatedLifts,
+        if (complexityTolerance.isNotEmpty)
+          'complexity_tolerance': complexityTolerance,
       };
 }

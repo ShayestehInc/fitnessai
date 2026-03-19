@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/builder_models.dart';
 import '../providers/training_plan_provider.dart';
+import '../widgets/expanded_brief_form.dart';
 import '../widgets/why_panel.dart';
 
 /// Advanced Builder: step-by-step wizard where the coach controls every layer.
@@ -25,19 +26,18 @@ class _AdvancedBuilderScreenState
   int _daysPerWeek = 4;
   String _difficulty = 'intermediate';
   int _sessionLength = 60;
-  final Set<String> _equipment = {'barbell', 'dumbbell', 'cable'};
-  final Set<int> _selectedDays = {0, 1, 3, 4};
-
-  static const _goals = [
-    ('build_muscle', 'Build Muscle'),
-    ('strength', 'Strength'),
-    ('fat_loss', 'Fat Loss'),
-    ('endurance', 'Endurance'),
-    ('recomp', 'Recomp'),
-    ('general_fitness', 'General'),
-  ];
-
-  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  Set<String> _equipment = {'barbell', 'dumbbell', 'cable'};
+  Set<int> _selectedDays = {0, 1, 3, 4};
+  String _style = '';
+  // Expanded brief state
+  String _secondaryGoal = '';
+  List<String> _bodyPartEmphasis = [];
+  int? _trainingAgeYears;
+  String _skillLevel = '';
+  Map<String, String> _recoveryProfile = {};
+  Map<String, String> _painTolerances = {};
+  List<String> _hatedLifts = [];
+  String _complexityTolerance = '';
 
   static const _stepLabels = [
     'Brief',
@@ -64,7 +64,16 @@ class _AdvancedBuilderScreenState
       difficulty: _difficulty,
       sessionLengthMinutes: _sessionLength,
       equipment: _equipment.toList(),
+      style: _style,
       trainingDayIndices: _selectedDays.toList()..sort(),
+      secondaryGoal: _secondaryGoal,
+      bodyPartEmphasis: _bodyPartEmphasis,
+      trainingAgeYears: _trainingAgeYears,
+      skillLevel: _skillLevel,
+      recoveryProfile: _recoveryProfile,
+      painTolerances: _painTolerances,
+      hatedLifts: _hatedLifts,
+      complexityTolerance: _complexityTolerance,
     );
 
     await ref.read(advancedBuilderProvider.notifier).start(brief);
@@ -186,110 +195,37 @@ class _AdvancedBuilderScreenState
                 ),
           ),
           const SizedBox(height: 24),
-          _sectionLabel('Goal'),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _goals.map((g) {
-              final isSelected = _goal == g.$1;
-              return _SelectableChip(
-                label: g.$2,
-                isSelected: isSelected,
-                onTap: () => setState(() => _goal = g.$1),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-          _sectionLabel('Days per Week'),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(7, (i) {
-              final isSelected = _selectedDays.contains(i);
-              return GestureDetector(
-                onTap: () => setState(() {
-                  if (isSelected && _selectedDays.length > 1) {
-                    _selectedDays.remove(i);
-                  } else {
-                    _selectedDays.add(i);
-                  }
-                  _daysPerWeek = _selectedDays.length;
-                }),
-                child: Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primary.withValues(alpha: 0.15)
-                        : AppTheme.zinc800,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color:
-                          isSelected ? AppTheme.primary : AppTheme.border,
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    _dayNames[i],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected
-                          ? AppTheme.primary
-                          : AppTheme.mutedForeground,
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 24),
-          _sectionLabel('Difficulty'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ('beginner', 'Beginner'),
-              ('intermediate', 'Intermediate'),
-              ('advanced', 'Advanced'),
-            ].map((d) {
-              final isSelected = _difficulty == d.$1;
-              return Expanded(
-                child: Padding(
-                  padding:
-                      EdgeInsets.only(right: d.$1 == 'advanced' ? 0 : 8),
-                  child: _SelectableChip(
-                    label: d.$2,
-                    isSelected: isSelected,
-                    onTap: () => setState(() => _difficulty = d.$1),
-                    expand: true,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 24),
-          _sectionLabel('Session Length'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '$_sessionLength min',
-                style:
-                    const TextStyle(color: AppTheme.foreground, fontSize: 14),
-              ),
-              Expanded(
-                child: Slider(
-                  value: _sessionLength.toDouble(),
-                  min: 30,
-                  max: 120,
-                  divisions: 6,
-                  onChanged: (v) =>
-                      setState(() => _sessionLength = v.round()),
-                ),
-              ),
-            ],
+          ExpandedBriefForm(
+            goal: _goal,
+            onGoalChanged: (v) => setState(() => _goal = v),
+            daysPerWeek: _daysPerWeek,
+            onDaysPerWeekChanged: (v) => setState(() => _daysPerWeek = v),
+            selectedDays: _selectedDays,
+            onSelectedDaysChanged: (v) => setState(() => _selectedDays = v),
+            sessionLength: _sessionLength,
+            onSessionLengthChanged: (v) => setState(() => _sessionLength = v),
+            difficulty: _difficulty,
+            onDifficultyChanged: (v) => setState(() => _difficulty = v),
+            equipment: _equipment,
+            onEquipmentChanged: (v) => setState(() => _equipment = v),
+            style: _style,
+            onStyleChanged: (v) => setState(() => _style = v),
+            secondaryGoal: _secondaryGoal,
+            onSecondaryGoalChanged: (v) => setState(() => _secondaryGoal = v),
+            bodyPartEmphasis: _bodyPartEmphasis,
+            onBodyPartEmphasisChanged: (v) => setState(() => _bodyPartEmphasis = v),
+            trainingAgeYears: _trainingAgeYears,
+            onTrainingAgeChanged: (v) => setState(() => _trainingAgeYears = v),
+            skillLevel: _skillLevel,
+            onSkillLevelChanged: (v) => setState(() => _skillLevel = v),
+            recoveryProfile: _recoveryProfile,
+            onRecoveryProfileChanged: (v) => setState(() => _recoveryProfile = v),
+            painTolerances: _painTolerances,
+            onPainTolerancesChanged: (v) => setState(() => _painTolerances = v),
+            hatedLifts: _hatedLifts,
+            onHatedLiftsChanged: (v) => setState(() => _hatedLifts = v),
+            complexityTolerance: _complexityTolerance,
+            onComplexityToleranceChanged: (v) => setState(() => _complexityTolerance = v),
           ),
           const SizedBox(height: 32),
           SizedBox(
