@@ -4376,6 +4376,39 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             'step_explanations': state.get('step_explanations'),
         })
 
+    @action(detail=True, methods=['post'], url_path='convert-to-program')
+    def convert_to_program(self, request: Request, pk: str | None = None) -> Response:
+        """Convert a TrainingPlan to a legacy Program.
+
+        Optionally assign to a trainee. If no trainee_id is provided,
+        saves as a ProgramTemplate only.
+        """
+        from .services.plan_converter_service import (
+            convert_plan_to_program,
+            convert_plan_to_template,
+        )
+
+        plan = self.get_object()
+        trainee_id = request.data.get('trainee_id')
+        trainer_id = request.user.pk
+
+        # Always save as template
+        template = convert_plan_to_template(plan, trainer_id)
+        result: dict[str, Any] = {
+            'template_id': template.pk,
+            'template_name': template.name,
+        }
+
+        # Optionally assign to trainee
+        if trainee_id:
+            trainee = self._resolve_trainee(int(trainee_id))
+            program = convert_plan_to_program(plan, trainee.pk, trainer_id)
+            result['program_id'] = program.pk
+            result['program_name'] = program.name
+            result['assigned_to'] = trainee.email
+
+        return Response(result, status=status.HTTP_201_CREATED)
+
 
 class PlanSlotViewSet(
     viewsets.GenericViewSet[PlanSlot],
