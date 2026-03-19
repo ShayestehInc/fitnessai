@@ -2025,7 +2025,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             ),
             const SizedBox(height: 24),
 
-            // Generate with AI option — opens Quick Build vs Advanced Builder chooser
+            // Generate with AI option (existing legacy generator)
             _buildCreateOption(
               context: parentContext,
               icon: Icons.auto_awesome,
@@ -2035,7 +2035,44 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               onTap: () {
                 Navigator.pop(sheetContext);
                 if (parentContext.mounted) {
-                  parentContext.push('/build-program');
+                  Navigator.push(
+                    parentContext,
+                    adaptivePageRoute(
+                      builder: (context) => const ProgramGeneratorScreen(),
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Quick Build option
+            _buildCreateOption(
+              context: parentContext,
+              icon: Icons.flash_on_rounded,
+              title: 'Quick Build',
+              subtitle: 'Answer a few questions, AI builds your plan instantly',
+              color: Colors.amber,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                if (parentContext.mounted) {
+                  parentContext.push('/quick-build');
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Advanced Builder option
+            _buildCreateOption(
+              context: parentContext,
+              icon: Icons.tune_rounded,
+              title: 'Advanced Builder',
+              subtitle: 'Guide every decision step by step with full control',
+              color: Colors.tealAccent,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                if (parentContext.mounted) {
+                  parentContext.push('/advanced-builder');
                 }
               },
             ),
