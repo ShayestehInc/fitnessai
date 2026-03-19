@@ -6,14 +6,21 @@ part 'training_plan_models.g.dart';
 class TrainingPlanModel {
   final String id;
   final dynamic trainee;
+  final String? name;
+  final String? description;
   final String goal;
   final String status;
+  final String? difficulty;
   @JsonKey(name: 'split_template')
   final String? splitTemplate;
   @JsonKey(name: 'split_template_name')
   final String? splitTemplateName;
+  @JsonKey(name: 'duration_weeks')
+  final int? durationWeeks;
   @JsonKey(name: 'weeks_count')
   final int weeksCount;
+  @JsonKey(name: 'build_mode')
+  final String? buildMode;
   @JsonKey(name: 'created_at')
   final String createdAt;
   final List<PlanWeekModel>? weeks;
@@ -21,11 +28,16 @@ class TrainingPlanModel {
   const TrainingPlanModel({
     required this.id,
     this.trainee,
+    this.name,
+    this.description,
     required this.goal,
     required this.status,
+    this.difficulty,
     this.splitTemplate,
     this.splitTemplateName,
+    this.durationWeeks,
     this.weeksCount = 0,
+    this.buildMode,
     required this.createdAt,
     this.weeks,
   });

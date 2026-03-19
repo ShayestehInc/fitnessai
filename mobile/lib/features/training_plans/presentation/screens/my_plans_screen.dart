@@ -118,7 +118,7 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
         itemBuilder: (context, index) {
           return _PlanListTile(
             plan: plansState.plans[index],
-            onTap: () => context.push('/training-plans/${plansState.plans[index].id}'),
+            onTap: () => context.push('/plan-detail/${plansState.plans[index].id}'),
           );
         },
       ),
