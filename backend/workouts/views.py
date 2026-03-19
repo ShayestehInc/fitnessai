@@ -4193,11 +4193,11 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         data = serializer.validated_data
 
         trainee_id = data.get('trainee_id')
-        if trainee_id:
+        if trainee_id and trainee_id != request.user.pk:
             trainee = self._resolve_trainee(trainee_id)
             resolved_trainee_id = trainee.pk
         else:
-            # Trainer building a template — use trainer's own ID
+            # Trainer building a template (no trainee specified or own ID)
             resolved_trainee_id = request.user.pk
 
         brief = BuilderBrief(
@@ -4260,11 +4260,11 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         data = serializer.validated_data
 
         trainee_id = data.get('trainee_id')
-        if trainee_id:
+        if trainee_id and trainee_id != request.user.pk:
             trainee = self._resolve_trainee(trainee_id)
             resolved_trainee_id = trainee.pk
         else:
-            # Trainer building a template — use trainer's own ID
+            # Trainer building a template (no trainee specified or own ID)
             resolved_trainee_id = request.user.pk
 
         brief = BuilderBrief(
