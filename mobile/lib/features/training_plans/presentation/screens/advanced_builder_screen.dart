@@ -351,7 +351,7 @@ class _AdvancedBuilderScreenState
                     child: Text(
                       step.currentStep == 'publish'
                           ? 'Publish Plan'
-                          : 'Accept & Continue',
+                          : 'Continue',
                     ),
                   ),
                 ),
