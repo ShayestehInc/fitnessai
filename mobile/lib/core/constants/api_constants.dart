@@ -355,6 +355,16 @@ class ApiConstants {
   static String get splitTemplates => '$apiBaseUrl/workouts/split-templates/';
   static String get modalities => '$apiBaseUrl/workouts/modalities/';
 
+  // Builder endpoints
+  static String get quickBuild =>
+      '$apiBaseUrl/workouts/training-plans/quick-build/';
+  static String get builderStart =>
+      '$apiBaseUrl/workouts/training-plans/builder/start/';
+  static String builderAdvance(String planId) =>
+      '$apiBaseUrl/workouts/training-plans/$planId/builder/advance/';
+  static String builderState(String planId) =>
+      '$apiBaseUrl/workouts/training-plans/$planId/builder/state/';
+
   // Progression Profile endpoints
   static String get progressionProfiles =>
       '$apiBaseUrl/workouts/progression-profiles/';

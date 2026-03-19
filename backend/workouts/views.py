@@ -7,6 +7,7 @@ import logging
 import os
 import uuid
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
 from rest_framework.decorators import action
@@ -57,6 +58,7 @@ from .models import (
     Program,
     ProgressionSuggestion,
     ProgressPhoto,
+    MuscleReference,
     SetStructureModality,
     WeightCheckIn,
     WorkoutTemplate,
@@ -76,6 +78,7 @@ from .serializers import (
     EditMealEntrySerializer,
     ExerciseSerializer,
     ExerciseVideoUploadSerializer,
+    MuscleReferenceSerializer,
     FoodLookupSerializer,
     HabitCreateSerializer,
     HabitLogSerializer,
@@ -136,6 +139,8 @@ from .services.decision_log_service import DecisionLogService
 from .services.max_load_service import MaxLoadService
 from .services.natural_language_parser import NaturalLanguageParserService
 from .services.progression_engine_service import NextPrescription
+from .services.muscle_coverage_service import MuscleCoverageService
+from .services.muscle_reference_service import MuscleReferenceService
 from .services.workload_service import WorkloadAggregationService, WorkloadTrendService
 
 
@@ -4175,6 +4180,159 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         plan.save(update_fields=['status', 'updated_at'])
         return Response({'status': 'archived', 'plan_id': str(plan.pk)})
 
+    # ----- Dual-Mode Builder Endpoints -----
+
+    @action(detail=False, methods=['post'], url_path='quick-build')
+    def quick_build(self, request: Request) -> Response:
+        """Quick Build: expanded brief → full pipeline → plan + explanations."""
+        from .serializers import QuickBuildSerializer
+        from .services.builder_service import BuilderBrief, quick_build
+
+        serializer = QuickBuildSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        trainee = self._resolve_trainee(data['trainee_id'])
+
+        brief = BuilderBrief(
+            trainee_id=trainee.pk,
+            goal=data['goal'],
+            days_per_week=data['days_per_week'],
+            difficulty=data.get('difficulty', 'intermediate'),
+            session_length_minutes=data.get('session_length_minutes', 60),
+            equipment=data.get('equipment', []),
+            injuries=data.get('injuries', []),
+            style=data.get('style', ''),
+            priorities=data.get('priorities', []),
+            dislikes=data.get('dislikes', []),
+            duration_weeks=data.get('duration_weeks'),
+            split_template_id=str(data['split_template_id']) if data.get('split_template_id') else None,
+            training_day_indices=data.get('training_day_indices', []),
+            trainer_id=request.user.pk if request.user.role in ('TRAINER', 'ADMIN') else None,
+        )
+
+        result = quick_build(brief)
+
+        return Response({
+            'plan_id': result.plan_id,
+            'plan_name': result.plan_name,
+            'weeks_count': result.weeks_count,
+            'sessions_count': result.sessions_count,
+            'slots_count': result.slots_count,
+            'decision_log_ids': result.decision_log_ids,
+            'summary': result.summary,
+            'step_explanations': [
+                {
+                    'step_name': e.step_name,
+                    'step_number': e.step_number,
+                    'recommendation': e.recommendation,
+                    'alternatives': e.alternatives,
+                    'why': e.why,
+                }
+                for e in result.step_explanations
+            ],
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['post'], url_path='builder/start')
+    def builder_start(self, request: Request) -> Response:
+        """Advanced Builder: start a step-by-step builder session."""
+        from .serializers import BuilderStartSerializer
+        from .services.builder_service import BuilderBrief, builder_start
+
+        serializer = BuilderStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        trainee = self._resolve_trainee(data['trainee_id'])
+
+        brief = BuilderBrief(
+            trainee_id=trainee.pk,
+            goal=data['goal'],
+            days_per_week=data['days_per_week'],
+            difficulty=data.get('difficulty', 'intermediate'),
+            session_length_minutes=data.get('session_length_minutes', 60),
+            equipment=data.get('equipment', []),
+            injuries=data.get('injuries', []),
+            style=data.get('style', ''),
+            priorities=data.get('priorities', []),
+            dislikes=data.get('dislikes', []),
+            duration_weeks=data.get('duration_weeks'),
+            split_template_id=str(data['split_template_id']) if data.get('split_template_id') else None,
+            training_day_indices=data.get('training_day_indices', []),
+            trainer_id=request.user.pk if request.user.role in ('TRAINER', 'ADMIN') else None,
+        )
+
+        result = builder_start(brief)
+
+        return Response({
+            'plan_id': result.plan_id,
+            'current_step': result.current_step,
+            'current_step_number': result.current_step_number,
+            'total_steps': result.total_steps,
+            'recommendation': result.recommendation,
+            'alternatives': result.alternatives,
+            'why': result.why,
+            'preview': result.preview,
+            'is_complete': result.is_complete,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='builder/advance')
+    def builder_advance(self, request: Request, pk: str | None = None) -> Response:
+        """Advanced Builder: advance to the next step with optional override."""
+        from .serializers import BuilderAdvanceSerializer
+        from .services.builder_service import builder_advance
+
+        plan = self.get_object()
+
+        if not plan.builder_state or plan.build_mode != 'advanced':
+            return Response(
+                {'error': 'This plan does not have an active builder session.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = BuilderAdvanceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        override = serializer.validated_data.get('override')
+
+        result = builder_advance(plan, override)
+
+        return Response({
+            'plan_id': result.plan_id,
+            'current_step': result.current_step,
+            'current_step_number': result.current_step_number,
+            'total_steps': result.total_steps,
+            'recommendation': result.recommendation,
+            'alternatives': result.alternatives,
+            'why': result.why,
+            'preview': result.preview,
+            'is_complete': result.is_complete,
+        })
+
+    @action(detail=True, methods=['get'], url_path='builder/state')
+    def builder_state(self, request: Request, pk: str | None = None) -> Response:
+        """Get current builder session state for a plan."""
+        plan = self.get_object()
+
+        if not plan.builder_state:
+            return Response(
+                {'error': 'This plan does not have builder state.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        state = plan.builder_state
+        return Response({
+            'plan_id': str(plan.pk),
+            'build_mode': plan.build_mode,
+            'current_step': state.get('current_step'),
+            'current_step_number': state.get('current_step_number'),
+            'brief': state.get('brief'),
+            'choices': {
+                k: v for k, v in (state.get('choices') or {}).items()
+                if not k.startswith('_')
+            },
+            'step_explanations': state.get('step_explanations'),
+        })
+
 
 class PlanSlotViewSet(
     viewsets.GenericViewSet[PlanSlot],
@@ -4717,3 +4875,90 @@ class ProgressionProfileViewSet(viewsets.ModelViewSet[ProgressionProfile]):
         if instance.is_system and user.role != 'ADMIN':
             raise PermissionDenied("Cannot delete system progression profiles.")
         instance.delete()
+
+
+class MuscleReferenceViewSet(viewsets.ReadOnlyModelViewSet[MuscleReference]):
+    """
+    Read-only ViewSet for muscle reference anatomical data.
+
+    GET /api/workouts/muscles/ -- list all muscles
+    GET /api/workouts/muscles/{slug}/ -- single muscle detail
+    GET /api/workouts/muscles/{slug}/exercises/ -- exercises targeting this muscle
+    """
+    serializer_class = MuscleReferenceSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'slug'
+
+    def get_queryset(self) -> QuerySet[MuscleReference]:
+        return MuscleReference.objects.all()
+
+    @action(detail=True, methods=['get'], url_path='exercises')
+    def exercises(self, request: Request, slug: str = '') -> Response:
+        """GET /api/workouts/muscles/{slug}/exercises/"""
+        exercises = MuscleReferenceService.get_exercises_for_muscle(slug)
+        serializer = ExerciseSerializer(exercises, many=True)
+        return Response(serializer.data)
+
+
+class MuscleCoverageView(APIView):
+    """
+    GET /api/workouts/muscle-coverage/?period=week&trainee_id=&session_date=
+
+    Returns per-muscle intensity data for anatomy heatmap visualization.
+    Row-level security: trainees see own, trainers see their trainees'.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+
+        if user.is_trainee():
+            trainee = user
+        else:
+            trainee_id = request.query_params.get('trainee_id')
+            if not trainee_id:
+                return Response(
+                    {'error': 'trainee_id is required.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                trainee = User.objects.get(id=int(trainee_id), role='TRAINEE')
+            except (User.DoesNotExist, ValueError):
+                return Response(
+                    {'error': 'Invalid trainee_id.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if user.is_trainer() and trainee.parent_trainer_id != user.id:
+                return Response(
+                    {'error': 'Access denied.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        period = request.query_params.get('period', 'week')
+        session_date_str = request.query_params.get('session_date')
+        session_date = None
+        if session_date_str:
+            try:
+                session_date = datetime.strptime(session_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return Response(
+                    {'error': 'Invalid session_date format (YYYY-MM-DD).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        result = MuscleCoverageService.compute_coverage(
+            trainee_id=trainee.id,
+            period=period,
+            session_date=session_date,
+        )
+
+        return Response({
+            'period': result.period,
+            'start_date': str(result.start_date),
+            'end_date': str(result.end_date),
+            'muscle_intensities': result.muscle_intensities,
+            'muscle_workloads': result.muscle_workloads,
+            'total_workload': result.total_workload,
+            'muscles_trained': result.muscles_trained,
+            'muscles_total': result.muscles_total,
+        })

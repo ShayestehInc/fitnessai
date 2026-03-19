@@ -2361,6 +2361,19 @@ class TrainingPlan(models.Model):
         related_name='training_plans',
         help_text="Default progression profile for all slots in this plan. Overrideable per slot.",
     )
+    build_mode = models.CharField(
+        max_length=20,
+        choices=[('quick', 'Quick Build'), ('advanced', 'Advanced Builder')],
+        null=True,
+        blank=True,
+        help_text="How this plan was built. Null for legacy/manual plans.",
+    )
+    builder_state = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Stores builder session state: brief, step progress, choices, explanations.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

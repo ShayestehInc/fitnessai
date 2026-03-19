@@ -1,39 +1,13 @@
-# Focus: Wire All v6.5 Features Into Mobile Navigation
+# Focus: Dual-Mode Program Builder (Quick Build + Advanced Builder)
 
-Every v6.5 feature screen exists but is orphaned — no UI entry point reaches them. Wire them all up so users can discover and use every feature.
+## Quick Build
 
-## Features to Wire
+- Ask only highest-leverage inputs: goal, days/week, session length, equipment, pain/injuries, style, priorities, dislikes
+- AI chooses program length, split, weekly layout, session roles, set structures, exercises, swaps, progression, default rest/load
+- User sees: finished week, short "why this fits" explanation, day previews, and big-lever tweaks only
 
-### Trainee Home Screen
+## Advanced Builder
 
-- Training Plans (My Plans)
-- Session Runner (start workout from plan)
-- Lift Maxes overview
-- Workload overview
-- Voice Memos
-- Video Analysis
-
-### Post-Workout / Workout Flow
-
-- Session Feedback (after completing a session)
-- Pain Log
-- Feedback History
-
-### Trainer Dashboard
-
-- Correlations & Insights
-- Trainee Patterns (from trainee detail)
-- Audit Trail / Decision Log
-- Program Import (CSV)
-
-### Exercise Context
-
-- Auto-Tagging (from exercise detail/bank)
-- Tag History
-- Lift History (per exercise)
-
-## Principles
-
-- Add navigation naturally where users expect it
-- Use existing card/tile patterns from the app
-- Don't create new navigation paradigms — extend existing ones
+- Same build logic step by step so coaches can guide or override every layer
+- Steps: detailed brief → choose length → choose split → build weekly skeleton → assign slot roles → choose set structures → choose exercises → build swaps → review progression → publish
+- Every important choice needs: Why panel, alternatives, override state, history, diff, undo

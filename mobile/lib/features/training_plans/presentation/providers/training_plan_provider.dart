@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../data/models/builder_models.dart';
 import '../../data/models/training_plan_models.dart';
 import '../../data/repositories/training_plan_repository.dart';
 
@@ -112,4 +113,149 @@ final modalitiesProvider =
     return result['data'] as List<ModalityModel>;
   }
   throw Exception(result['error'] ?? 'Failed to load modalities');
+});
+
+// ---------------------------------------------------------------------------
+// Builder Providers
+// ---------------------------------------------------------------------------
+
+/// State for the Quick Build flow.
+class QuickBuildState {
+  final bool isLoading;
+  final String? error;
+  final QuickBuildResult? result;
+
+  const QuickBuildState({
+    this.isLoading = false,
+    this.error,
+    this.result,
+  });
+
+  QuickBuildState copyWith({
+    bool? isLoading,
+    String? error,
+    QuickBuildResult? result,
+  }) {
+    return QuickBuildState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      result: result ?? this.result,
+    );
+  }
+}
+
+class QuickBuildNotifier extends StateNotifier<QuickBuildState> {
+  final TrainingPlanRepository _repository;
+
+  QuickBuildNotifier(this._repository) : super(const QuickBuildState());
+
+  Future<void> build(BuilderBrief brief) async {
+    state = state.copyWith(isLoading: true, error: null);
+    final result = await _repository.quickBuild(brief);
+    if (result['success'] == true) {
+      state = QuickBuildState(
+        result: result['data'] as QuickBuildResult,
+      );
+    } else {
+      state = QuickBuildState(error: result['error'] as String?);
+    }
+  }
+
+  void reset() {
+    state = const QuickBuildState();
+  }
+}
+
+final quickBuildProvider =
+    StateNotifierProvider.autoDispose<QuickBuildNotifier, QuickBuildState>(
+        (ref) {
+  final repository = ref.watch(trainingPlanRepositoryProvider);
+  return QuickBuildNotifier(repository);
+});
+
+/// State for the Advanced Builder flow.
+class AdvancedBuilderState {
+  final bool isLoading;
+  final String? error;
+  final String? planId;
+  final BuilderStepResult? currentStepResult;
+  final List<BuilderStepResult> stepHistory;
+
+  const AdvancedBuilderState({
+    this.isLoading = false,
+    this.error,
+    this.planId,
+    this.currentStepResult,
+    this.stepHistory = const [],
+  });
+
+  AdvancedBuilderState copyWith({
+    bool? isLoading,
+    String? error,
+    String? planId,
+    BuilderStepResult? currentStepResult,
+    List<BuilderStepResult>? stepHistory,
+  }) {
+    return AdvancedBuilderState(
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      planId: planId ?? this.planId,
+      currentStepResult: currentStepResult ?? this.currentStepResult,
+      stepHistory: stepHistory ?? this.stepHistory,
+    );
+  }
+}
+
+class AdvancedBuilderNotifier extends StateNotifier<AdvancedBuilderState> {
+  final TrainingPlanRepository _repository;
+
+  AdvancedBuilderNotifier(this._repository)
+      : super(const AdvancedBuilderState());
+
+  Future<void> start(BuilderBrief brief) async {
+    state = state.copyWith(isLoading: true, error: null);
+    final result = await _repository.builderStart(brief);
+    if (result['success'] == true) {
+      final step = result['data'] as BuilderStepResult;
+      state = AdvancedBuilderState(
+        planId: step.planId,
+        currentStepResult: step,
+        stepHistory: [step],
+      );
+    } else {
+      state = AdvancedBuilderState(error: result['error'] as String?);
+    }
+  }
+
+  Future<void> advance({Map<String, dynamic>? override}) async {
+    if (state.planId == null) return;
+    state = state.copyWith(isLoading: true, error: null);
+    final result = await _repository.builderAdvance(
+      state.planId!,
+      override: override,
+    );
+    if (result['success'] == true) {
+      final step = result['data'] as BuilderStepResult;
+      state = state.copyWith(
+        isLoading: false,
+        currentStepResult: step,
+        stepHistory: [...state.stepHistory, step],
+      );
+    } else {
+      state = state.copyWith(
+        isLoading: false,
+        error: result['error'] as String?,
+      );
+    }
+  }
+
+  void reset() {
+    state = const AdvancedBuilderState();
+  }
+}
+
+final advancedBuilderProvider = StateNotifierProvider.autoDispose<
+    AdvancedBuilderNotifier, AdvancedBuilderState>((ref) {
+  final repository = ref.watch(trainingPlanRepositoryProvider);
+  return AdvancedBuilderNotifier(repository);
 });
