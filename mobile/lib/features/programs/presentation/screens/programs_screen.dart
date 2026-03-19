@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
 import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
@@ -2024,7 +2025,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
             ),
             const SizedBox(height: 24),
 
-            // Generate with AI option
+            // Generate with AI option — opens Quick Build vs Advanced Builder chooser
             _buildCreateOption(
               context: parentContext,
               icon: Icons.auto_awesome,
@@ -2034,12 +2035,7 @@ class _ProgramsScreenState extends ConsumerState<ProgramsScreen> with SingleTick
               onTap: () {
                 Navigator.pop(sheetContext);
                 if (parentContext.mounted) {
-                  Navigator.push(
-                    parentContext,
-                    adaptivePageRoute(
-                      builder: (context) => const ProgramGeneratorScreen(),
-                    ),
-                  );
+                  parentContext.push('/build-program');
                 }
               },
             ),
