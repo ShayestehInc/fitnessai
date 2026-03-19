@@ -4054,7 +4054,7 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         return TrainingPlanSerializer
 
     def get_queryset(self) -> QuerySet[TrainingPlan]:
-        from django.db.models import Count
+        from django.db.models import Count, Q
 
         user = self.request.user
 
@@ -4077,7 +4077,10 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         if user.role == 'ADMIN':
             return qs
         elif user.role == 'TRAINER':
-            return qs.filter(trainee__parent_trainer=user)
+            # Trainer sees plans for their trainees + their own template plans
+            return qs.filter(
+                Q(trainee__parent_trainer=user) | Q(trainee=user) | Q(created_by=user)
+            ).distinct()
         else:
             return qs.filter(trainee=user)
 
