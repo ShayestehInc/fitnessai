@@ -81,6 +81,7 @@ def convert_plan_to_schedule(plan: TrainingPlan) -> dict[str, Any]:
                 exercises.append({
                     'exercise_id': slot.exercise_id,
                     'exercise_name': slot.exercise.name if slot.exercise else 'Unknown',
+                    'muscle_group': slot.exercise.primary_muscle_group if slot.exercise else '',
                     'sets': slot.sets,
                     'reps': slot.reps_max,
                     'reps_min': slot.reps_min,

@@ -921,14 +921,15 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                         ),
                         const SizedBox(width: 6),
                       ],
-                      Flexible(
-                        child: Text(
-                          exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
-                            w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
+                      if (exercise.muscleGroup.isNotEmpty && exercise.muscleGroup != 'other')
+                        Flexible(
+                          child: Text(
+                            exercise.muscleGroup.replaceAll('_', ' ').split(' ').map((w) =>
+                              w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1)}' : '').join(' '),
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],
