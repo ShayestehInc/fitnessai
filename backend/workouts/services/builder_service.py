@@ -716,6 +716,12 @@ def _advance_from_skeleton(
         'overridden': override is not None,
     }
 
+    from collections import defaultdict
+    from workouts.services.plan_intelligence_service import (
+        assign_phases,
+        classify_sessions,
+    )
+
     with transaction.atomic():
         # Delete existing weeks/sessions if re-running (inside transaction)
         PlanWeek.objects.filter(plan=plan).delete()
@@ -728,6 +734,22 @@ def _advance_from_skeleton(
             trainer_id=brief.trainer_id,
         )
         decision_log_ids.append(str(log_a3.pk))
+
+        # Assign phases to weeks
+        assign_phases(all_weeks, brief.goal, brief.training_age_years)
+        PlanWeek.objects.bulk_update(all_weeks, ['phase', 'is_deload', 'intensity_modifier', 'volume_modifier'])
+
+        # Classify sessions (day roles, session families, day stress)
+        session_defs = plan.split_template.session_definitions
+        sessions_by_week: dict[str, list[PlanSession]] = defaultdict(list)
+        for s in all_sessions:
+            sessions_by_week[str(s.week_id)].append(s)
+        for week in all_weeks:
+            week_sessions = sessions_by_week.get(str(week.pk), [])
+            classify_sessions(week_sessions, session_defs, brief.goal, week.phase)
+        PlanSession.objects.bulk_update(
+            all_sessions, ['day_role', 'session_family', 'day_stress'],
+        )
 
         # Store specs in builder_state for subsequent steps
         specs_data = _specs_to_state(all_specs)
@@ -745,18 +767,18 @@ def _advance_from_skeleton(
         current_step_number=4,
         total_steps=len(BUILDER_STEPS) - 1,
         recommendation={
-            'assignment_rule': 'position_based',
+            'assignment_rule': 'session_family_based',
             'roles': role_preview,
+            'phases': [w.phase for w in all_weeks],
         },
         alternatives=[
             {'rule': 'compound_first', 'description': 'All compounds before isolations'},
             {'rule': 'superset_pairs', 'description': 'Pair agonist/antagonist movements'},
         ],
         why=(
-            'Slot 1 is the primary compound — the heaviest lift with longest rest. '
-            'Slot 2 is the secondary compound for complementary patterns. '
-            'Slots 3-4 target accessories for focused volume. '
-            'Remaining slots handle isolation work for detail and pump.'
+            'Roles assigned based on session family. Strength sessions protect the main lift. '
+            'Hypertrophy sessions flow compound → accessory → isolation. '
+            'Phases assigned to weeks: ' + ', '.join(f'W{w.week_number}={w.phase}' for w in all_weeks[:4]) + '...'
         ),
         preview={
             'weeks': len(all_weeks),
@@ -777,6 +799,11 @@ def _advance_from_roles(
     # Reconstruct specs from state
     all_specs = _reconstruct_specs(plan, choices)
 
+    from workouts.services.plan_intelligence_service import (
+        assign_slot_roles_intelligent,
+        assign_tempo_presets,
+    )
+
     # Apply role overrides if provided
     if override and 'role_overrides' in override:
         for ro in override['role_overrides']:
@@ -785,9 +812,20 @@ def _advance_from_roles(
                     spec.slot_role = ro['role']
         choices['roles'] = {'overridden': True, 'overrides': override['role_overrides']}
     else:
-        log_a4 = _a4_assign_slot_roles(all_specs, brief.trainer_id, str(plan.pk))
-        decision_log_ids.append(str(log_a4.pk))
-        choices['roles'] = {'overridden': False}
+        # Use intelligent role assignment based on session family
+        all_sessions = list(
+            PlanSession.objects.filter(week__plan=plan).select_related('week').order_by('week__week_number', 'order')
+        )
+        session_spec_map: dict[str, list[Any]] = {}
+        for spec in all_specs:
+            session_spec_map.setdefault(str(spec.session.pk), []).append(spec)
+        for session in all_sessions:
+            session_specs = session_spec_map.get(str(session.pk), [])
+            assign_slot_roles_intelligent(
+                session_specs, session.session_family, brief.goal,
+                brief.session_length_minutes,
+            )
+        choices['roles'] = {'overridden': False, 'method': 'session_family_based'}
 
     # Run A5: Set structures
     from workouts.services.modality_service import prefetch_system_modalities
@@ -800,6 +838,9 @@ def _advance_from_roles(
         deload_week_numbers, modality_by_slug,
     )
     decision_log_ids.append(str(log_a5.pk))
+
+    # Assign tempo presets
+    assign_tempo_presets(all_specs, brief.goal)
 
     # Save updated specs
     choices['_specs'] = _specs_to_state(all_specs)
@@ -841,11 +882,24 @@ def _advance_from_structures(
         PlanSession.objects.filter(week__plan=plan).select_related('week').order_by('week__week_number', 'order')
     )
 
+    from workouts.services.plan_intelligence_service import filter_exercises_by_tags
+
     pool, all_exercises = _prefetch_exercise_pool(
         session_defs=session_defs,
         difficulty=brief.difficulty,
         trainer_id=brief.trainer_id,
     )
+
+    # Apply exercise tag filtering from brief
+    if brief.pain_tolerances or brief.equipment or brief.hated_lifts:
+        for mg, exercises in pool.items():
+            pool[mg] = filter_exercises_by_tags(
+                exercises,
+                slot_role='',
+                pain_tolerances=brief.pain_tolerances or None,
+                equipment=brief.equipment or None,
+                hated_lifts=brief.hated_lifts or None,
+            )
 
     log_a6 = _a6_select_exercises(
         all_specs, all_sessions, session_defs, pool,
@@ -911,6 +965,26 @@ def _advance_from_exercises(
     )
     decision_log_ids.append(str(log_a7.pk))
 
+    # Apply pairing logic
+    from workouts.services.plan_intelligence_service import assign_pairings
+    all_sessions_for_pairing = list(
+        PlanSession.objects.filter(week__plan=plan).select_related('week').order_by('week__week_number', 'order')
+    )
+    session_spec_map: dict[str, list[Any]] = {}
+    for spec in all_specs:
+        session_spec_map.setdefault(str(spec.session.pk), []).append(spec)
+    for session in all_sessions_for_pairing:
+        session_specs = session_spec_map.get(str(session.pk), [])
+        pairings = assign_pairings(
+            session_specs, session.session_family, brief.goal,
+            brief.session_length_minutes,
+        )
+        for pd in pairings:
+            for spec in session_specs:
+                if spec.order == pd.slot_order:
+                    spec.pairing_group = pd.pairing_group
+                    spec.pairing_type = pd.pairing_type
+
     choices['exercises'] = {'overridden': override is not None}
     choices['_specs'] = _specs_to_state(all_specs)
 
@@ -922,14 +996,14 @@ def _advance_from_exercises(
         current_step_number=7,
         total_steps=len(BUILDER_STEPS) - 1,
         recommendation={
-            'tabs': ['same_muscle', 'same_pattern', 'explore'],
+            'tabs': ['same_muscle', 'same_pattern', 'explore', 'pain_safe', 'equipment_limited'],
             'swaps_per_tab': _MAX_SWAP_PER_TAB,
         },
         alternatives=[],
         why=(
-            'Each exercise now has swap alternatives organized into three tabs: '
-            'same muscle group, same movement pattern, and explore. '
-            'You can swap any exercise after publishing too.'
+            'Each exercise has swap alternatives: same muscle, same pattern, explore, '
+            'plus pain-safe regressions and equipment-limited fallbacks. '
+            'Exercises are paired where beneficial (antagonist supersets, non-competing pairs).'
         ),
         preview={},
     )
@@ -942,8 +1016,36 @@ def _advance_from_swaps(
     choices: dict[str, Any],
     decision_log_ids: list[str],
 ) -> BuilderStepResult:
-    """User confirmed swaps. Show progression options."""
+    """User confirmed swaps. Estimate timing, auto-trim, show progression."""
+    from workouts.services.plan_intelligence_service import (
+        auto_trim_session,
+        estimate_session_duration,
+    )
+
+    # Estimate session timing and auto-trim if needed
+    all_specs = _reconstruct_specs(plan, choices)
+    all_sessions = list(
+        PlanSession.objects.filter(week__plan=plan).select_related('week').order_by('week__week_number', 'order')
+    )
+    session_spec_map: dict[str, list[Any]] = {}
+    for spec in all_specs:
+        session_spec_map.setdefault(str(spec.session.pk), []).append(spec)
+
+    trimmed_total = 0
+    for session in all_sessions:
+        session_specs = session_spec_map.get(str(session.pk), [])
+        duration = estimate_session_duration(session_specs)
+        session.estimated_duration_minutes = duration
+
+        if brief.session_length_minutes and duration > brief.session_length_minutes:
+            removed = auto_trim_session(session_specs, brief.session_length_minutes)
+            trimmed_total += len(removed)
+            if removed:
+                session.estimated_duration_minutes = estimate_session_duration(session_specs)
+
+    PlanSession.objects.bulk_update(all_sessions, ['estimated_duration_minutes'])
     choices['swaps'] = {'overridden': override is not None}
+    choices['_specs'] = _specs_to_state(all_specs)  # Save trimmed specs
     _save_builder_state(plan, 'progression', 8, choices, decision_log_ids)
 
     return BuilderStepResult(
@@ -954,6 +1056,10 @@ def _advance_from_swaps(
         recommendation={
             'profile': 'double_progression',
             'description': 'Earn reps first, then increase load. Safest default for most lifters.',
+            'timing': {
+                'target_minutes': brief.session_length_minutes,
+                'slots_trimmed': trimmed_total,
+            },
         },
         alternatives=[
             {

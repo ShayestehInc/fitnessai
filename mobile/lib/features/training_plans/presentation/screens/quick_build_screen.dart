@@ -6,6 +6,7 @@ import '../../../../shared/widgets/adaptive/adaptive_icons.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/builder_models.dart';
 import '../providers/training_plan_provider.dart';
+import '../widgets/expanded_brief_form.dart';
 import '../widgets/why_panel.dart';
 
 /// Quick Build: simple form -> generate -> review result with explanations.
@@ -17,68 +18,25 @@ class QuickBuildScreen extends ConsumerStatefulWidget {
 }
 
 class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
-  // Form state
+  // Core form state
   String _goal = 'build_muscle';
   int _daysPerWeek = 4;
   String _difficulty = 'intermediate';
   int _sessionLength = 60;
-  final Set<String> _equipment = {'barbell', 'dumbbell', 'cable'};
-  final List<String> _injuries = [];
+  Set<String> _equipment = {'barbell', 'dumbbell', 'cable'};
   String _style = '';
-  final List<String> _priorities = [];
-  final List<String> _dislikes = [];
-  final Set<int> _selectedDays = {0, 1, 3, 4}; // Mon, Tue, Thu, Fri
+  Set<int> _selectedDays = {0, 1, 3, 4};
+  // Expanded brief state
+  String _secondaryGoal = '';
+  List<String> _bodyPartEmphasis = [];
+  int? _trainingAgeYears;
+  String _skillLevel = '';
+  Map<String, String> _recoveryProfile = {};
+  Map<String, String> _painTolerances = {};
+  List<String> _hatedLifts = [];
+  String _complexityTolerance = '';
 
   bool _showResult = false;
-
-  static const _goals = [
-    ('build_muscle', 'Build Muscle', Icons.fitness_center_rounded),
-    ('strength', 'Strength', Icons.bolt_rounded),
-    ('fat_loss', 'Fat Loss', Icons.local_fire_department_rounded),
-    ('endurance', 'Endurance', Icons.directions_run_rounded),
-    ('recomp', 'Recomp', Icons.swap_vert_rounded),
-    ('general_fitness', 'General', Icons.favorite_rounded),
-  ];
-
-  static const _equipmentOptions = [
-    'barbell',
-    'dumbbell',
-    'cable',
-    'machine',
-    'bodyweight',
-    'kettlebell',
-    'bands',
-    'smith_machine',
-  ];
-
-  static const _dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  static const _styleOptions = [
-    ('', 'No preference'),
-    ('bodybuilding', 'Bodybuilding'),
-    ('powerbuilding', 'Powerbuilding'),
-    ('athletic', 'Athletic'),
-    ('functional', 'Functional'),
-    ('minimalist', 'Minimalist'),
-  ];
-
-  void _updateDaysPerWeek(int days) {
-    setState(() {
-      _daysPerWeek = days;
-      // Auto-select default day indices
-      _selectedDays.clear();
-      const defaults = {
-        1: [0],
-        2: [0, 3],
-        3: [0, 2, 4],
-        4: [0, 1, 3, 4],
-        5: [0, 1, 2, 3, 4],
-        6: [0, 1, 2, 3, 4, 5],
-        7: [0, 1, 2, 3, 4, 5, 6],
-      };
-      _selectedDays.addAll(defaults[days] ?? []);
-    });
-  }
 
   Future<void> _generate() async {
     final authState = ref.read(authStateProvider);
@@ -92,11 +50,16 @@ class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
       difficulty: _difficulty,
       sessionLengthMinutes: _sessionLength,
       equipment: _equipment.toList(),
-      injuries: _injuries,
       style: _style,
-      priorities: _priorities,
-      dislikes: _dislikes,
       trainingDayIndices: _selectedDays.toList()..sort(),
+      secondaryGoal: _secondaryGoal,
+      bodyPartEmphasis: _bodyPartEmphasis,
+      trainingAgeYears: _trainingAgeYears,
+      skillLevel: _skillLevel,
+      recoveryProfile: _recoveryProfile,
+      painTolerances: _painTolerances,
+      hatedLifts: _hatedLifts,
+      complexityTolerance: _complexityTolerance,
     );
 
     await ref.read(quickBuildProvider.notifier).build(brief);
@@ -134,31 +97,38 @@ class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionLabel('Goal'),
-          const SizedBox(height: 8),
-          _buildGoalSelector(),
-          const SizedBox(height: 24),
-          _sectionLabel('Training Days'),
-          const SizedBox(height: 8),
-          _buildDaysPerWeekSlider(),
-          const SizedBox(height: 12),
-          _buildDaySelector(),
-          const SizedBox(height: 24),
-          _sectionLabel('Session Length'),
-          const SizedBox(height: 8),
-          _buildSessionLengthSlider(),
-          const SizedBox(height: 24),
-          _sectionLabel('Equipment'),
-          const SizedBox(height: 8),
-          _buildEquipmentChips(),
-          const SizedBox(height: 24),
-          _sectionLabel('Difficulty'),
-          const SizedBox(height: 8),
-          _buildDifficultySelector(),
-          const SizedBox(height: 24),
-          _sectionLabel('Style (optional)'),
-          const SizedBox(height: 8),
-          _buildStyleSelector(),
+          ExpandedBriefForm(
+            goal: _goal,
+            onGoalChanged: (v) => setState(() => _goal = v),
+            daysPerWeek: _daysPerWeek,
+            onDaysPerWeekChanged: (v) => setState(() => _daysPerWeek = v),
+            selectedDays: _selectedDays,
+            onSelectedDaysChanged: (v) => setState(() => _selectedDays = v),
+            sessionLength: _sessionLength,
+            onSessionLengthChanged: (v) => setState(() => _sessionLength = v),
+            difficulty: _difficulty,
+            onDifficultyChanged: (v) => setState(() => _difficulty = v),
+            equipment: _equipment,
+            onEquipmentChanged: (v) => setState(() => _equipment = v),
+            style: _style,
+            onStyleChanged: (v) => setState(() => _style = v),
+            secondaryGoal: _secondaryGoal,
+            onSecondaryGoalChanged: (v) => setState(() => _secondaryGoal = v),
+            bodyPartEmphasis: _bodyPartEmphasis,
+            onBodyPartEmphasisChanged: (v) => setState(() => _bodyPartEmphasis = v),
+            trainingAgeYears: _trainingAgeYears,
+            onTrainingAgeChanged: (v) => setState(() => _trainingAgeYears = v),
+            skillLevel: _skillLevel,
+            onSkillLevelChanged: (v) => setState(() => _skillLevel = v),
+            recoveryProfile: _recoveryProfile,
+            onRecoveryProfileChanged: (v) => setState(() => _recoveryProfile = v),
+            painTolerances: _painTolerances,
+            onPainTolerancesChanged: (v) => setState(() => _painTolerances = v),
+            hatedLifts: _hatedLifts,
+            onHatedLiftsChanged: (v) => setState(() => _hatedLifts = v),
+            complexityTolerance: _complexityTolerance,
+            onComplexityToleranceChanged: (v) => setState(() => _complexityTolerance = v),
+          ),
           const SizedBox(height: 32),
           SizedBox(
             height: 52,
@@ -310,265 +280,6 @@ class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
     );
   }
 
-  Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            color: AppTheme.foreground,
-            fontWeight: FontWeight.w600,
-          ),
-    );
-  }
-
-  Widget _buildGoalSelector() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _goals.map((g) {
-        final isSelected = _goal == g.$1;
-        return GestureDetector(
-          onTap: () => setState(() => _goal = g.$1),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.primary.withValues(alpha: 0.15)
-                  : AppTheme.zinc800,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.border,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(g.$3,
-                    size: 16,
-                    color: isSelected
-                        ? AppTheme.primary
-                        : AppTheme.mutedForeground),
-                const SizedBox(width: 6),
-                Text(
-                  g.$2,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isSelected
-                        ? AppTheme.foreground
-                        : AppTheme.mutedForeground,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDaysPerWeekSlider() {
-    return Row(
-      children: [
-        Text(
-          '$_daysPerWeek days/week',
-          style: const TextStyle(color: AppTheme.foreground, fontSize: 14),
-        ),
-        Expanded(
-          child: Slider(
-            value: _daysPerWeek.toDouble(),
-            min: 2,
-            max: 7,
-            divisions: 5,
-            onChanged: (v) => _updateDaysPerWeek(v.round()),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDaySelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: List.generate(7, (i) {
-        final isSelected = _selectedDays.contains(i);
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              if (isSelected) {
-                if (_selectedDays.length > 1) _selectedDays.remove(i);
-              } else {
-                _selectedDays.add(i);
-              }
-              _daysPerWeek = _selectedDays.length;
-            });
-          },
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.primary.withValues(alpha: 0.15)
-                  : AppTheme.zinc800,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.border,
-              ),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              _dayNames[i],
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color:
-                    isSelected ? AppTheme.primary : AppTheme.mutedForeground,
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-
-  Widget _buildSessionLengthSlider() {
-    return Row(
-      children: [
-        Text(
-          '$_sessionLength min',
-          style: const TextStyle(color: AppTheme.foreground, fontSize: 14),
-        ),
-        Expanded(
-          child: Slider(
-            value: _sessionLength.toDouble(),
-            min: 30,
-            max: 120,
-            divisions: 6,
-            onChanged: (v) => setState(() => _sessionLength = v.round()),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEquipmentChips() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _equipmentOptions.map((eq) {
-        final isSelected = _equipment.contains(eq);
-        return GestureDetector(
-          onTap: () => setState(() {
-            if (isSelected) {
-              _equipment.remove(eq);
-            } else {
-              _equipment.add(eq);
-            }
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.primary.withValues(alpha: 0.15)
-                  : AppTheme.zinc800,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.border,
-              ),
-            ),
-            child: Text(
-              eq.replaceAll('_', ' '),
-              style: TextStyle(
-                fontSize: 13,
-                color:
-                    isSelected ? AppTheme.foreground : AppTheme.mutedForeground,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildDifficultySelector() {
-    const options = [
-      ('beginner', 'Beginner'),
-      ('intermediate', 'Intermediate'),
-      ('advanced', 'Advanced'),
-    ];
-    return Row(
-      children: options.map((o) {
-        final isSelected = _difficulty == o.$1;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-                right: o.$1 == 'advanced' ? 0 : 8),
-            child: GestureDetector(
-              onTap: () => setState(() => _difficulty = o.$1),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppTheme.primary.withValues(alpha: 0.15)
-                      : AppTheme.zinc800,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isSelected ? AppTheme.primary : AppTheme.border,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  o.$2,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                    color: isSelected
-                        ? AppTheme.foreground
-                        : AppTheme.mutedForeground,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildStyleSelector() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: _styleOptions.map((s) {
-        final isSelected = _style == s.$1;
-        return GestureDetector(
-          onTap: () => setState(() => _style = s.$1),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppTheme.primary.withValues(alpha: 0.15)
-                  : AppTheme.zinc800,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isSelected ? AppTheme.primary : AppTheme.border,
-              ),
-            ),
-            child: Text(
-              s.$2,
-              style: TextStyle(
-                fontSize: 13,
-                color: isSelected
-                    ? AppTheme.foreground
-                    : AppTheme.mutedForeground,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
 }
 
 class _StatChip extends StatelessWidget {
