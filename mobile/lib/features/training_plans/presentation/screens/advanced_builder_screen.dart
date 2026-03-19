@@ -83,6 +83,15 @@ class _AdvancedBuilderScreenState
     setState(() => _briefSubmitted = true);
   }
 
+  bool _isSelectedAlt(Map<String, dynamic> a, Map<String, dynamic> b) {
+    for (final key in ['template_id', 'weeks', 'profile', 'rule', 'scheme']) {
+      if (a.containsKey(key) && b.containsKey(key)) {
+        return a[key].toString() == b[key].toString();
+      }
+    }
+    return false;
+  }
+
   Future<void> _acceptStep() async {
     await ref.read(advancedBuilderProvider.notifier).advance(override: _selectedOverride);
     setState(() => _selectedOverride = null);
@@ -299,6 +308,34 @@ class _AdvancedBuilderScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Selected override banner
+          if (_selectedOverride != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.swap_horiz_rounded, size: 16, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Override: ${_selectedOverride!['name'] ?? _selectedOverride!['label'] ?? _selectedOverride!['profile'] ?? _selectedOverride!['description'] ?? 'Custom selection'}',
+                      style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedOverride = null),
+                    child: const Icon(Icons.close_rounded, size: 16, color: Colors.green),
+                  ),
+                ],
+              ),
+            ),
+
           // Recommendation card
           _buildRecommendationCard(step),
           const SizedBox(height: 16),
@@ -316,7 +353,14 @@ class _AdvancedBuilderScreenState
             AlternativesPanel(
               alternatives: step.alternatives,
               selectedOverride: _selectedOverride,
-              onSelect: (alt) => setState(() => _selectedOverride = alt),
+              onSelect: (alt) => setState(() {
+                // Toggle: tap again to deselect
+                if (_selectedOverride != null && _isSelectedAlt(alt, _selectedOverride!)) {
+                  _selectedOverride = null;
+                } else {
+                  _selectedOverride = alt;
+                }
+              }),
             ),
             const SizedBox(height: 16),
           ],
