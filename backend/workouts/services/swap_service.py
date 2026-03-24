@@ -12,7 +12,7 @@ Tabs:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.db import transaction
@@ -48,13 +48,14 @@ class SwapCandidate:
 
 @dataclass(frozen=True)
 class SwapOptions:
-    """Three-tab swap options for a plan slot."""
+    """Swap options for a plan slot (up to 4 tabs)."""
     slot_id: str
     current_exercise_id: int
     current_exercise_name: str
     same_muscle: list[SwapCandidate]
     same_pattern: list[SwapCandidate]
     explore_all: list[SwapCandidate]
+    coach_locked: list[SwapCandidate] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -159,6 +160,17 @@ def get_swap_options(
             ).exclude(base_exclude)[:_MAX_RESULTS_PER_TAB]
         )
 
+    # Tab 4: Coach-Locked (if trainer has pinned approved swaps)
+    coach_locked_ids = getattr(slot, 'coach_locked_swaps', None) or []
+    if coach_locked_ids:
+        coach_locked_exercises = list(
+            Exercise.objects.filter(
+                pk__in=coach_locked_ids,
+            ).exclude(base_exclude)[:_MAX_RESULTS_PER_TAB]
+        )
+    else:
+        coach_locked_exercises = []
+
     return SwapOptions(
         slot_id=str(slot.pk),
         current_exercise_id=current_exercise_id,
@@ -166,6 +178,7 @@ def get_swap_options(
         same_muscle=[_to_candidate(ex) for ex in same_muscle_exercises],
         same_pattern=[_to_candidate(ex) for ex in same_pattern_exercises],
         explore_all=[_to_candidate(ex) for ex in explore_exercises],
+        coach_locked=[_to_candidate(ex) for ex in coach_locked_exercises],
     )
 
 

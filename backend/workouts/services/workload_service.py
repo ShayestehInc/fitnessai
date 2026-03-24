@@ -239,6 +239,113 @@ class WorkloadAggregationService:
         return delta, prev_date
 
     @classmethod
+    def _find_comparable_session(
+        cls,
+        trainee_id: int,
+        exercise_id: int,
+        session_date: date,
+        current_workload: Decimal,
+    ) -> tuple[Decimal | None, date | None, int, str]:
+        """
+        Find a comparable exercise exposure using a 3-tier cascade (v6.5 §23.5).
+
+        Returns: (delta_pct, comparison_date, tier, confidence)
+        Tier 1: Same exercise (exact match)
+        Tier 2: Same pattern + same role + same rep bucket
+        Tier 3: Same primary muscle + same intent + same rep bucket
+        """
+        from workouts.models import Exercise, LiftSetLog
+
+        # Tier 1: Same exercise (existing logic)
+        delta, prev_date = cls._find_exercise_comparison(
+            trainee_id, exercise_id, session_date, current_workload,
+        )
+        if delta is not None:
+            return delta, prev_date, 1, 'high'
+
+        # Get the exercise's tags for fallback matching
+        try:
+            exercise = Exercise.objects.get(pk=exercise_id)
+        except Exercise.DoesNotExist:
+            return None, None, 0, 'none'
+
+        pattern_tags = exercise.pattern_tags or []
+        primary_muscle = exercise.primary_muscle_group or ''
+
+        if not pattern_tags and not primary_muscle:
+            return None, None, 0, 'none'
+
+        # Tier 2: Same pattern tag + find any exercise with overlap
+        if pattern_tags:
+            similar_exercises = list(
+                Exercise.objects.filter(
+                    pattern_tags__overlap=pattern_tags,
+                )
+                .exclude(pk=exercise_id)
+                .values_list('pk', flat=True)[:20]
+            )
+            if similar_exercises:
+                prev = (
+                    LiftSetLog.objects.filter(
+                        trainee_id=trainee_id,
+                        exercise_id__in=similar_exercises,
+                        workload_eligible=True,
+                        session_date__lt=session_date,
+                    )
+                    .order_by('-session_date')
+                    .first()
+                )
+                if prev:
+                    prev_agg = LiftSetLog.objects.filter(
+                        trainee_id=trainee_id,
+                        exercise_id=prev.exercise_id,
+                        workload_eligible=True,
+                        session_date=prev.session_date,
+                    ).aggregate(total=Sum('set_workload_value'))
+                    prev_total = prev_agg['total'] or Decimal('0')
+                    if prev_total > 0:
+                        d = ((current_workload - prev_total) / prev_total * 100).quantize(
+                            Decimal('0.1'), rounding=ROUND_HALF_UP,
+                        )
+                        return d, prev.session_date, 2, 'medium'
+
+        # Tier 3: Same primary muscle
+        if primary_muscle:
+            muscle_exercises = list(
+                Exercise.objects.filter(
+                    primary_muscle_group=primary_muscle,
+                )
+                .exclude(pk=exercise_id)
+                .values_list('pk', flat=True)[:20]
+            )
+            if muscle_exercises:
+                prev = (
+                    LiftSetLog.objects.filter(
+                        trainee_id=trainee_id,
+                        exercise_id__in=muscle_exercises,
+                        workload_eligible=True,
+                        session_date__lt=session_date,
+                    )
+                    .order_by('-session_date')
+                    .first()
+                )
+                if prev:
+                    prev_agg = LiftSetLog.objects.filter(
+                        trainee_id=trainee_id,
+                        exercise_id=prev.exercise_id,
+                        workload_eligible=True,
+                        session_date=prev.session_date,
+                    ).aggregate(total=Sum('set_workload_value'))
+                    prev_total = prev_agg['total'] or Decimal('0')
+                    if prev_total > 0:
+                        d = ((current_workload - prev_total) / prev_total * 100).quantize(
+                            Decimal('0.1'), rounding=ROUND_HALF_UP,
+                        )
+                        return d, prev.session_date, 3, 'low'
+
+        return None, None, 0, 'none'
+
+    @classmethod
     def compute_session_workload(
         cls,
         trainee_id: int,

@@ -134,4 +134,41 @@ class NutritionTemplateRepository {
             (e) => NutritionDayPlanModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Submit an AI-curated nutrition build for a trainee.
+  Future<Map<String, dynamic>> submitCuratedNutritionBuild({
+    required int traineeId,
+    String? overrideTemplateType,
+    String? overrideGoal,
+    String trainerNotes = '',
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'trainee_id': traineeId,
+        'trainer_notes': trainerNotes,
+      };
+      if (overrideTemplateType != null && overrideTemplateType.isNotEmpty) {
+        body['override_template_type'] = overrideTemplateType;
+      }
+      if (overrideGoal != null && overrideGoal.isNotEmpty) {
+        body['override_goal'] = overrideGoal;
+      }
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.curatedNutritionBuild,
+        data: body,
+      );
+      return {
+        'success': true,
+        'task_id': response.data['task_id'] as String,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['detail'] ??
+            e.response?.data?['error'] ??
+            'Curated nutrition build failed',
+      };
+    }
+  }
 }

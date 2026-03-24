@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/providers/sync_provider.dart';
@@ -19,14 +18,14 @@ class WeightCheckInScreen extends ConsumerStatefulWidget {
 }
 
 class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
-  final _weightController = TextEditingController();
   final _notesController = TextEditingController();
   bool _useMetric = true;
   bool _isSaving = false;
+  double _weightKg = 75.0;
+  bool _initialized = false;
 
   @override
   void dispose() {
-    _weightController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -35,6 +34,17 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(nutritionStateProvider);
     final theme = Theme.of(context);
+
+    // Initialize weight from latest check-in if available
+    if (!_initialized && state.latestCheckIn != null) {
+      _weightKg = state.latestCheckIn!.weightKg;
+      _initialized = true;
+    }
+
+    final displayWeight = _useMetric
+        ? _weightKg.toStringAsFixed(1)
+        : (_weightKg * 2.205).toStringAsFixed(1);
+    final unitLabel = _useMetric ? 'kg' : 'lbs';
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -99,36 +109,36 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _weightController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-              ],
-              style: const TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              decoration: InputDecoration(
-                hintText: _useMetric ? '75.0' : '165.0',
-                hintStyle: TextStyle(
-                  color: theme.textTheme.bodySmall?.color,
-                  fontSize: 32,
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                '$displayWeight $unitLabel',
+                style: TextStyle(
+                  fontSize: 40,
                   fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
                 ),
-                suffixText: _useMetric ? 'kg' : 'lbs',
-                filled: true,
-                fillColor: theme.cardColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: theme.dividerColor),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: theme.colorScheme.primary,
+                inactiveTrackColor: theme.cardColor,
+                thumbColor: theme.colorScheme.primary,
+                overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+                trackHeight: 6,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 12),
+              ),
+              child: Slider(
+                value: _weightKg.clamp(30.0, 200.0),
+                min: 30,
+                max: 200,
+                divisions: 340,
+                onChanged: (value) {
+                  HapticService.lightTap();
+                  setState(() => _weightKg = value);
+                },
               ),
             ),
             const SizedBox(height: 24),
@@ -203,9 +213,7 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isSaving || _weightController.text.isEmpty
-                    ? null
-                    : _saveCheckIn,
+                onPressed: _isSaving ? null : _saveCheckIn,
                 child: _isSaving
                     ? const AdaptiveSpinner.small()
                     : Text(context.l10n.nutritionSaveCheckIn),
@@ -228,13 +236,9 @@ class _WeightCheckInScreenState extends ConsumerState<WeightCheckInScreen> {
 
   Future<void> _saveCheckIn() async {
     HapticService.mediumTap();
-    final weight = double.tryParse(_weightController.text);
-    if (weight == null) return;
-
     setState(() => _isSaving = true);
 
-    // Convert to kg if using lbs
-    final weightKg = _useMetric ? weight : weight * 0.453592;
+    final weightKg = _weightKg;
 
     final offlineWeightRepo = ref.read(offlineWeightRepositoryProvider);
     if (offlineWeightRepo == null) {

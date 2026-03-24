@@ -14,6 +14,12 @@ class SessionFeedbackModel {
   final List<String> frictionReasons;
   @JsonKey(name: 'recovery_concern')
   final bool recoveryConcern;
+  @JsonKey(name: 'win_reasons')
+  final List<String> winReasons;
+  @JsonKey(name: 'session_volume_perception')
+  final String sessionVolumePerception;
+  @JsonKey(name: 'requested_action')
+  final String requestedAction;
   final String notes;
   @JsonKey(name: 'pain_events')
   final List<PainEventModel> painEvents;
@@ -27,6 +33,9 @@ class SessionFeedbackModel {
     this.ratings = const {},
     this.frictionReasons = const [],
     this.recoveryConcern = false,
+    this.winReasons = const [],
+    this.sessionVolumePerception = '',
+    this.requestedAction = '',
     this.notes = '',
     this.painEvents = const [],
     required this.createdAt,

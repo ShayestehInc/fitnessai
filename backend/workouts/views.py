@@ -543,6 +543,78 @@ class ProgramViewSet(viewsets.ModelViewSet[Program]):
             'queryset_returned': list(self.get_queryset().values('id', 'name', 'trainee_id', 'is_active')),
         })
 
+    @action(detail=True, methods=['post'], url_path='upload-image', parser_classes=[MultiPartParser, FormParser])
+    def upload_image(self, request: Request, pk: int = None) -> Response:
+        """
+        Upload an image for a program.
+
+        POST /api/workouts/programs/{id}/upload-image/
+        Content-Type: multipart/form-data
+        Body: image file
+
+        Only trainers and admins can upload images.
+        """
+        user = cast(User, request.user)
+
+        if not (user.is_trainer() or user.is_admin()):
+            return Response(
+                {'error': 'Only trainers and admins can upload program images'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        program = self.get_object()
+
+        if 'image' not in request.FILES:
+            return Response(
+                {'error': 'No image file provided. Use "image" as the field name.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        image_file = request.FILES['image']
+
+        allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': f'Invalid file type. Allowed types: {", ".join(allowed_types)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        max_size = 10 * 1024 * 1024  # 10MB
+        if image_file.size > max_size:
+            return Response(
+                {'error': 'File size too large. Maximum size is 10MB.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        file_extension = os.path.splitext(image_file.name)[1].lower()
+        if not file_extension:
+            ext_map = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/gif': '.gif',
+                'image/webp': '.webp',
+            }
+            file_extension = ext_map.get(image_file.content_type, '.jpg')
+
+        unique_filename = f"programs/{uuid.uuid4().hex}{file_extension}"
+
+        if program.image_url:
+            old_path = ExerciseViewSet._extract_storage_path(program.image_url)
+            if old_path and default_storage.exists(old_path):
+                default_storage.delete(old_path)
+
+        saved_path = default_storage.save(unique_filename, image_file)
+        image_url = default_storage.url(saved_path)
+
+        program.image_url = image_url
+        program.save(update_fields=['image_url', 'updated_at'])
+
+        return Response({
+            'success': True,
+            'image_url': image_url,
+            'message': 'Image uploaded successfully'
+        }, status=status.HTTP_200_OK)
+
     # --- Phase 3: Progression & Deload Actions ---
 
     @action(detail=True, methods=['get'], url_path='progression-suggestions')
@@ -2752,6 +2824,41 @@ class NutritionTemplateAssignmentViewSet(viewsets.ModelViewSet[NutritionTemplate
             'end_date': end_date.isoformat(),
         })
 
+    @action(detail=False, methods=['post'], url_path='curated-build')
+    def curated_build(self, request: Request) -> Response:
+        """
+        AI-Curated Nutrition: generate a personalized nutrition plan for a trainee
+        using their full profile, training schedule, weight trends, and adherence.
+        """
+        from .serializers import CuratedNutritionSerializer
+        from .services.async_builder_service import start_curated_nutrition_task
+
+        serializer = CuratedNutritionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = cast(User, request.user)
+        if user.role not in ('TRAINER', 'ADMIN'):
+            raise PermissionDenied("Only trainers can generate curated nutrition plans.")
+
+        # Resolve trainee (security check)
+        trainee = User.objects.get(pk=data['trainee_id'], role='TRAINEE')
+        if user.role == 'TRAINER' and trainee.parent_trainer_id != user.pk:
+            raise PermissionDenied("This trainee is not assigned to you.")
+
+        task_id = start_curated_nutrition_task(
+            trainee_id=trainee.pk,
+            trainer_id=user.pk,
+            trainer_notes=data.get('trainer_notes', ''),
+            override_template_type=data.get('override_template_type', ''),
+            override_goal=data.get('override_goal', ''),
+        )
+
+        return Response({
+            'task_id': task_id,
+            'status': 'pending',
+        }, status=status.HTTP_202_ACCEPTED)
+
 
 class NutritionDayPlanViewSet(viewsets.ReadOnlyModelViewSet[NutritionDayPlan]):
     """
@@ -4187,9 +4294,10 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
 
     @action(detail=False, methods=['post'], url_path='quick-build')
     def quick_build(self, request: Request) -> Response:
-        """Quick Build: expanded brief → full pipeline → plan + explanations."""
+        """Quick Build: submit brief → background task → poll for result."""
         from .serializers import QuickBuildSerializer
-        from .services.builder_service import BuilderBrief, quick_build
+        from .services.async_builder_service import start_quick_build_task
+        from .services.builder_service import BuilderBrief
 
         serializer = QuickBuildSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -4200,7 +4308,6 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             trainee = self._resolve_trainee(trainee_id)
             resolved_trainee_id = trainee.pk
         else:
-            # Trainer building a template (no trainee specified or own ID)
             resolved_trainee_id = request.user.pk
 
         brief = BuilderBrief(
@@ -4230,27 +4337,92 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
             complexity_tolerance=data.get('complexity_tolerance', ''),
         )
 
-        result = quick_build(brief)
+        task_id = start_quick_build_task(brief)
 
         return Response({
-            'plan_id': result.plan_id,
-            'plan_name': result.plan_name,
-            'weeks_count': result.weeks_count,
-            'sessions_count': result.sessions_count,
-            'slots_count': result.slots_count,
-            'decision_log_ids': result.decision_log_ids,
-            'summary': result.summary,
-            'step_explanations': [
-                {
-                    'step_name': e.step_name,
-                    'step_number': e.step_number,
-                    'recommendation': e.recommendation,
-                    'alternatives': e.alternatives,
-                    'why': e.why,
-                }
-                for e in result.step_explanations
-            ],
-        }, status=status.HTTP_201_CREATED)
+            'task_id': task_id,
+            'status': 'pending',
+        }, status=status.HTTP_202_ACCEPTED)
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path=r'quick-build/(?P<task_id>[0-9a-f-]+)/status',
+    )
+    def quick_build_status(self, request: Request, task_id: str = '') -> Response:
+        """Poll the status of an async quick-build task."""
+        from .services.async_builder_service import get_task_status
+
+        task_status = get_task_status(task_id)
+        if task_status is None:
+            return Response(
+                {'error': 'Task not found or expired'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        response_data: dict[str, Any] = {
+            'task_id': task_id,
+            'status': task_status.status,
+        }
+
+        if task_status.status == 'completed' and task_status.result:
+            response_data['result'] = task_status.result
+        elif task_status.status == 'failed':
+            response_data['error'] = task_status.error or 'Unknown error'
+
+        if task_status.progress_step:
+            response_data['progress_step'] = task_status.progress_step
+        if task_status.completed_steps:
+            response_data['completed_steps'] = task_status.completed_steps
+
+        return Response(response_data)
+
+    @action(detail=False, methods=['post'], url_path='curated-build')
+    def curated_build(self, request: Request) -> Response:
+        """
+        AI-Curated Build: generate a personalized program for a specific trainee
+        using their full profile, lift history, feedback, pain, and adherence data.
+        """
+        from .serializers import CuratedBuildSerializer
+        from .services.async_builder_service import start_curated_build_task
+        from .services.builder_service import BuilderBrief, gather_trainee_context
+
+        serializer = CuratedBuildSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = cast(User, request.user)
+        if user.role not in ('TRAINER', 'ADMIN'):
+            raise PermissionDenied("Only trainers can generate curated programs.")
+
+        trainee = self._resolve_trainee(data['trainee_id'])
+        trainee_context = gather_trainee_context(trainee.pk)
+
+        # Build brief from trainee context + overrides
+        goal = data.get('override_goal') or trainee_context.goal or 'general_fitness'
+        days = data.get('override_days_per_week') or 4
+        equipment = data.get('override_equipment') or []
+        difficulty = data.get('override_difficulty') or 'intermediate'
+
+        brief = BuilderBrief(
+            trainee_id=trainee.pk,
+            goal=goal,
+            days_per_week=days if days > 0 else 4,
+            difficulty=difficulty,
+            equipment=equipment,
+            trainer_id=user.pk,
+        )
+
+        task_id = start_curated_build_task(
+            brief,
+            trainee_context,
+            data.get('trainer_notes', ''),
+        )
+
+        return Response({
+            'task_id': task_id,
+            'status': 'pending',
+        }, status=status.HTTP_202_ACCEPTED)
 
     @action(detail=False, methods=['post'], url_path='builder/start')
     def builder_start(self, request: Request) -> Response:
@@ -4313,9 +4485,9 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
 
     @action(detail=True, methods=['post'], url_path='builder/advance')
     def builder_advance(self, request: Request, pk: str | None = None) -> Response:
-        """Advanced Builder: advance to the next step with optional override."""
+        """Advanced Builder: advance to the next step (async with polling)."""
         from .serializers import BuilderAdvanceSerializer
-        from .services.builder_service import builder_advance
+        from .services.async_builder_service import start_advance_task
 
         plan = self.get_object()
 
@@ -4336,20 +4508,57 @@ class TrainingPlanViewSet(viewsets.ModelViewSet[TrainingPlan]):
         serializer = BuilderAdvanceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         override = serializer.validated_data.get('override')
+        current_step = serializer.validated_data.get('current_step')
 
-        result = builder_advance(plan, override)
+        # If the frontend tells us which step it's on (e.g. after a back
+        # navigation), sync the backend state before advancing.
+        if current_step and plan.builder_state.get('current_step') != current_step:
+            from .services.builder_service import BUILDER_STEPS
+            if current_step in BUILDER_STEPS:
+                plan.builder_state['current_step'] = current_step
+                step_idx = BUILDER_STEPS.index(current_step)
+                plan.builder_state['current_step_number'] = step_idx
+                plan.save(update_fields=['builder_state', 'updated_at'])
+
+        task_id = start_advance_task(str(plan.pk), override)
 
         return Response({
-            'plan_id': result.plan_id,
-            'current_step': result.current_step,
-            'current_step_number': result.current_step_number,
-            'total_steps': result.total_steps,
-            'recommendation': result.recommendation,
-            'alternatives': result.alternatives,
-            'why': result.why,
-            'preview': result.preview,
-            'is_complete': result.is_complete,
-        })
+            'task_id': task_id,
+            'status': 'pending',
+        }, status=status.HTTP_202_ACCEPTED)
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path=r'builder/advance/(?P<task_id>[0-9a-f-]+)/status',
+    )
+    def builder_advance_status(self, request: Request, task_id: str = '') -> Response:
+        """Poll the status of an async builder advance task."""
+        from .services.async_builder_service import get_task_status
+
+        task_status = get_task_status(task_id)
+        if task_status is None:
+            return Response(
+                {'error': 'Task not found or expired'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        response_data: dict[str, Any] = {
+            'task_id': task_id,
+            'status': task_status.status,
+        }
+
+        if task_status.status == 'completed' and task_status.result:
+            response_data.update(task_status.result)
+        elif task_status.status == 'failed':
+            response_data['error'] = task_status.error or 'Unknown error'
+
+        if task_status.progress_step:
+            response_data['progress_step'] = task_status.progress_step
+        if task_status.completed_steps:
+            response_data['completed_steps'] = task_status.completed_steps
+
+        return Response(response_data)
 
     @action(detail=True, methods=['get'], url_path='builder/state')
     def builder_state(self, request: Request, pk: str | None = None) -> Response:

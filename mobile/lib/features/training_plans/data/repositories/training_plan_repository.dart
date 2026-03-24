@@ -209,22 +209,103 @@ class TrainingPlanRepository {
   }
 
   /// Quick Build: send brief, get completed plan + explanations.
-  Future<Map<String, dynamic>> quickBuild(BuilderBrief brief) async {
+  /// Quick Build: submit brief, get task_id back.
+  Future<Map<String, dynamic>> submitQuickBuild(BuilderBrief brief) async {
     try {
       final response = await _apiClient.dio.post(
         ApiConstants.quickBuild,
         data: brief.toJson(),
       );
-      final result = QuickBuildResult.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-      return {'success': true, 'data': result};
+      return {
+        'success': true,
+        'task_id': response.data['task_id'] as String,
+      };
     } on DioException catch (e) {
       return {
         'success': false,
         'error': e.response?.data?['error'] ??
             e.response?.data?['detail'] ??
-            'Quick build failed',
+            'Quick build submission failed',
+      };
+    }
+  }
+
+  /// Curated Build: submit for a specific trainee using their full context.
+  Future<Map<String, dynamic>> submitCuratedBuild({
+    required int traineeId,
+    String? overrideGoal,
+    int? overrideDaysPerWeek,
+    List<String>? overrideEquipment,
+    String? overrideDifficulty,
+    String trainerNotes = '',
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'trainee_id': traineeId,
+        'trainer_notes': trainerNotes,
+      };
+      if (overrideGoal != null && overrideGoal.isNotEmpty) {
+        body['override_goal'] = overrideGoal;
+      }
+      if (overrideDaysPerWeek != null && overrideDaysPerWeek > 0) {
+        body['override_days_per_week'] = overrideDaysPerWeek;
+      }
+      if (overrideEquipment != null && overrideEquipment.isNotEmpty) {
+        body['override_equipment'] = overrideEquipment;
+      }
+      if (overrideDifficulty != null && overrideDifficulty.isNotEmpty) {
+        body['override_difficulty'] = overrideDifficulty;
+      }
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.curatedBuild,
+        data: body,
+      );
+      return {
+        'success': true,
+        'task_id': response.data['task_id'] as String,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Curated build submission failed',
+      };
+    }
+  }
+
+  /// Quick Build: poll task status (also used for curated builds).
+  Future<Map<String, dynamic>> getQuickBuildStatus(String taskId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.quickBuildStatus(taskId),
+      );
+      final data = response.data as Map<String, dynamic>;
+      final taskStatus = data['status'] as String;
+
+      if (taskStatus == 'completed' && data['result'] != null) {
+        final result = QuickBuildResult.fromJson(
+          data['result'] as Map<String, dynamic>,
+        );
+        return {'success': true, 'status': taskStatus, 'data': result};
+      }
+
+      return {
+        'success': true,
+        'status': taskStatus,
+        if (data['error'] != null) 'error': data['error'],
+        if (data['progress_step'] != null)
+          'progress_step': data['progress_step'],
+        if (data['completed_steps'] != null)
+          'completed_steps': List<String>.from(data['completed_steps'] as List),
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Failed to check build status',
       };
     }
   }
@@ -250,28 +331,61 @@ class TrainingPlanRepository {
     }
   }
 
-  /// Advanced Builder: advance to the next step with optional override.
-  Future<Map<String, dynamic>> builderAdvance(
+  /// Advanced Builder: submit advance request, get task_id back.
+  Future<Map<String, dynamic>> submitBuilderAdvance(
     String planId, {
     Map<String, dynamic>? override,
+    String? currentStep,
   }) async {
     try {
       final body = <String, dynamic>{};
       if (override != null) body['override'] = override;
+      if (currentStep != null) body['current_step'] = currentStep;
       final response = await _apiClient.dio.post(
         ApiConstants.builderAdvance(planId),
         data: body,
       );
-      final result = BuilderStepResult.fromJson(
-        response.data as Map<String, dynamic>,
-      );
-      return {'success': true, 'data': result};
+      return {
+        'success': true,
+        'task_id': response.data['task_id'] as String,
+      };
     } on DioException catch (e) {
       return {
         'success': false,
         'error': e.response?.data?['error'] ??
             e.response?.data?['detail'] ??
             'Builder advance failed',
+      };
+    }
+  }
+
+  /// Advanced Builder: poll advance task status.
+  Future<Map<String, dynamic>> getBuilderAdvanceStatus(String taskId) async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiConstants.builderAdvanceStatus(taskId),
+      );
+      final data = response.data as Map<String, dynamic>;
+      final taskStatus = data['status'] as String;
+
+      if (taskStatus == 'completed' && data['plan_id'] != null) {
+        final result = BuilderStepResult.fromJson(data);
+        return {'success': true, 'status': taskStatus, 'data': result};
+      }
+
+      return {
+        'success': true,
+        'status': taskStatus,
+        if (data['error'] != null) 'error': data['error'],
+        if (data['progress_step'] != null)
+          'progress_step': data['progress_step'],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['error'] ??
+            e.response?.data?['detail'] ??
+            'Failed to check advance status',
       };
     }
   }

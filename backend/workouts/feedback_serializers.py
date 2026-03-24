@@ -10,6 +10,8 @@ from rest_framework import serializers
 
 from .models import (
     PainEvent,
+    PainInterventionStep,
+    PainTriageResponse,
     SessionFeedback,
     TrainerRoutingRule,
 )
@@ -80,6 +82,24 @@ class SubmitFeedbackInputSerializer(serializers.Serializer[None]):
         default=list,
     )
     recovery_concern = serializers.BooleanField(default=False)
+
+    # v6.5 §25: Wins, context, and action rows
+    win_reasons = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+        default=list,
+    )
+    session_volume_perception = serializers.ChoiceField(
+        choices=[('', '')] + list(SessionFeedback.VolumePerception.choices),
+        required=False,
+        default='',
+    )
+    requested_action = serializers.ChoiceField(
+        choices=[('', '')] + list(SessionFeedback.RequestedAction.choices),
+        required=False,
+        default='',
+    )
+
     notes = serializers.CharField(required=False, default='', max_length=2000)
     pain_events = PainEventInputSerializer(many=True, required=False, default=list)
 
@@ -96,6 +116,19 @@ class SubmitFeedbackInputSerializer(serializers.Serializer[None]):
                 )
         return value
 
+    def validate_win_reasons(self, value: list[str]) -> list[str]:
+        valid_wins = {
+            'strong_performance', 'great_pump', 'smoother_technique',
+            'pain_free', 'confidence_boost', 'efficient_session',
+        }
+        for reason in value:
+            if reason not in valid_wins:
+                raise serializers.ValidationError(
+                    f"Invalid win reason: '{reason}'. "
+                    f"Valid: {', '.join(sorted(valid_wins))}"
+                )
+        return value
+
 
 class SessionFeedbackSerializer(serializers.ModelSerializer[SessionFeedback]):
     """Read serializer for SessionFeedback."""
@@ -106,9 +139,85 @@ class SessionFeedbackSerializer(serializers.ModelSerializer[SessionFeedback]):
             'id', 'active_session', 'trainee', 'completion_state',
             'rating_overall', 'rating_muscle_feel', 'rating_energy',
             'rating_confidence', 'rating_enjoyment', 'rating_difficulty',
-            'friction_reasons', 'recovery_concern', 'notes', 'created_at',
+            'friction_reasons', 'recovery_concern',
+            'win_reasons', 'session_volume_perception', 'requested_action',
+            'notes', 'created_at',
         ]
         read_only_fields = fields
+
+
+# ---------------------------------------------------------------------------
+# Pain Triage serializers (v6.5 §24)
+# ---------------------------------------------------------------------------
+
+class PainTriageStartSerializer(serializers.Serializer[None]):
+    """Input for starting a pain triage flow."""
+    pain_event_id = serializers.UUIDField()
+    active_session_id = serializers.UUIDField()
+    active_set_log_id = serializers.UUIDField(required=False)
+
+
+class Round2InputSerializer(serializers.Serializer[None]):
+    """Input for round 2 of pain triage (movement sensitivity)."""
+    SENSITIVITY_CHOICES = [('better', 'Better'), ('same', 'Same'), ('worse', 'Worse')]
+
+    load_sensitivity = serializers.ChoiceField(choices=SENSITIVITY_CHOICES)
+    rom_sensitivity = serializers.ChoiceField(choices=SENSITIVITY_CHOICES)
+    tempo_sensitivity = serializers.ChoiceField(choices=SENSITIVITY_CHOICES)
+    support_helps = serializers.BooleanField(default=False)
+    previous_trigger = serializers.CharField(required=False, default='', max_length=500)
+
+
+class InterventionStepInputSerializer(serializers.Serializer[None]):
+    """Input for recording an intervention step result."""
+    step_order = serializers.IntegerField(min_value=1)
+    applied = serializers.BooleanField()
+    result = serializers.ChoiceField(
+        choices=PainInterventionStep.StepResult.choices,
+    )
+
+
+class FinalizeProceedSerializer(serializers.Serializer[None]):
+    """Input for finalizing a triage with a proceed decision."""
+    proceed_decision = serializers.ChoiceField(
+        choices=PainTriageResponse.ProceedDecision.choices,
+    )
+
+
+class PainInterventionStepSerializer(serializers.ModelSerializer[PainInterventionStep]):
+    """Read serializer for PainInterventionStep."""
+
+    class Meta:
+        model = PainInterventionStep
+        fields = [
+            'id', 'order', 'intervention_type', 'description',
+            'applied', 'result', 'details', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class PainTriageResponseSerializer(serializers.ModelSerializer[PainTriageResponse]):
+    """Read serializer for PainTriageResponse."""
+    steps = PainInterventionStepSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PainTriageResponse
+        fields = [
+            'id', 'pain_event', 'active_session', 'active_set_log',
+            'trainee', 'round_1_answers', 'round_2_answers',
+            'ai_suggestion', 'ai_confidence', 'proceed_decision',
+            'trainer_notified', 'steps', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class RemedySuggestionSerializer(serializers.Serializer[None]):
+    """Output serializer for a remedy ladder step."""
+    order = serializers.IntegerField()
+    intervention_type = serializers.CharField()
+    description = serializers.CharField()
+    applicable = serializers.BooleanField()
+    details = serializers.DictField(default=dict)
 
 
 # ---------------------------------------------------------------------------

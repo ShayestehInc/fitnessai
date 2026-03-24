@@ -4,10 +4,16 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/models/session_models.dart';
 import '../providers/session_provider.dart';
+import '../widgets/dials_escalation_sheet.dart';
 import '../widgets/exercise_header_widget.dart';
+import '../widgets/exercise_workload_card.dart';
+import '../widgets/next_set_card.dart';
+import '../widgets/pain_toggle_button.dart';
 import '../widgets/rest_timer_widget.dart';
 import '../widgets/session_progress_bar.dart';
 import '../widgets/set_logging_card.dart';
+import '../widgets/warmup_assessment_sheet.dart';
+import 'pain_triage_popup.dart';
 
 /// Main workout execution screen. Loads the active session on init,
 /// displays the current exercise/set, and provides controls for
@@ -90,6 +96,11 @@ class _SessionRunnerScreenState extends ConsumerState<SessionRunnerScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: _buildAppBar(context, state, theme),
         body: _buildBody(context, state, theme),
+        floatingActionButton: state.activeSession != null && state.activeSession!.isActive
+            ? PainToggleButton(
+                onTap: () => _handlePainReport(state),
+              )
+            : null,
       ),
     );
   }
@@ -152,6 +163,53 @@ class _SessionRunnerScreenState extends ConsumerState<SessionRunnerScreen> {
           ),
       ],
     );
+  }
+
+  Future<void> _handlePainReport(SessionState state) async {
+    final session = state.activeSession;
+    if (session == null) return;
+
+    // For now, go directly to triage popup with a placeholder pain event ID.
+    // In production, create a PainEvent first via API, then pass its ID.
+    final decision = await showPainTriagePopup(
+      context: context,
+      painEventId: '', // Will be created inside the popup
+      activeSessionId: session.activeSessionId,
+    );
+
+    if (!mounted || decision == null) return;
+
+    // Handle proceed decision
+    if (decision == 'stop_session') {
+      _showCompleteConfirmation();
+    } else if (decision == 'skip_slot') {
+      // Skip remaining sets in current slot
+      final currentSlot = session.slots.isNotEmpty &&
+              state.currentSlotIndex < session.slots.length
+          ? session.slots[state.currentSlotIndex]
+          : null;
+      if (currentSlot != null) {
+        for (final set in currentSlot.sets) {
+          if (set.isPending) {
+            ref.read(sessionNotifierProvider.notifier).skipSet(
+                  slotId: currentSlot.slotId,
+                  setNumber: set.setNumber,
+                  reason: 'pain_triage_skip',
+                );
+          }
+        }
+      }
+    }
+  }
+
+  Future<void> _handleFeelsOff(SessionSlotModel? currentSlot) async {
+    if (currentSlot == null) return;
+    final result = await DialsEscalationSheet.show(
+      context,
+      exerciseName: currentSlot.exerciseName,
+    );
+    // Result is the escalation type chosen (cue, tempo, load, rom, stance, swap)
+    // For now, just log the selection. Swap would trigger the swap flow.
   }
 
   void _showAbandonConfirmation() {
@@ -332,7 +390,42 @@ class _SessionContent extends ConsumerWidget {
                       slot: currentSlot,
                       currentSet: currentSet,
                     ),
-                    const SizedBox(height: 16),
+                    // "Feels off?" button
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          DialsEscalationSheet.show(
+                            context,
+                            exerciseName: currentSlot.exerciseName,
+                          );
+                        },
+                        icon: Icon(
+                          Icons.sentiment_dissatisfied_outlined,
+                          size: 16,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                        ),
+                        label: Text(
+                          'Feels off?',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Next set preview (if there's a pending set)
+                    if (currentSet != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: NextSetCard(
+                          setNumber: currentSet.setNumber,
+                          totalSets: currentSlot.totalSets,
+                          prescribedRepsMin: currentSet.prescribedRepsMin ?? 0,
+                          prescribedRepsMax: currentSet.prescribedRepsMax ?? currentSet.prescribedRepsMin ?? 0,
+                          suggestedLoad: double.tryParse(currentSet.prescribedLoad ?? ''),
+                          loadUnit: loadUnit,
+                        ),
+                      ),
                     ...currentSlot.sets.map((set) {
                       final isCurrentSet = currentSet != null &&
                           set.setLogId == currentSet.setLogId;

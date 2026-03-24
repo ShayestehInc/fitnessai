@@ -913,3 +913,241 @@ def get_exercise_thumbnail_prompt(
         f"neutral color palette, no text, no watermarks, no logos. "
         f"The subject is mid-rep demonstrating correct technique."
     )
+
+
+# ---------------------------------------------------------------------------
+# Builder Decision Tree Prompts (UI/UX Master Packet §12)
+#
+# Each tree provides structured reasoning the AI must follow when making
+# decisions at each builder step. The AI should output its reasoning
+# along each branch, not skip to a conclusion.
+# ---------------------------------------------------------------------------
+
+def get_photo_food_recognition_prompt() -> str:
+    """
+    Prompt for AI food recognition from a meal photo (Nutrition Spec §12).
+
+    The AI should identify foods, estimate portions, and provide macro estimates.
+    Results must be editable by the user before saving.
+    """
+    return """You are a nutrition AI analyzing a photo of a meal.
+
+Identify every visible food item in the image. For each item:
+1. Name the food (be specific — "grilled chicken breast" not just "chicken")
+2. Estimate the portion size in grams (use visual cues like plate size, utensils)
+3. Estimate macros per the estimated portion: protein_g, carbs_g, fat_g, calories
+
+Return a JSON array:
+{
+  "foods": [
+    {
+      "name": "Grilled Chicken Breast",
+      "quantity_g": 150,
+      "confidence": 0.85,
+      "protein_g": 46,
+      "carbs_g": 0,
+      "fat_g": 5,
+      "calories": 231
+    },
+    ...
+  ],
+  "meal_total": {
+    "protein_g": ...,
+    "carbs_g": ...,
+    "fat_g": ...,
+    "calories": ...
+  },
+  "notes": "Any relevant observations about the meal"
+}
+
+Rules:
+- Be specific about food names (include cooking method if visible)
+- Use standard portion estimation (a fist ≈ 1 cup, palm ≈ 3-4 oz protein)
+- Include sauces, dressings, oils if visible
+- Confidence should be 0.0-1.0 (lower if item is partially hidden or ambiguous)
+- Round macros to whole numbers
+- If you cannot identify a food, include it with name="Unknown item" and low confidence
+"""
+
+
+_DECISION_TREES: dict[str, str] = {
+    'choose_split': """
+You are choosing a training split. Follow this decision tree exactly:
+
+1. FILTER by days per week. Remove splits that don't work at this frequency.
+   - 2 days: full body, upper/lower
+   - 3 days: full body, PPL, push/pull, full body alternating
+   - 4 days: upper/lower, PPL+1, anterior/posterior, conjugate
+   - 5 days: body-part, PPL+upper/lower, specialization
+   - 6 days: PPL×2, body-part+1, concurrent
+2. FILTER by main goal. Bodybuilding → body-part, PPL, specialization. Athletic → movement-pattern, concurrent, event-based. Rehab → full body, movement-pattern.
+3. FILTER by recovery. Fragile recovery → simpler splits with more spacing. Strong recovery → complex/specialized splits.
+4. CHECK equipment. Limited equipment → drop specialty-dependent splits.
+5. CHECK emphasis needs. More upper/lower frequency → upper/lower or PPL. More body-part → body-part or specialization. More athletic → concurrent.
+6. RANK the remaining 2-3 options and pick the best fit. Save reasons so the app can explain the choice.
+
+Output: chosen split name, runner-up alternatives (max 3), and a 1-sentence "why" for each.
+""",
+
+    'choose_day_role': """
+You are assigning a day role to a session within the chosen split. Follow this tree:
+
+1. START with the split. The split determines the broad job of each day.
+2. ASK what quality is primary: strength, hypertrophy, power, conditioning, technique, or rehab tolerance.
+3. ASK what neural stress level: high neural (max effort, sprints, jumps), medium mixed, low neural (bodybuilding, machine, aerobic), or restore.
+4. CHECK the day before and after. Hard lower + high-neural days should not stack consecutively.
+5. ASSIGN the day label in plain language so the user immediately understands the session's job (e.g., "Heavy Lower Strength", "Upper Hypertrophy", "Athletic Power Day").
+
+Output: day_role label, session_family, day_stress level, and estimated duration in minutes.
+""",
+
+    'choose_slot_roles': """
+You are assigning slot roles inside a session. Follow this tree:
+
+1. START with the session family. Strength, hypertrophy, power, conditioning, and rehab sessions each need different slot mixes.
+2. PROTECT the first high-priority slot. If the session has power or technique work, that comes first to avoid fatigue contamination.
+3. ADD secondary slots only until the session time cap and weekly volume coverage are met.
+4. ADD support slots only if they fill a real need: trunk, carry, unilateral support, calves, neck, or rehab exposure.
+5. MARK low-priority finishers as optional so they are the first to be cut when time or readiness falls apart.
+
+Slot roles to choose from: prep, warm-up, main strength, secondary strength, hypertrophy compound, hypertrophy isolation, technique, power, sprint, jump, throw, unilateral support, trunk, carry, conditioning aerobic, conditioning high, rehab tolerance, cooldown.
+
+Output: ordered list of slots with role, pattern target, and whether optional.
+""",
+
+    'choose_set_structure': """
+You are choosing a set structure for a slot. Follow this tree:
+
+1. START with the slot role. Main strength and hypertrophy isolation do NOT use the same structures well.
+2. ASK how much quality control the slot needs. More technical or high-output → cleaner structures (straight sets, wave sets, cluster). More pump-focused → denser structures (drop sets, myo-reps, supersets).
+3. CHECK time pressure. If the session is tight, denser structures may rise. But if the slot is high-skill, density should not win at the cost of quality.
+4. CHECK safety and symptom risk. Aggressive fatigue methods should fall in rank when pain risk or technical risk is high.
+5. CHOOSE the simplest structure that gets the job done and still leaves the session coherent.
+
+Structure families:
+- Strength/quality: straight sets, ramping sets, back-off sets, wave sets, cluster sets, paused reps, dead-stop reps
+- Hypertrophy/density: rest-pause, myo-reps, drop sets, mechanical drop sets, tempo reps, 1.5 reps, iso-hold + reps, lengthened partials, burnout sets, widowmaker sets
+- Pacing: EMOM, E2MOM, AMRAP, AMQR, ladder sets, ascending/descending ladders, timed sets
+
+Output: structure name, sets, rep range, and USE/AVOID reason.
+""",
+
+    'choose_pairing': """
+You are deciding how exercises within a session should be grouped. Follow this tree:
+
+1. FIRST ask if the slot should stand alone. Main lifts, max effort work, sprints, jumps, and high-skill work often deserve straight sequencing.
+2. IF the slot can be paired, ask whether the best pairing is non-competing, antagonist, agonist, same-muscle, corrective, or contrast-based.
+3. CHECK interference risk, setup friction, and transition time. Does pairing wreck quality or add chaos?
+4. IF pairing improves efficiency without wrecking the slot, use it. If it turns the session into chaos, do not use it just because it looks efficient on paper.
+
+Pairing options: straight sequencing, alternating sets, supersets (antagonist, non-competing, agonist, compound), tri-sets, giant sets, contrast pairs, complex pairs, potentiation pairs, corrective + main, strength + mobility, strength + sprint, carry + trunk.
+
+Output: pairing method for each slot group with rationale.
+""",
+
+    'choose_exercise': """
+You are selecting an exercise for a slot. Follow this tree:
+
+1. START with the slot role and the movement/tissue target.
+2. PICK the right exercise class: barbell main lift, barbell secondary, dumbbell/kettlebell compound, machine compound, isolation, bodyweight strength, plyometric, sprint, COD/agility, carry, trunk, or aerobic modality.
+3. CHOOSE the symmetry/stance bias: bilateral symmetrical, asymmetrical front/back, asymmetrical lateral, unilateral, supported unilateral, offset bilateral.
+4. CHOOSE the plane bias: sagittal, frontal, transverse, multi-planar, or blended.
+5. CHOOSE the ROM bias: full ROM, lengthened, mid-range, shortened, partial overload, constrained, or progressive expansion.
+6. CHECK equipment availability, pain history, exercise familiarity, weekly coverage, fatigue stacking, and swap readiness.
+7. PICK the exercise that best satisfies the slot while remaining easy enough to coach and easy enough to swap when life happens.
+
+Output: exercise name, exercise class, key tags (stance, plane, ROM, velocity, load_source), and why this exercise fits.
+""",
+
+    'build_swaps': """
+You are building swap alternatives for a selected exercise. Follow this tree:
+
+1. START with the selected exercise and note which qualities must stay the same: slot role, movement pattern, muscle emphasis, set structure compatibility, intensity style, tempo, rest, and progression continuity.
+2. BUILD Same Muscle options for users who need the same tissue emphasis.
+3. BUILD Same Pattern options for users who need the same movement job.
+4. BUILD Explore All options for users who simply need anything compatible.
+5. PRE-BUILD pain-safe regressions for users who need the same slot to survive a flare-up.
+6. PRE-BUILD equipment-limited fallbacks for users whose training environment is inconsistent.
+7. If coach has locked alternatives, include Coach-Locked tab.
+
+For each alternative, preserve the slot's sets, reps, intensity target, tempo, and set structure by default unless the user explicitly changes them.
+
+Output: 3-5 alternatives per tab with similarity score and swap reason.
+""",
+
+    'choose_progression': """
+You are choosing a progression model for a slot. Follow this tree:
+
+1. START with the real goal. Strength, hypertrophy, athletic performance, conditioning, technique, and rehab do not use the same progression logic.
+2. ASK what is stable enough to progress: load, reps, sets, density, tempo, ROM, frequency, or performance output.
+3. ASK how much autoregulation the user actually needs and can handle.
+   - RPE/RIR for self-aware lifters
+   - Fixed percentages for lifters who prefer predictability
+   - Pain cap or quality cap for symptomatic trainees
+4. CHECK fatigue tolerance, deload needs, equipment consistency, and whether load prescription can be trusted.
+5. CHOOSE the simplest progression model that creates clear forward motion without pretending the user is a robot.
+
+Progression families: linear, step loading, double/triple progression, top set + back-off, wave/staircase, volume progression, density progression, tempo progression, ROM progression, frequency progression, rest reduction.
+
+Autoregulation: RPE, RIR, APRE, DAPRE, daily max, readiness-based, performance drop-off, fatigue cap, pain response, bar speed cutoff, session-rating adjustment.
+
+Output: progression type, autoregulation method (if any), deload trigger, and why.
+""",
+
+    'timing_check': """
+You are reviewing session timing to ensure the workout fits within the user's time budget. Follow this tree:
+
+1. START with the session time cap (e.g., 60 minutes). The session is NOT allowed to become imaginary.
+2. ADD warm-up time, setup time, transition time between exercises, work time per set, rest time per set, and logging time per slot.
+   - Warm-up/activation: 5-10 min
+   - Per slot: (sets × (work_seconds + rest_seconds)) + transition (1-2 min)
+3. SUM all slot times.
+4. IF the session runs over:
+   a. FIRST cut optional finishers
+   b. THEN cut low-priority support volume
+   c. THEN reduce density layers on remaining slots
+   d. NEVER cut the core objective slots that define the day
+5. PROTECT the slots that define the day. A 60-minute session should still feel like the day it was supposed to be, not a random pile of leftovers.
+
+Output: total estimated duration, any slots trimmed, and final slot list with times.
+""",
+}
+
+
+def get_builder_decision_tree_prompt(
+    step_name: str,
+    context: dict[str, object],
+) -> str:
+    """
+    Return the decision tree prompt for a specific builder step.
+
+    The AI should follow this tree when making recommendations, outputting
+    its reasoning at each branch point.
+
+    Args:
+        step_name: One of: choose_split, choose_day_role, choose_slot_roles,
+                   choose_set_structure, choose_pairing, choose_exercise,
+                   build_swaps, choose_progression, timing_check
+        context: Step-specific context (brief, current plan state, etc.)
+
+    Returns:
+        Formatted prompt string, or empty string if step_name not found.
+    """
+    tree = _DECISION_TREES.get(step_name, '')
+    if not tree:
+        return ''
+
+    # Format context into the prompt
+    context_lines: list[str] = []
+    for key, value in context.items():
+        context_lines.append(f"- {key}: {value}")
+
+    context_block = '\n'.join(context_lines) if context_lines else 'No additional context.'
+
+    return (
+        f"## Decision Tree: {step_name.replace('_', ' ').title()}\n\n"
+        f"### Context\n{context_block}\n\n"
+        f"### Decision Process\n{tree}\n"
+        f"Follow each step in order. Show your reasoning at each branch. "
+        f"Do not skip to a conclusion.\n"
+    )

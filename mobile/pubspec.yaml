@@ -62,6 +62,9 @@ dependencies:
   # File Picker
   file_picker: ^8.0.0
 
+  # Google Maps
+  google_maps_flutter: ^2.6.1
+
   # Image Picker
   image_picker: ^1.0.7
 
@@ -76,6 +79,14 @@ dependencies:
 
   # Markdown rendering
   flutter_markdown: ^0.7.4
+
+  # SVG rendering (Anatomy visualization)
+  flutter_svg: ^2.0.10
+  xml: ^6.5.0
+  path_drawing: ^1.0.1
+
+  # WebView (3D Anatomy viewer)
+  flutter_inappwebview: ^6.1.5
 
   # WebSocket
   web_socket_channel: ^3.0.1
@@ -104,6 +115,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   flutter_lints: ^3.0.1
   drift_dev: ^2.14.1
   freezed: ^2.4.6
@@ -124,3 +137,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon/
+    - assets/anatomy/
+    - assets/muscle_groups/

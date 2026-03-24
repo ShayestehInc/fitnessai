@@ -26,8 +26,14 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>GOOGLE_MAPS_API_KEY</key>
+	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>FitnessAI uses your location to show nearby events and gyms on the map.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>FitnessAI uses the camera to scan food barcodes for nutrition tracking.</string>
+	<string>FitnessAI uses the camera for food barcode scanning, form video recording, and dual capture coaching videos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>FitnessAI uses the microphone for voice memos and coaching video recordings.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID for quick and secure sign in.</string>
 	<key>NSHealthShareUsageDescription</key>
@@ -38,9 +44,6 @@
 	<string>Select photos to use as exercise images.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
-	<!-- Google Sign-In -->
-	<key>GIDClientID</key>
-	<string>678085268098-oiujkrm9mavo40jtpgjq9vbu0ki25nl0.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -70,6 +70,9 @@ def submit_feedback(
     ratings: dict[str, int | None],
     friction_reasons: list[str],
     recovery_concern: bool,
+    win_reasons: list[str] | None = None,
+    session_volume_perception: str = '',
+    requested_action: str = '',
     notes: str,
     pain_events_data: list[dict[str, Any]],
     actor_id: int | None = None,
@@ -77,8 +80,8 @@ def submit_feedback(
     """
     Submit end-of-session feedback for an active session.
 
-    Creates SessionFeedback, optional PainEvents, evaluates routing rules,
-    and creates TrainerNotifications for triggered rules.
+    Creates SessionFeedback, optional PainEvents, evaluates routing rules
+    (including pattern-based rules), and creates TrainerNotifications.
     """
     with transaction.atomic():
         # Create feedback
@@ -94,6 +97,9 @@ def submit_feedback(
             rating_difficulty=ratings.get('difficulty'),
             friction_reasons=friction_reasons,
             recovery_concern=recovery_concern,
+            win_reasons=win_reasons or [],
+            session_volume_perception=session_volume_perception,
+            requested_action=requested_action,
             notes=notes,
         )
 
@@ -131,6 +137,9 @@ def submit_feedback(
                 'ratings': ratings,
                 'friction_reasons': friction_reasons,
                 'recovery_concern': recovery_concern,
+                'win_reasons': win_reasons or [],
+                'session_volume_perception': session_volume_perception,
+                'requested_action': requested_action,
                 'pain_events_count': len(pain_events),
             },
             constraints_applied={},
@@ -239,6 +248,55 @@ def _check_rule(
         if 'form_breakdown' in feedback.friction_reasons:
             return "Trainee reported form breakdown"
 
+    elif rule_type == 'pattern_fit_issue':
+        return _check_pattern_fit_issue(feedback)
+
+    elif rule_type == 'pattern_confidence_drop':
+        return _check_pattern_confidence_drop(feedback)
+
+    return None
+
+
+def _check_pattern_fit_issue(feedback: SessionFeedback) -> str | None:
+    """Check if trainee has repeated exercise-fit friction across recent sessions."""
+    fit_friction = {'equipment_unavailable', 'other'}
+    if not fit_friction.intersection(feedback.friction_reasons):
+        return None
+
+    recent = list(
+        SessionFeedback.objects.filter(
+            trainee=feedback.trainee,
+            created_at__lt=feedback.created_at,
+        )
+        .order_by('-created_at')
+        .values_list('friction_reasons', flat=True)[:4]
+    )
+    fit_count = sum(
+        1 for reasons in recent
+        if isinstance(reasons, list) and fit_friction.intersection(reasons)
+    )
+    if fit_count >= 2:
+        return f"Exercise-fit friction in {fit_count + 1} of last {len(recent) + 1} sessions"
+    return None
+
+
+def _check_pattern_confidence_drop(feedback: SessionFeedback) -> str | None:
+    """Check if trainee confidence has been trending down over recent sessions."""
+    if feedback.rating_confidence is None or feedback.rating_confidence > 2:
+        return None
+
+    recent = list(
+        SessionFeedback.objects.filter(
+            trainee=feedback.trainee,
+            created_at__lt=feedback.created_at,
+            rating_confidence__isnull=False,
+        )
+        .order_by('-created_at')
+        .values_list('rating_confidence', flat=True)[:4]
+    )
+    low_count = sum(1 for r in recent if r <= 2)
+    if low_count >= 2:
+        return f"Confidence ≤ 2 in {low_count + 1} of last {len(recent) + 1} sessions"
     return None
 
 
@@ -259,6 +317,8 @@ def _create_notification(
         'recovery_concern': 'general',
         'form_breakdown': 'general',
         'missed_sessions': 'workout_missed',
+        'pattern_fit_issue': 'general',
+        'pattern_confidence_drop': 'general',
     }
     notification_type = type_map.get(rule.rule_type, 'general')
 
@@ -271,6 +331,8 @@ def _create_notification(
         'recovery_concern': f"Recovery concern from {trainee_name}",
         'form_breakdown': f"Form breakdown reported by {trainee_name}",
         'missed_sessions': f"Missed sessions alert for {trainee_name}",
+        'pattern_fit_issue': f"Repeated exercise-fit issues for {trainee_name}",
+        'pattern_confidence_drop': f"Falling confidence pattern for {trainee_name}",
     }
 
     try:
@@ -434,6 +496,16 @@ DEFAULT_ROUTING_RULES: list[dict[str, Any]] = [
     {
         'rule_type': 'form_breakdown',
         'threshold_value': {},
+        'notification_method': 'in_app',
+    },
+    {
+        'rule_type': 'pattern_fit_issue',
+        'threshold_value': {'lookback_sessions': 5},
+        'notification_method': 'in_app',
+    },
+    {
+        'rule_type': 'pattern_confidence_drop',
+        'threshold_value': {'lookback_sessions': 5},
         'notification_method': 'in_app',
     },
 ]

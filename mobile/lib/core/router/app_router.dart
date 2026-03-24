@@ -52,7 +52,12 @@ import '../../features/trainer/presentation/screens/trainee_list_screen.dart';
 import '../../features/trainer/presentation/screens/trainee_detail_screen.dart';
 import '../../features/trainer/presentation/screens/invite_trainee_screen.dart';
 import '../../features/trainer/presentation/screens/assign_program_screen.dart';
+import '../../features/dual_capture/presentation/screens/dual_capture_screen.dart';
+import '../../features/nutrition/presentation/screens/meal_plan_builder_screen.dart';
+import '../../features/nutrition/presentation/screens/nutrition_template_picker_screen.dart';
+import '../../features/nutrition/presentation/screens/photo_food_log_screen.dart';
 import '../../features/nutrition/presentation/screens/template_assignment_screen.dart';
+import '../../features/nutrition/presentation/screens/weekly_checkin_screen.dart';
 import '../../features/nutrition/presentation/screens/day_plan_screen.dart';
 import '../../features/nutrition/presentation/screens/week_plan_screen.dart';
 import '../../features/trainer/presentation/screens/trainer_notifications_screen.dart';
@@ -429,6 +434,56 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => adaptivePage(
           key: state.pageKey,
           child: const WeekPlanScreen(),
+        ),
+      ),
+
+      // Nutrition template picker (v6.5 Nutrition Spec §14)
+      GoRoute(
+        path: '/nutrition/template-picker',
+        name: 'nutrition-template-picker',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const NutritionTemplatePickerScreen(),
+        ),
+      ),
+
+      // Weekly nutrition check-in (v6.5 Nutrition Spec §13)
+      GoRoute(
+        path: '/nutrition/weekly-checkin',
+        name: 'weekly-checkin',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const WeeklyCheckinScreen(),
+        ),
+      ),
+
+      // Photo food log
+      GoRoute(
+        path: '/nutrition/photo-log',
+        name: 'photo-food-log',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const PhotoFoodLogScreen(),
+        ),
+      ),
+
+      // Meal plan builder
+      GoRoute(
+        path: '/nutrition/meal-planner',
+        name: 'meal-planner',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const MealPlanBuilderScreen(),
+        ),
+      ),
+
+      // Dual Capture — Loom-style recording (v6.5 §22)
+      GoRoute(
+        path: '/dual-capture',
+        name: 'dual-capture',
+        pageBuilder: (context, state) => adaptivePage(
+          key: state.pageKey,
+          child: const DualCaptureScreen(),
         ),
       ),
 

@@ -16,6 +16,9 @@ class FeedbackRepository {
     required Map<String, int> ratings,
     List<String> frictionReasons = const [],
     bool recoveryConcern = false,
+    List<String> winReasons = const [],
+    String sessionVolumePerception = '',
+    String requestedAction = '',
     String notes = '',
     List<Map<String, dynamic>> painEvents = const [],
   }) async {
@@ -25,6 +28,9 @@ class FeedbackRepository {
         'ratings': ratings,
         'friction_reasons': frictionReasons,
         'recovery_concern': recoveryConcern,
+        'win_reasons': winReasons,
+        'session_volume_perception': sessionVolumePerception,
+        'requested_action': requestedAction,
         'notes': notes,
         'pain_events': painEvents,
       };

@@ -70,6 +70,9 @@ class SubmitFeedbackNotifier
     required Map<String, int> ratings,
     List<String> frictionReasons = const [],
     bool recoveryConcern = false,
+    List<String> winReasons = const [],
+    String sessionVolumePerception = '',
+    String requestedAction = '',
     String notes = '',
     List<Map<String, dynamic>> painEvents = const [],
   }) async {
@@ -81,6 +84,9 @@ class SubmitFeedbackNotifier
       ratings: ratings,
       frictionReasons: frictionReasons,
       recoveryConcern: recoveryConcern,
+      winReasons: winReasons,
+      sessionVolumePerception: sessionVolumePerception,
+      requestedAction: requestedAction,
       notes: notes,
       painEvents: painEvents,
     );

@@ -18,6 +18,8 @@ import '../../data/models/trainee_model.dart';
 import 'program_options_screen.dart';
 import 'edit_trainee_goals_screen.dart';
 import 'remove_trainee_screen.dart';
+import '../widgets/curated_build_sheet.dart';
+import '../widgets/curated_nutrition_sheet.dart';
 import 'dart:math' as math;
 import '../../data/repositories/trainer_repository.dart';
 import '../../../nutrition/presentation/providers/nutrition_template_provider.dart';
@@ -344,6 +346,18 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         _buildCurrentProgramCard(trainee),
         const SizedBox(height: 24),
 
+        // AI Program Generation
+        _buildSectionTitle('AI Program Generation'),
+        const SizedBox(height: 12),
+        _buildCuratedBuildCard(trainee),
+        const SizedBox(height: 24),
+
+        // AI Nutrition Plan
+        _buildSectionTitle('AI Nutrition Plan'),
+        const SizedBox(height: 12),
+        _buildCuratedNutritionCard(trainee),
+        const SizedBox(height: 24),
+
         // Workout Display Layout
         _buildSectionTitle('Workout Display'),
         const SizedBox(height: 12),
@@ -664,7 +678,7 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(context.l10n.trainerWeekcurrentWeek, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                    child: Text('Week $currentWeek', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -740,6 +754,134 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
         builder: (context) => ProgramOptionsScreen(
           traineeId: trainee.id,
           program: program,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCuratedBuildCard(TraineeDetailModel trainee) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.primary.withValues(alpha: 0.3),
+        ),
+      ),
+      color: theme.colorScheme.primary.withValues(alpha: 0.05),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: theme.colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Generate AI Program',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create a personalized program using this trainee\'s profile, '
+              'lift history, feedback patterns, and pain history.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  CuratedBuildSheet.show(
+                    context,
+                    traineeId: trainee.id,
+                    traineeName: (trainee.firstName ?? '').isNotEmpty
+                        ? trainee.firstName!
+                        : trainee.email,
+                    currentGoal: trainee.profile?.goal,
+                  );
+                },
+                icon: const Icon(Icons.auto_awesome, size: 18),
+                label: const Text('Generate'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCuratedNutritionCard(TraineeDetailModel trainee) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: const Color(0xFF22C55E).withValues(alpha: 0.3),
+        ),
+      ),
+      color: const Color(0xFF22C55E).withValues(alpha: 0.05),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.restaurant_menu,
+                  color: const Color(0xFF22C55E),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Generate AI Nutrition Plan',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create a personalized nutrition plan using this trainee\'s profile, '
+              'training schedule, weight trends, and meal adherence.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  CuratedNutritionSheet.show(
+                    context,
+                    traineeId: trainee.id,
+                    traineeName: (trainee.firstName ?? '').isNotEmpty
+                        ? trainee.firstName!
+                        : trainee.email,
+                    currentGoal: trainee.profile?.goal,
+                  );
+                },
+                icon: const Icon(Icons.restaurant_menu, size: 18),
+                label: const Text('Generate'),
+              ),
+            ),
+          ],
         ),
       ),
     );

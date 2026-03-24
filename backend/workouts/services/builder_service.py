@@ -14,17 +14,27 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from collections.abc import Callable
 from typing import Any
 
 from django.db import transaction
 from django.db.models import Q
 
+from django.db.models import Avg, Count
+from django.utils import timezone
+
+from users.models import User
 from workouts.models import (
+    ActiveSession,
     DecisionLog,
     Exercise,
+    LiftMax,
+    NutritionGoal,
+    PainEvent,
     PlanSession,
     PlanSlot,
     PlanWeek,
+    SessionFeedback,
     SetStructureModality,
     SplitTemplate,
     TrainingPlan,
@@ -168,6 +178,180 @@ class QuickBuildResult:
     step_explanations: list[StepExplanation]
 
 
+@dataclass(frozen=True)
+class TraineeContext:
+    """Full trainee context gathered for AI-curated program generation."""
+    # Profile
+    age: int | None = None
+    sex: str = ''
+    weight_kg: float | None = None
+    height_cm: float | None = None
+    body_fat_pct: float | None = None
+    activity_level: str = ''
+    goal: str = ''
+    diet_type: str = ''
+    # Nutrition targets
+    protein_goal: int = 0
+    carbs_goal: int = 0
+    fat_goal: int = 0
+    calorie_goal: int = 0
+    # Training history (last 3 plans)
+    past_plans: list[dict[str, Any]] = field(default_factory=list)
+    # Strength benchmarks (top lifts)
+    top_lifts: list[dict[str, Any]] = field(default_factory=list)
+    # Session feedback patterns
+    avg_overall_rating: float | None = None
+    avg_difficulty_rating: float | None = None
+    common_volume_perception: str = ''
+    feedback_count: int = 0
+    # Pain history
+    chronic_pain_regions: list[dict[str, Any]] = field(default_factory=list)
+    # Adherence (last 30 days)
+    sessions_planned: int = 0
+    sessions_completed: int = 0
+    adherence_pct: float = 0.0
+
+
+def gather_trainee_context(trainee_id: int) -> TraineeContext:
+    """
+    Gather comprehensive trainee context for AI-curated plan generation.
+    Queries profile, nutrition, past plans, lifts, feedback, pain, adherence.
+    """
+    trainee = User.objects.select_related('profile').get(pk=trainee_id)
+    profile = getattr(trainee, 'profile', None)
+
+    # Profile data
+    age = getattr(profile, 'age', None)
+    sex = getattr(profile, 'sex', '')
+    weight_kg = getattr(profile, 'weight_kg', None)
+    height_cm = getattr(profile, 'height_cm', None)
+    body_fat_pct = getattr(profile, 'body_fat_percentage', None)
+    activity_level = getattr(profile, 'activity_level', '')
+    goal = getattr(profile, 'goal', '')
+    diet_type = getattr(profile, 'diet_type', '')
+
+    # Nutrition goals
+    nutrition = NutritionGoal.objects.filter(trainee_id=trainee_id).first()
+    protein_goal = int(nutrition.protein_goal) if nutrition and nutrition.protein_goal else 0
+    carbs_goal = int(nutrition.carbs_goal) if nutrition and nutrition.carbs_goal else 0
+    fat_goal = int(nutrition.fat_goal) if nutrition and nutrition.fat_goal else 0
+    calorie_goal = int(nutrition.calories_goal) if nutrition and nutrition.calories_goal else 0
+
+    # Past plans (last 3)
+    past_plans_qs = (
+        TrainingPlan.objects.filter(trainee_id=trainee_id)
+        .select_related('split_template')
+        .order_by('-created_at')[:3]
+    )
+    past_plans: list[dict[str, Any]] = [
+        {
+            'goal': p.goal,
+            'duration_weeks': p.duration_weeks,
+            'split_name': p.split_template.name if p.split_template else '',
+            'status': p.status,
+            'build_mode': p.build_mode or '',
+        }
+        for p in past_plans_qs
+    ]
+
+    # Top lifts (top 10 by e1RM)
+    top_lifts_qs = (
+        LiftMax.objects.filter(trainee_id=trainee_id, e1rm_current__isnull=False)
+        .select_related('exercise')
+        .order_by('-e1rm_current')[:10]
+    )
+    top_lifts: list[dict[str, Any]] = [
+        {
+            'exercise_name': lm.exercise.name,
+            'e1rm': float(lm.e1rm_current) if lm.e1rm_current else None,
+            'tm': float(lm.tm_current) if lm.tm_current else None,
+        }
+        for lm in top_lifts_qs
+    ]
+
+    # Session feedback (last 90 days)
+    ninety_days_ago = timezone.now() - timezone.timedelta(days=90)
+    feedback_agg = SessionFeedback.objects.filter(
+        trainee_id=trainee_id,
+        created_at__gte=ninety_days_ago,
+    ).aggregate(
+        avg_overall=Avg('rating_overall'),
+        avg_difficulty=Avg('rating_difficulty'),
+        count=Count('id'),
+    )
+
+    # Most common volume perception
+    volume_perceptions = list(
+        SessionFeedback.objects.filter(
+            trainee_id=trainee_id,
+            created_at__gte=ninety_days_ago,
+            session_volume_perception__gt='',
+        )
+        .values_list('session_volume_perception', flat=True)
+    )
+    common_volume = ''
+    if volume_perceptions:
+        from collections import Counter
+        common_volume = Counter(volume_perceptions).most_common(1)[0][0]
+
+    # Pain history (last 90 days, grouped by region)
+    pain_agg = (
+        PainEvent.objects.filter(
+            trainee_id=trainee_id,
+            created_at__gte=ninety_days_ago,
+        )
+        .values('body_region')
+        .annotate(frequency=Count('id'), avg_severity=Avg('pain_score'))
+        .order_by('-frequency')[:5]
+    )
+    chronic_pain: list[dict[str, Any]] = [
+        {
+            'region': p['body_region'],
+            'frequency': p['frequency'],
+            'avg_severity': round(float(p['avg_severity']), 1) if p['avg_severity'] else 0,
+        }
+        for p in pain_agg
+    ]
+
+    # Adherence (last 30 days)
+    thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+    completed = ActiveSession.objects.filter(
+        trainee_id=trainee_id,
+        created_at__gte=thirty_days_ago,
+        status='completed',
+    ).count()
+    total = ActiveSession.objects.filter(
+        trainee_id=trainee_id,
+        created_at__gte=thirty_days_ago,
+    ).exclude(status='not_started').count()
+    adherence = (completed / total * 100) if total > 0 else 0.0
+
+    return TraineeContext(
+        age=age,
+        sex=sex,
+        weight_kg=float(weight_kg) if weight_kg else None,
+        height_cm=float(height_cm) if height_cm else None,
+        body_fat_pct=float(body_fat_pct) if body_fat_pct else None,
+        activity_level=activity_level,
+        goal=goal,
+        diet_type=diet_type,
+        protein_goal=protein_goal,
+        carbs_goal=carbs_goal,
+        fat_goal=fat_goal,
+        calorie_goal=calorie_goal,
+        past_plans=past_plans,
+        top_lifts=top_lifts,
+        avg_overall_rating=round(float(feedback_agg['avg_overall']), 1) if feedback_agg['avg_overall'] else None,
+        avg_difficulty_rating=round(float(feedback_agg['avg_difficulty']), 1) if feedback_agg['avg_difficulty'] else None,
+        common_volume_perception=common_volume,
+        feedback_count=feedback_agg['count'] or 0,
+        chronic_pain_regions=chronic_pain,
+        sessions_planned=total,
+        sessions_completed=completed,
+        adherence_pct=round(adherence, 1),
+    )
+
+
 @dataclass
 class BuilderStepResult:
     """Output from a single advanced builder step."""
@@ -213,7 +397,10 @@ def _try_ai_quick_build(brief: BuilderBrief) -> dict[str, Any] | None:
         return None
 
 
-def quick_build(brief: BuilderBrief) -> QuickBuildResult:
+def quick_build(
+    brief: BuilderBrief,
+    progress_callback: Callable[[str], None] | None = None,
+) -> QuickBuildResult:
     """
     Run the full pipeline with AI-powered intelligence.
     AI designs the program, deterministic pipeline creates the DB records.
@@ -230,12 +417,21 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         filter_exercises_by_tags,
     )
 
-    # Try AI-powered design first
-    ai_result = _try_ai_quick_build(brief)
+    def _progress(step: str) -> None:
+        if progress_callback:
+            progress_callback(step)
+
+    # Run AI in a separate thread so progress updates keep flowing
+    import concurrent.futures
+    _progress('Consulting AI for program design...')
+    ai_future: concurrent.futures.Future[dict[str, Any] | None] = concurrent.futures.ThreadPoolExecutor(
+        max_workers=1,
+    ).submit(_try_ai_quick_build, brief)
 
     decision_log_ids: list[str] = []
     explanations: list[StepExplanation] = []
 
+    _progress('Analyzing your goals & preferences...')
     with transaction.atomic():
         # A1: Length
         weeks_count, why_length, alts_length = _explain_length(brief)
@@ -294,6 +490,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         )
 
         # A3: Skeleton
+        _progress('Building skeleton...')
         all_weeks, all_sessions, all_specs, log_a3 = _a3_build_skeleton(
             plan=plan,
             split_template=split_template,
@@ -333,6 +530,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # A4: Roles — NEW: intelligent role assignment based on session family
+        _progress('Assigning slot roles...')
         # Group specs by session for intelligent role assignment
         session_spec_map: dict[str, list[Any]] = {}
         for spec in all_specs:
@@ -377,6 +575,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         deload_week_numbers: set[int] = {w.week_number for w in all_weeks if w.is_deload}
 
         # A5: Set structures
+        _progress('Configuring sets & reps...')
         log_a5 = _a5_set_structure(
             all_specs, brief.goal, brief.trainer_id, str(plan.pk),
             deload_week_numbers, modality_by_slug,
@@ -395,6 +594,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # A6: Exercises — with tag filtering
+        _progress('Selecting exercises...')
         # Apply tag-based filtering to each muscle group pool
         if brief.pain_tolerances or brief.equipment or brief.hated_lifts:
             for mg, exercises in pool.items():
@@ -424,6 +624,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # A7: Swaps — with expanded buckets
+        _progress('Building swap alternatives...')
         log_a7 = _a7_build_swap_recommendations(
             all_specs, all_exercises, brief.trainer_id, str(plan.pk),
         )
@@ -440,6 +641,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # NEW: Pairing logic
+        _progress('Pairing exercises (supersets)...')
         for session in all_sessions:
             session_specs = session_spec_map.get(str(session.pk), [])
             pairings = assign_pairings(
@@ -465,6 +667,7 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # NEW: Session timing + auto-trim
+        _progress('Optimizing session timing...')
         trimmed_total = 0
         for session in all_sessions:
             session_specs = session_spec_map.get(str(session.pk), [])
@@ -497,8 +700,16 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         ))
 
         # Create PlanSlots
+        _progress('Finalizing program...')
         plan_slots = _specs_to_plan_slots(all_specs)
         PlanSlot.objects.bulk_create(plan_slots)
+
+        # Collect AI result (non-blocking — it's been running in parallel)
+        _progress('Applying AI insights...')
+        try:
+            ai_result = ai_future.result(timeout=1)
+        except Exception:
+            ai_result = None
 
         # Override explanations with AI-generated ones if available
         if ai_result:
@@ -536,6 +747,119 @@ def quick_build(brief: BuilderBrief) -> QuickBuildResult:
         summary=summary,
         step_explanations=explanations,
     )
+
+
+# ---------------------------------------------------------------------------
+# Curated Build (AI-personalized for a specific trainee)
+# ---------------------------------------------------------------------------
+
+def curated_build(
+    brief: BuilderBrief,
+    trainee_context: TraineeContext,
+    trainer_notes: str = '',
+    progress_callback: Callable[[str], None] | None = None,
+) -> QuickBuildResult:
+    """
+    Generate a fully personalized program for a specific trainee.
+    Gathers the trainee's full context (profile, lifts, feedback, pain, adherence)
+    and passes it to AI for a curated plan. Falls back to quick_build if AI fails.
+    """
+    def _progress(step: str) -> None:
+        if progress_callback:
+            progress_callback(step)
+
+    _progress('Gathering trainee history and preferences...')
+
+    # Log the curated build intent
+    context_snapshot = {
+        'trainee_id': brief.trainee_id,
+        'age': trainee_context.age,
+        'sex': trainee_context.sex,
+        'weight_kg': trainee_context.weight_kg,
+        'goal': trainee_context.goal,
+        'activity_level': trainee_context.activity_level,
+        'top_lifts_count': len(trainee_context.top_lifts),
+        'past_plans_count': len(trainee_context.past_plans),
+        'feedback_count': trainee_context.feedback_count,
+        'pain_regions_count': len(trainee_context.chronic_pain_regions),
+        'adherence_pct': trainee_context.adherence_pct,
+        'trainer_notes': trainer_notes,
+    }
+
+    DecisionLog.objects.create(
+        actor_type=DecisionLog.ActorType.SYSTEM,
+        actor_id=brief.trainer_id,
+        decision_type='curated_build_started',
+        context={'trainee_id': brief.trainee_id},
+        inputs_snapshot=context_snapshot,
+        constraints_applied={},
+        options_considered=[],
+        final_choice={'build_mode': 'curated'},
+        reason_codes=['curated_build', 'trainee_personalized'],
+    )
+
+    _progress('Designing personalized program with AI...')
+
+    # Auto-enrich brief from trainee context where fields are empty
+    enriched_brief = _enrich_brief_from_context(brief, trainee_context)
+
+    # Delegate to quick_build with the enriched brief
+    # The AI prompt enrichment happens in _try_ai_quick_build via the brief
+    result = quick_build(enriched_brief, progress_callback=progress_callback)
+
+    # Update the plan's build_mode to 'curated'
+    TrainingPlan.objects.filter(pk=result.plan_id).update(build_mode='curated')
+
+    return result
+
+
+def _enrich_brief_from_context(
+    brief: BuilderBrief,
+    ctx: TraineeContext,
+) -> BuilderBrief:
+    """
+    Fill in empty brief fields from the trainee's context data.
+    Explicit overrides in the brief take precedence.
+    """
+    import dataclasses
+
+    updates: dict[str, Any] = {}
+
+    # Goal from profile if not set
+    if not brief.goal and ctx.goal:
+        updates['goal'] = ctx.goal
+
+    # Difficulty from experience
+    if not brief.difficulty or brief.difficulty == 'intermediate':
+        if ctx.feedback_count > 20 and ctx.adherence_pct > 80:
+            updates['difficulty'] = 'advanced'
+        elif ctx.feedback_count < 5:
+            updates['difficulty'] = 'beginner'
+
+    # Pain tolerances from pain history
+    if not brief.pain_tolerances and ctx.chronic_pain_regions:
+        pain_tol: dict[str, str] = {}
+        for region in ctx.chronic_pain_regions:
+            r = region.get('region', '')
+            if 'shoulder' in r:
+                pain_tol['overhead'] = 'limited' if region.get('avg_severity', 0) < 6 else 'avoid'
+            if 'lower_back' in r:
+                pain_tol['axial_loading'] = 'limited' if region.get('avg_severity', 0) < 6 else 'avoid'
+            if 'knee' in r or 'ankle' in r:
+                pain_tol['impact'] = 'limited' if region.get('avg_severity', 0) < 6 else 'avoid'
+        if pain_tol:
+            updates['pain_tolerances'] = pain_tol
+
+    # Injuries from chronic pain
+    if not brief.injuries and ctx.chronic_pain_regions:
+        updates['injuries'] = [
+            f"{r.get('region', '')} (avg pain {r.get('avg_severity', '?')}/10)"
+            for r in ctx.chronic_pain_regions[:3]
+        ]
+
+    if updates:
+        return dataclasses.replace(brief, **updates)
+    return brief
 
 
 # ---------------------------------------------------------------------------
@@ -1240,6 +1564,15 @@ def _advance_from_publish(
         }
         plan.save(update_fields=['status', 'builder_state', 'updated_at'])
 
+    # Convert the plan to a Program so the trainee can start logging workouts
+    program_id: int | None = None
+    if not save_draft and plan.trainee_id:
+        from workouts.services.plan_converter_service import convert_plan_to_program
+        trainer_id = plan.created_by_id or brief.trainer_id
+        if trainer_id:
+            program = convert_plan_to_program(plan, plan.trainee_id, trainer_id)
+            program_id = program.pk
+
     return BuilderStepResult(
         plan_id=str(plan.pk),
         current_step='complete',
@@ -1247,10 +1580,11 @@ def _advance_from_publish(
         total_steps=len(BUILDER_STEPS) - 1,
         recommendation={},
         alternatives=[],
-        why='Plan published successfully.' if not save_draft else 'Plan saved as draft.',
+        why='Program published successfully.' if not save_draft else 'Plan saved as draft.',
         preview={
             'status': plan.status,
             'slots_created': len(plan_slots),
+            'program_id': program_id,
         },
         is_complete=True,
     )

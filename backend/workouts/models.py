@@ -138,6 +138,44 @@ class Exercise(models.Model):
         SHORTENED = 'shortened', 'Shortened Bias (Peak Tension Near Shortened Position)'
         MIXED = 'mixed', 'Mixed (Unclear or Blended)'
 
+    # v6.5 UI/UX Packet §11: Additional exercise decision tree tags
+    class VelocityBias(models.TextChoices):
+        STATIC = 'static', 'Static / Isometric'
+        VERY_SLOW = 'very_slow', 'Very Slow Controlled'
+        CONTROLLED = 'controlled', 'Controlled Moderate'
+        NORMAL = 'normal', 'Normal Rhythmic'
+        EXPLOSIVE = 'explosive', 'Explosive Intent'
+        BALLISTIC = 'ballistic', 'Ballistic'
+        REACTIVE = 'reactive', 'Reactive / Elastic'
+
+    class DurationBias(models.TextChoices):
+        VERY_SHORT = 'very_short', 'Very Short Alactic'
+        SHORT = 'short', 'Short Set'
+        MODERATE = 'moderate', 'Moderate Set'
+        EXTENDED_TUT = 'extended_tut', 'Extended Time-Under-Tension'
+        TIMED = 'timed', 'Timed Interval'
+        CONTINUOUS = 'continuous', 'Continuous Aerobic'
+        DENSITY = 'density', 'Density Block'
+
+    class SupportBias(models.TextChoices):
+        FREE_STANDING = 'free_standing', 'Free-Standing / Unsupported'
+        HAND_SUPPORTED = 'hand_supported', 'Hand-Supported'
+        BENCH_SUPPORTED = 'bench_supported', 'Bench-Supported'
+        MACHINE_GUIDED = 'machine_guided', 'Machine-Guided'
+        CABLE = 'cable', 'Cable Line-Supported'
+        ASSISTED = 'assisted', 'Assisted Bodyweight'
+
+    class LoadSource(models.TextChoices):
+        BODYWEIGHT = 'bodyweight', 'Bodyweight'
+        BARBELL = 'barbell', 'Barbell'
+        DUMBBELL = 'dumbbell', 'Dumbbell'
+        KETTLEBELL = 'kettlebell', 'Kettlebell'
+        CABLE_LOAD = 'cable', 'Cable'
+        MACHINE = 'machine', 'Machine'
+        BAND = 'band', 'Band'
+        SLED = 'sled', 'Sled / Drag Load'
+        MED_BALL = 'med_ball', 'Med-Ball / Throw Object'
+
     # --- Core fields ---
     name = models.CharField(max_length=255)
     aliases = ArrayField(
@@ -260,6 +298,36 @@ class Exercise(models.Model):
         blank=True,
         default='',
         help_text="Where peak tension occurs in the range of motion.",
+    )
+
+    # v6.5 UI/UX Packet §11: velocity, duration, support, load source
+    velocity_bias = models.CharField(
+        max_length=20,
+        choices=VelocityBias.choices,
+        blank=True,
+        default='',
+        help_text="Intended movement speed for this exercise.",
+    )
+    duration_bias = models.CharField(
+        max_length=20,
+        choices=DurationBias.choices,
+        blank=True,
+        default='',
+        help_text="Typical set duration category.",
+    )
+    support_bias = models.CharField(
+        max_length=20,
+        choices=SupportBias.choices,
+        blank=True,
+        default='',
+        help_text="Level of external support or stability assistance.",
+    )
+    load_source = models.CharField(
+        max_length=20,
+        choices=LoadSource.choices,
+        blank=True,
+        default='',
+        help_text="Primary loading implement for this exercise.",
     )
 
     equipment_required = ArrayField(
@@ -1579,6 +1647,25 @@ class FoodItem(models.Model):
         default=False,
         help_text="True for system foods, False for trainer-created custom foods",
     )
+
+    # v6.5 Nutrition Spec V1.2 §10: Fat source tagging for fat mode support
+    class FatSourceType(models.TextChoices):
+        ADDED_FAT_SOURCE = 'added_fat_source', 'Added Fat (oils, butter, dressings)'
+        PROTEIN_FAT_SOURCE = 'protein_fat_source', 'Protein Fat (comes with protein, e.g. salmon, eggs)'
+        MIXED = 'mixed', 'Mixed (counts normally)'
+
+    fat_source_type = models.CharField(
+        max_length=25,
+        choices=FatSourceType.choices,
+        default=FatSourceType.MIXED,
+        help_text=(
+            "How this food's fat should be classified for Added-Fats-Only mode. "
+            "added_fat_source: oils, butter, dressings — always counted. "
+            "protein_fat_source: fat inherent in protein — can be ignored in added-fats mode. "
+            "mixed: counts normally in both modes."
+        ),
+    )
+
     created_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
@@ -1728,6 +1815,245 @@ class MealLogEntry(models.Model):
         if self.food_item:
             return self.food_item.name
         return self.custom_name or "Unknown food"
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Nutrition Spec V1.2 §13: Weekly Nutrition Check-In + Reactive Engine
+# ---------------------------------------------------------------------------
+
+class WeeklyNutritionCheckIn(models.Model):
+    """
+    Weekly snapshot used by the reactive nutrition engine.
+    Stores objective + subjective signals and the engine's decision with undo.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='weekly_nutrition_checkins',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    week_start = models.DateField(
+        help_text="Monday of the check-in week.",
+    )
+
+    # A) Body & trend
+    weight_avg_kg = models.FloatField(
+        null=True, blank=True,
+        help_text="Average daily weight for the week (kg).",
+    )
+    waist_cm = models.FloatField(
+        null=True, blank=True,
+        help_text="Optional weekly waist measurement (cm).",
+    )
+
+    # B) Adherence & logging quality
+    adherence_pct = models.FloatField(
+        default=0,
+        help_text="Percent of meals logged vs planned (0-100).",
+    )
+    completeness_score = models.FloatField(
+        default=0,
+        help_text="How fully they tracked each day (0-100).",
+    )
+    missed_days = models.PositiveSmallIntegerField(default=0)
+    reason_codes = models.JSONField(
+        default=list,
+        help_text="Reasons for missed days: travel, stress, time, etc.",
+    )
+
+    # C) Signals (1-5 scale)
+    hunger = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    sleep_quality = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    stress = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    fatigue = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    digestion = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+
+    # D) Reactive engine decision
+    decision = models.JSONField(
+        default=dict,
+        help_text=(
+            "What the reactive engine decided: "
+            "{action: 'adjust_calories', delta_kcal: -200, new_calories: 2100, ...}"
+        ),
+    )
+    decision_why = models.TextField(
+        blank=True, default='',
+        help_text="One-sentence human-readable explanation.",
+    )
+    undo_payload = models.JSONField(
+        default=dict,
+        help_text="Previous state for undo: {old_calories, old_carbs, old_fat}.",
+    )
+    decision_applied = models.BooleanField(
+        default=False,
+        help_text="Whether the decision was auto-applied or awaiting trainer approval.",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'weekly_nutrition_checkins'
+        ordering = ['-week_start']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['trainee', 'week_start'],
+                name='unique_weekly_checkin_per_trainee',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['trainee', '-week_start']),
+        ]
+
+    def __str__(self) -> str:
+        return f"WeeklyCheckIn(trainee={self.trainee_id}, week={self.week_start})"
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Nutrition Spec V1.2 §12: Recipe + MealTemplate
+# ---------------------------------------------------------------------------
+
+class Recipe(models.Model):
+    """
+    A reusable recipe with ingredients, steps, and per-serving nutrition.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+    servings = models.PositiveSmallIntegerField(default=1)
+    prep_time_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    cook_time_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    # Ingredients as structured JSON
+    ingredients = models.JSONField(
+        default=list,
+        help_text=(
+            "List of ingredients: "
+            "[{food_item_id, name, quantity, unit, protein, carbs, fat, calories}]"
+        ),
+    )
+    steps = models.JSONField(
+        default=list,
+        help_text="Ordered list of preparation steps: [str, ...]",
+    )
+
+    # Per-serving nutrition (computed from ingredients)
+    calories_per_serving = models.PositiveIntegerField(default=0)
+    protein_per_serving = models.FloatField(default=0)
+    carbs_per_serving = models.FloatField(default=0)
+    fat_per_serving = models.FloatField(default=0)
+
+    is_public = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_recipes',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'recipes'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class MealTemplate(models.Model):
+    """
+    A reusable meal set — supports copy-yesterday and plan-ahead.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default='')
+
+    # Food items in this template
+    items = models.JSONField(
+        default=list,
+        help_text=(
+            "List of food entries: "
+            "[{food_item_id, name, quantity, unit, protein, carbs, fat, calories}]"
+        ),
+    )
+
+    # Totals (cached)
+    total_calories = models.PositiveIntegerField(default=0)
+    total_protein = models.FloatField(default=0)
+    total_carbs = models.FloatField(default=0)
+    total_fat = models.FloatField(default=0)
+
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='meal_templates',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'meal_templates'
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+
+# ---------------------------------------------------------------------------
+# v6.5 Nutrition Spec V1.2 §12: Inventory Snapshot
+# ---------------------------------------------------------------------------
+
+class InventorySnapshot(models.Model):
+    """
+    Optional fridge/pantry snapshot from photo or text.
+    Used to suggest meals and portions matching remaining macros.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='inventory_snapshots',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    items = models.JSONField(
+        default=list,
+        help_text="List of available items: [{name, category, quantity_estimate}]",
+    )
+    photo_url = models.URLField(
+        blank=True,
+        default='',
+        help_text="URL of the uploaded pantry/fridge photo.",
+    )
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'inventory_snapshots'
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f"InventorySnapshot(trainee={self.trainee_id}, items={len(self.items)})"
 
 
 # ---------------------------------------------------------------------------
@@ -2363,7 +2689,7 @@ class TrainingPlan(models.Model):
     )
     build_mode = models.CharField(
         max_length=20,
-        choices=[('quick', 'Quick Build'), ('advanced', 'Advanced Builder')],
+        choices=[('quick', 'Quick Build'), ('advanced', 'Advanced Builder'), ('curated', 'AI Curated')],
         null=True,
         blank=True,
         help_text="How this plan was built. Null for legacy/manual plans.",
@@ -2624,6 +2950,34 @@ class PlanSlot(models.Model):
         help_text="Percentage of Training Max to prescribe (e.g., 80.00).",
     )
     notes = models.TextField(blank=True, default='')
+
+    # v6.5 UI/UX Packet §13: Autoregulation intensity targets
+    class IntensityTargetType(models.TextChoices):
+        FIXED_LOAD = 'fixed_load', 'Fixed Load'
+        LOAD_RANGE = 'load_range', 'Load Range'
+        PERCENT_TM = 'percent_tm', 'Percent of Training Max'
+        RPE_TARGET = 'rpe_target', 'RPE Target'
+        RIR_TARGET = 'rir_target', 'RIR Target'
+        PAIN_CAP = 'pain_cap', 'Pain Cap'
+        VELOCITY_CUTOFF = 'velocity_cutoff', 'Velocity Cutoff'
+        QUALITY_CAP = 'quality_cap', 'Quality Cap'
+
+    intensity_target_type = models.CharField(
+        max_length=20,
+        choices=IntensityTargetType.choices,
+        default=IntensityTargetType.PERCENT_TM,
+        help_text="How intensity is prescribed for this slot.",
+    )
+    intensity_target_value = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Target-type-specific value. Examples: "
+            "{pct: 80} for percent_tm, {rpe: 8} for rpe_target, "
+            "{rir: 2} for rir_target, {velocity_mps: 0.5} for velocity_cutoff."
+        ),
+    )
+
     swap_options_cache = models.JSONField(
         default=dict,
         blank=True,
@@ -2631,6 +2985,11 @@ class PlanSlot(models.Model):
             "Pre-computed swap candidates: "
             "{same_muscle: [id, ...], same_pattern: [id, ...], explore: [id, ...]}."
         ),
+    )
+    coach_locked_swaps = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Trainer-approved exercise IDs for this slot. If non-empty, only these appear in Coach-Locked tab.",
     )
     set_structure_modality = models.ForeignKey(
         'SetStructureModality',
@@ -2831,6 +3190,11 @@ class ProgressionProfile(models.Model):
         WAVE_BY_MONTH = 'wave_by_month', 'Wave-by-Month'
         DOUBLE_PROGRESSION = 'double_progression', 'Double Progression'
         LINEAR = 'linear', 'Linear'
+        DUP = 'dup', 'Daily Undulating'
+        WUP = 'wup', 'Weekly Undulating'
+        BLOCK = 'block', 'Block Periodization'
+        CONCURRENT = 'concurrent', 'Concurrent'
+        CONJUGATE = 'conjugate', 'Conjugate (ME/DE/RE)'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100)
@@ -3200,6 +3564,17 @@ class SessionFeedback(models.Model):
         PARTIAL = 'partial', 'Partial'
         ABANDONED = 'abandoned', 'Abandoned'
 
+    class VolumePerception(models.TextChoices):
+        TOO_MUCH = 'too_much', 'Too Much'
+        ABOUT_RIGHT = 'about_right', 'About Right'
+        TOO_LITTLE = 'too_little', 'Too Little'
+
+    class RequestedAction(models.TextChoices):
+        NO_FOLLOWUP = 'no_followup', 'No Follow-up Needed'
+        ADJUST_NEXT_TIME = 'adjust_next_time', 'Adjust Next Time'
+        MESSAGE_TRAINER = 'message_trainer', 'Message Trainer'
+        REVIEW_WITH_VIDEO = 'review_with_video', 'Review With Video'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     active_session = models.OneToOneField(
         ActiveSession,
@@ -3251,6 +3626,30 @@ class SessionFeedback(models.Model):
         ),
     )
     recovery_concern = models.BooleanField(default=False)
+
+    # v6.5 §25: Wins, context, and action rows
+    win_reasons = models.JSONField(
+        default=list,
+        help_text=(
+            "List of win reasons: strong_performance, great_pump, "
+            "smoother_technique, pain_free, confidence_boost, efficient_session."
+        ),
+    )
+    session_volume_perception = models.CharField(
+        max_length=20,
+        choices=VolumePerception.choices,
+        blank=True,
+        default='',
+        help_text="Did the session feel too much, about right, or too little?",
+    )
+    requested_action = models.CharField(
+        max_length=30,
+        choices=RequestedAction.choices,
+        blank=True,
+        default='',
+        help_text="What the trainee wants to happen next.",
+    )
+
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -3375,6 +3774,180 @@ class PainEvent(models.Model):
         return f"PainEvent({self.body_region}, score={self.pain_score})"
 
 
+# ---------------------------------------------------------------------------
+# Pain Triage System (v6.5 §24 — Guided Triage Workflow)
+# ---------------------------------------------------------------------------
+
+
+class PainTriageResponse(models.Model):
+    """
+    Stores structured triage data after a user reports pain mid-session.
+    Round 1 captures pain details; Round 2 captures movement sensitivity.
+    Links to AI suggestion payload and final proceed decision.
+    """
+
+    class ProceedDecision(models.TextChoices):
+        CONTINUE_AS_PLANNED = 'continue_as_planned', 'Continue As Planned'
+        CONTINUE_WITH_ADJUSTMENT = 'continue_with_adjustment', 'Continue With Adjustment'
+        SWAP_EXERCISE = 'swap_exercise', 'Swap Exercise'
+        SKIP_SLOT = 'skip_slot', 'Skip This Exercise'
+        STOP_SESSION = 'stop_session', 'End Session'
+        SEEK_CLINICAL_REVIEW = 'seek_clinical_review', 'Seek Clinical Review'
+
+    class AiConfidence(models.TextChoices):
+        HIGH = 'high', 'High'
+        MEDIUM = 'medium', 'Medium'
+        LOW = 'low', 'Low'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pain_event = models.OneToOneField(
+        PainEvent,
+        on_delete=models.CASCADE,
+        related_name='triage_response',
+    )
+    active_session = models.ForeignKey(
+        'workouts.ActiveSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='triage_responses',
+    )
+    active_set_log = models.ForeignKey(
+        'workouts.ActiveSetLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='triage_responses',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='triage_responses',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+
+    # Round 1 answers (mirrored from PainEvent for completeness in triage context)
+    round_1_answers = models.JSONField(
+        default=dict,
+        help_text="Structured: {body_region, side, pain_score, sensation_type, onset_phase, warmup_effect}",
+    )
+    # Round 2 answers: movement sensitivity
+    round_2_answers = models.JSONField(
+        default=dict,
+        help_text=(
+            "Structured: {load_sensitivity: better/same/worse, "
+            "rom_sensitivity: better/same/worse, "
+            "tempo_sensitivity: better/same/worse, "
+            "support_helps: bool, "
+            "previous_trigger: str}"
+        ),
+    )
+
+    # AI suggestion payload for trainer review
+    ai_suggestion = models.JSONField(
+        default=dict,
+        help_text="Full AI-generated suggestion payload for trainer-facing summary.",
+    )
+    ai_confidence = models.CharField(
+        max_length=10,
+        choices=AiConfidence.choices,
+        blank=True,
+        default='',
+    )
+
+    # Final decision
+    proceed_decision = models.CharField(
+        max_length=30,
+        choices=ProceedDecision.choices,
+        blank=True,
+        default='',
+    )
+    trainer_notified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'pain_triage_responses'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['trainee', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f"PainTriageResponse(pain={self.pain_event_id}, decision={self.proceed_decision})"
+
+
+class PainInterventionStep(models.Model):
+    """
+    Ordered log of remedies attempted during a pain triage flow.
+    Follows the deterministic remedy ladder:
+    cue → tempo → load → ROM → support → regression → swap → stop.
+    """
+
+    class InterventionType(models.TextChoices):
+        CUE_CHANGE = 'cue_change', 'Cue Change'
+        TEMPO_PAUSE = 'tempo_pause', 'Tempo / Pause Change'
+        LOAD_REDUCTION = 'load_reduction', 'Load Reduction'
+        ROM_REDUCTION = 'rom_reduction', 'ROM Reduction'
+        STANCE_CHANGE = 'stance_change', 'Stance Change'
+        ADD_SUPPORT = 'add_support', 'Add Support'
+        REGRESSION = 'regression', 'Regression to Simpler Variation'
+        SWAP = 'swap', 'Swap Exercise'
+        STOP = 'stop', 'Stop the Slot'
+
+    class StepResult(models.TextChoices):
+        RESOLVED = 'resolved', 'Resolved'
+        IMPROVED = 'improved', 'Improved'
+        NO_CHANGE = 'no_change', 'No Change'
+        WORSE = 'worse', 'Worse'
+        SKIPPED = 'skipped', 'Skipped'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    triage_response = models.ForeignKey(
+        PainTriageResponse,
+        on_delete=models.CASCADE,
+        related_name='steps',
+    )
+    order = models.PositiveSmallIntegerField(
+        help_text="Position in the remedy ladder (1-based).",
+    )
+    intervention_type = models.CharField(
+        max_length=20,
+        choices=InterventionType.choices,
+    )
+    description = models.TextField(
+        blank=True,
+        default='',
+        help_text="Human-readable description of what to try.",
+    )
+    applied = models.BooleanField(
+        default=False,
+        help_text="Did the trainee attempt this intervention?",
+    )
+    result = models.CharField(
+        max_length=20,
+        choices=StepResult.choices,
+        blank=True,
+        default='',
+    )
+    details = models.JSONField(
+        default=dict,
+        help_text="Specifics like {new_load: 135, reduction_pct: 20}",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'pain_intervention_steps'
+        ordering = ['triage_response', 'order']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['triage_response', 'order'],
+                name='unique_step_order_per_triage',
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"InterventionStep({self.intervention_type}, order={self.order})"
+
+
 class TrainerRoutingRule(models.Model):
     """
     Configurable rules for when to alert a trainer based on trainee feedback.
@@ -3388,6 +3961,8 @@ class TrainerRoutingRule(models.Model):
         HIGH_DIFFICULTY = 'high_difficulty', 'High Difficulty'
         RECOVERY_CONCERN = 'recovery_concern', 'Recovery Concern'
         FORM_BREAKDOWN = 'form_breakdown', 'Form Breakdown'
+        PATTERN_FIT_ISSUE = 'pattern_fit_issue', 'Repeated Exercise Fit Issue'
+        PATTERN_CONFIDENCE_DROP = 'pattern_confidence_drop', 'Falling Confidence Pattern'
 
     class NotificationMethod(models.TextChoices):
         IN_APP = 'in_app', 'In-App'
@@ -3828,6 +4403,163 @@ class VideoAnalysis(models.Model):
 
     def __str__(self) -> str:
         return f"VideoAnalysis({self.trainee_id}, {self.exercise_detected or 'unknown'})"
+
+
+# ---------------------------------------------------------------------------
+# v6.5 §22: Dual Capture — Loom-Style Video Message
+# ---------------------------------------------------------------------------
+
+class VideoMessageAsset(models.Model):
+    """
+    Dual capture recording: app screen + front/rear camera simultaneously.
+    Supports asynchronous coaching, check-ins, walkthroughs, and education.
+    """
+
+    class CaptureMode(models.TextChoices):
+        SCREEN_ONLY = 'screen_only', 'Screen Only'
+        FRONT_ONLY = 'front_only', 'Front Camera Only'
+        REAR_ONLY = 'rear_only', 'Rear Camera Only'
+        SCREEN_PLUS_FRONT = 'screen_plus_front', 'Screen + Front Camera PiP'
+        SCREEN_PLUS_REAR = 'screen_plus_rear', 'Screen + Rear Camera PiP'
+
+    class UploadStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        UPLOADING = 'uploading', 'Uploading'
+        UPLOADED = 'uploaded', 'Uploaded'
+        PROCESSING = 'processing', 'Processing'
+        COMPLETE = 'complete', 'Complete'
+        FAILED = 'failed', 'Failed'
+
+    class ProcessingStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        TRANSCRIBING = 'transcribing', 'Transcribing'
+        GENERATING_THUMBNAIL = 'generating_thumbnail', 'Generating Thumbnail'
+        COMPLETE = 'complete', 'Complete'
+        FAILED = 'failed', 'Failed'
+
+    class VisibilityScope(models.TextChoices):
+        PRIVATE = 'private', 'Private'
+        TRAINER_ONLY = 'trainer_only', 'Trainer Only'
+        SHARED = 'shared', 'Shared'
+
+    class ReferencedObjectType(models.TextChoices):
+        PLAN = 'plan', 'Training Plan'
+        SESSION = 'session', 'Session'
+        EXERCISE = 'exercise', 'Exercise'
+        MEAL_PLAN = 'meal_plan', 'Meal Plan'
+        CHECKIN = 'checkin', 'Check-In'
+        SUPPORT = 'support', 'Support Request'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='video_messages_owned',
+    )
+    trainee = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_messages_as_trainee',
+        limit_choices_to={'role': 'TRAINEE'},
+    )
+    trainer = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_messages_as_trainer',
+        limit_choices_to={'role': 'TRAINER'},
+    )
+
+    # Attachment context
+    thread_id = models.ForeignKey(
+        'messaging.Conversation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='video_messages',
+    )
+    check_in_submission_id = models.UUIDField(null=True, blank=True)
+    referenced_object_type = models.CharField(
+        max_length=20,
+        choices=ReferencedObjectType.choices,
+        blank=True,
+        default='',
+    )
+    referenced_object_id = models.CharField(max_length=255, blank=True, default='')
+
+    # Capture settings
+    capture_mode = models.CharField(
+        max_length=20,
+        choices=CaptureMode.choices,
+        default=CaptureMode.FRONT_ONLY,
+    )
+    camera_layout = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Camera bubble config: {position: 'bottom_right', size: 120, minimized: false}",
+    )
+    screen_route_context = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Which screen was being shown: {route, nested_object_ids, app_version}",
+    )
+
+    # Recording metadata
+    duration_seconds = models.FloatField(null=True, blank=True)
+    orientation = models.CharField(
+        max_length=10,
+        choices=[('portrait', 'Portrait'), ('landscape', 'Landscape')],
+        default='portrait',
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    # Media URIs
+    raw_upload_uri = models.URLField(max_length=500, blank=True, default='')
+    processed_stream_uri = models.URLField(max_length=500, blank=True, default='')
+    thumbnail_uri = models.URLField(max_length=500, blank=True, default='')
+
+    # Transcript
+    transcript_text = models.TextField(blank=True, default='')
+    transcript_confidence = models.FloatField(null=True, blank=True)
+
+    # Status tracking
+    upload_status = models.CharField(
+        max_length=20,
+        choices=UploadStatus.choices,
+        default=UploadStatus.PENDING,
+    )
+    processing_status = models.CharField(
+        max_length=25,
+        choices=ProcessingStatus.choices,
+        default=ProcessingStatus.PENDING,
+    )
+    error_state = models.TextField(blank=True, default='')
+
+    # Privacy
+    visibility_scope = models.CharField(
+        max_length=15,
+        choices=VisibilityScope.choices,
+        default=VisibilityScope.TRAINER_ONLY,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'video_message_assets'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['owner', '-created_at']),
+            models.Index(fields=['trainee', '-created_at']),
+            models.Index(fields=['upload_status']),
+        ]
+
+    def __str__(self) -> str:
+        return f"VideoMessage({self.owner_id}, {self.capture_mode}, {self.upload_status})"
 
 
 class MuscleReference(models.Model):

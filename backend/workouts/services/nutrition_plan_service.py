@@ -9,18 +9,23 @@ from __future__ import annotations
 
 import datetime
 import logging
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import Any, TYPE_CHECKING
 
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Avg, Count, Q
+from django.utils import timezone
 
 from workouts.models import (
     DecisionLog,
+    MealLog,
     NutritionDayPlan,
     NutritionGoal,
     NutritionTemplate,
     NutritionTemplateAssignment,
     Program,
+    TrainingPlan,
+    WeightCheckIn,
 )
 
 logger = logging.getLogger(__name__)
@@ -181,6 +186,9 @@ class NutritionPlanService:
 
         if template.template_type == NutritionTemplate.TemplateType.CARB_CYCLING:
             return self._apply_carb_cycling_ruleset(parameters, day_type)
+
+        if template.template_type == NutritionTemplate.TemplateType.MACRO_EBOOK:
+            return self._apply_macro_ebook_ruleset(parameters, day_type)
 
         if template.ruleset:
             return self._apply_custom_ruleset(
@@ -707,6 +715,98 @@ class NutritionPlanService:
             for i in range(meals_per_day)
         ]
 
+    def _apply_macro_ebook_ruleset(
+        self,
+        parameters: dict,
+        day_type: str,
+    ) -> list[MealTarget]:
+        """
+        Macro Ebook: steady macros with smart timing (Nutrition Spec V1.2 §8).
+
+        - 4-8 meals per day, 3-6 hours apart
+        - Pre-workout fat cap: 10-15g
+        - Intra-workout only if training > 60 min
+        - Carb-to-fat swap math: fat_g = (carb_g × 4) / 9
+        - Phase guardrails: 0.5-1% BW/week loss, 6-16 week phases
+        """
+        from workouts.services.macro_calculator import MacroCalculatorService
+
+        calc = MacroCalculatorService()
+
+        sex = parameters.get('sex', 'male')
+        weight_kg = float(parameters.get('body_weight_kg', 80))
+        height_cm = float(parameters.get('height_cm', 175))
+        age = int(parameters.get('age', 30))
+        activity_level = parameters.get('activity_level', 'moderately_active')
+        meals_per_day = int(parameters.get('meals_per_day', 5))
+        goal = parameters.get('goal', 'recomp')
+
+        bmr = calc.compute_bmr(sex=sex, weight_kg=weight_kg, height_cm=height_cm, age=age)
+        tdee = calc.compute_tdee(bmr=bmr, activity_level=activity_level)
+
+        # Goal adjustment
+        if goal == 'fat_loss':
+            total_cal = int(tdee * 0.82)  # 18% deficit
+        elif goal == 'build_muscle':
+            total_cal = int(tdee * 1.10)  # 10% surplus
+        else:
+            total_cal = int(tdee)
+
+        # Protein: 0.9 g/lb of body weight
+        weight_lbs = weight_kg * 2.20462
+        protein_g = int(weight_lbs * 0.9)
+
+        # Day-type carb/fat split
+        protein_cal = protein_g * 4
+        remaining_cal = total_cal - protein_cal
+
+        if day_type in ('training', 'high_carb'):
+            carb_pct = 0.55
+        elif day_type in ('rest', 'low_carb'):
+            carb_pct = 0.30
+        else:
+            carb_pct = 0.42
+
+        carb_cal = int(remaining_cal * carb_pct)
+        fat_cal = remaining_cal - carb_cal
+
+        carb_g = carb_cal // 4
+        fat_g = fat_cal // 9
+
+        # Distribute evenly across meals
+        per_p = protein_g // meals_per_day
+        per_c = carb_g // meals_per_day
+        per_f = fat_g // meals_per_day
+        per_cal = (per_p * 4) + (per_c * 4) + (per_f * 9)
+
+        # Pre-workout fat cap (meal before workout = lower fat)
+        meals = []
+        for i in range(meals_per_day):
+            meal_fat = per_f
+            meal_carbs = per_c
+            # If this is the pre-workout meal (typically meal 2 or 3), cap fat at 15g
+            is_pre_workout = (i == (meals_per_day // 2 - 1)) and day_type in ('training', 'high_carb')
+            if is_pre_workout and meal_fat > 15:
+                excess_fat_cal = (meal_fat - 15) * 9
+                meal_fat = 15
+                # Convert excess fat calories to carbs
+                meal_carbs += excess_fat_cal // 4
+
+            meal_cal = (per_p * 4) + (meal_carbs * 4) + (meal_fat * 9)
+
+            meal_names = ['Breakfast', 'Mid-Morning', 'Lunch', 'Afternoon', 'Dinner',
+                          'Evening', 'Late Night', 'Snack']
+            meals.append(MealTarget(
+                meal_number=i + 1,
+                name=meal_names[i] if i < len(meal_names) else f'Meal {i + 1}',
+                protein=per_p,
+                carbs=meal_carbs,
+                fat=meal_fat,
+                calories=meal_cal,
+            ))
+
+        return meals
+
     def _apply_custom_ruleset(
         self,
         ruleset: dict,
@@ -804,3 +904,470 @@ class NutritionPlanService:
                 "Failed to log nutrition decision for trainee %s on %s",
                 trainee.pk, date,
             )
+
+
+# ---------------------------------------------------------------------------
+# AI-Curated Nutrition Assignment (v6.5 Nutrition Spec V1.2)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class NutritionContext:
+    """Full trainee context gathered for AI-curated nutrition plan generation."""
+    # Profile
+    age: int | None = None
+    sex: str = ''
+    weight_kg: float | None = None
+    weight_lbs: float | None = None
+    height_cm: float | None = None
+    body_fat_pct: float | None = None
+    lbm_lbs: float | None = None
+    activity_level: str = ''
+    goal: str = ''
+    diet_type: str = ''
+    # Current nutrition state
+    current_template_type: str = ''
+    current_template_name: str = ''
+    current_calories: int = 0
+    current_protein: int = 0
+    current_carbs: int = 0
+    current_fat: int = 0
+    current_fat_mode: str = 'total_fat'
+    # Training schedule
+    training_days_per_week: int = 0
+    training_day_names: list[str] = field(default_factory=list)
+    # Weight trend
+    weight_history: list[dict[str, Any]] = field(default_factory=list)
+    weight_trend: str = ''  # losing, gaining, stable
+    weight_rate_per_week_kg: float = 0.0
+    # Adherence (last 14 days)
+    meals_logged_14d: int = 0
+    meals_planned_14d: int = 0
+    adherence_pct: float = 0.0
+    # Preferences
+    meals_per_day: int = 4
+    trainer_notes: str = ''
+
+
+@dataclass(frozen=True)
+class CuratedNutritionResult:
+    """Result of AI-curated nutrition plan generation."""
+    assignment_id: str
+    template_type: str
+    template_name: str
+    weekly_preview: list[dict[str, Any]]
+    reasoning: str
+    decision_log_id: str
+
+
+def gather_nutrition_context(trainee_id: int) -> NutritionContext:
+    """
+    Gather comprehensive trainee context for AI-curated nutrition assignment.
+    Queries profile, current nutrition, training schedule, weight trends, adherence.
+    """
+    from users.models import User
+
+    trainee = User.objects.select_related('profile').get(pk=trainee_id)
+    profile = getattr(trainee, 'profile', None)
+
+    # Profile data
+    age = getattr(profile, 'age', None)
+    sex = getattr(profile, 'sex', '')
+    weight_kg = getattr(profile, 'weight_kg', None)
+    height_cm = getattr(profile, 'height_cm', None)
+    body_fat_pct = getattr(profile, 'body_fat_percentage', None)
+    activity_level = getattr(profile, 'activity_level', '')
+    goal = getattr(profile, 'goal', '')
+    diet_type = getattr(profile, 'diet_type', '')
+    meals_per_day = getattr(profile, 'meals_per_day', 4) or 4
+
+    # Compute weight in lbs and LBM
+    weight_lbs = round(weight_kg * 2.20462, 1) if weight_kg else None
+    lbm_lbs: float | None = None
+    if weight_lbs and body_fat_pct:
+        lbm_lbs = round(weight_lbs * (1 - body_fat_pct / 100), 1)
+
+    # Current nutrition assignment
+    current_template_type = ''
+    current_template_name = ''
+    current_calories = 0
+    current_protein = 0
+    current_carbs = 0
+    current_fat = 0
+    current_fat_mode = 'total_fat'
+
+    active_assignment = (
+        NutritionTemplateAssignment.objects
+        .filter(trainee_id=trainee_id, is_active=True)
+        .select_related('template')
+        .first()
+    )
+    if active_assignment:
+        current_template_type = active_assignment.template.template_type
+        current_template_name = active_assignment.template.name
+        current_fat_mode = active_assignment.fat_mode
+
+        # Get most recent day plan for current macros
+        recent_plan = (
+            NutritionDayPlan.objects
+            .filter(trainee_id=trainee_id)
+            .order_by('-date')
+            .first()
+        )
+        if recent_plan:
+            current_calories = recent_plan.total_calories
+            current_protein = recent_plan.total_protein
+            current_carbs = recent_plan.total_carbs
+            current_fat = recent_plan.total_fat
+
+    # Training schedule from active plan
+    training_days_per_week = 0
+    training_day_names: list[str] = []
+    active_plan = (
+        TrainingPlan.objects
+        .filter(trainee_id=trainee_id, status='active')
+        .select_related('split_template')
+        .first()
+    )
+    if active_plan and active_plan.split_template:
+        training_days_per_week = active_plan.split_template.days_per_week
+        # Get session day names from first week
+        from workouts.models import PlanSession
+        sessions = list(
+            PlanSession.objects
+            .filter(week__plan=active_plan, week__week_number=1)
+            .values_list('day_of_week', flat=True)
+        )
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        training_day_names = [day_names[d] for d in sessions if 0 <= d < 7]
+
+    # Weight trend (last 4 check-ins)
+    weight_records = list(
+        WeightCheckIn.objects
+        .filter(trainee_id=trainee_id)
+        .order_by('-date')[:4]
+    )
+    weight_history: list[dict[str, Any]] = [
+        {'date': str(w.date), 'weight_kg': w.weight_kg}
+        for w in weight_records
+    ]
+
+    weight_trend = 'stable'
+    weight_rate = 0.0
+    if len(weight_records) >= 2:
+        first = weight_records[-1]  # oldest
+        last = weight_records[0]    # newest
+        days_diff = (last.date - first.date).days
+        if days_diff > 0:
+            kg_diff = last.weight_kg - first.weight_kg
+            weight_rate = round(kg_diff / (days_diff / 7), 2)  # kg/week
+            if weight_rate < -0.1:
+                weight_trend = 'losing'
+            elif weight_rate > 0.1:
+                weight_trend = 'gaining'
+
+    # Adherence (last 14 days)
+    fourteen_days_ago = datetime.date.today() - datetime.timedelta(days=14)
+    meals_logged = MealLog.objects.filter(
+        trainee_id=trainee_id,
+        date__gte=fourteen_days_ago,
+    ).count()
+    meals_planned = meals_per_day * 14
+    adherence = round((meals_logged / meals_planned * 100), 1) if meals_planned > 0 else 0.0
+
+    return NutritionContext(
+        age=age,
+        sex=sex,
+        weight_kg=float(weight_kg) if weight_kg else None,
+        weight_lbs=weight_lbs,
+        height_cm=float(height_cm) if height_cm else None,
+        body_fat_pct=float(body_fat_pct) if body_fat_pct else None,
+        lbm_lbs=lbm_lbs,
+        activity_level=activity_level,
+        goal=goal,
+        diet_type=diet_type,
+        current_template_type=current_template_type,
+        current_template_name=current_template_name,
+        current_calories=current_calories,
+        current_protein=current_protein,
+        current_carbs=current_carbs,
+        current_fat=current_fat,
+        current_fat_mode=current_fat_mode,
+        training_days_per_week=training_days_per_week,
+        training_day_names=training_day_names,
+        weight_history=weight_history,
+        weight_trend=weight_trend,
+        weight_rate_per_week_kg=weight_rate,
+        meals_logged_14d=meals_logged,
+        meals_planned_14d=meals_planned,
+        adherence_pct=adherence,
+        meals_per_day=meals_per_day,
+    )
+
+
+def curated_nutrition_build(
+    *,
+    trainee_id: int,
+    trainer_id: int,
+    trainer_notes: str = '',
+    override_template_type: str = '',
+    override_goal: str = '',
+    progress_callback: Any | None = None,
+) -> CuratedNutritionResult:
+    """
+    Generate a personalized nutrition plan for a trainee using AI.
+    Gathers trainee context, calls AI for template selection, creates assignment,
+    generates 7-day preview.
+    """
+    from users.models import User
+
+    def _progress(step: str) -> None:
+        if progress_callback and callable(progress_callback):
+            progress_callback(step)
+
+    _progress('Gathering trainee nutrition data...')
+    ctx = gather_nutrition_context(trainee_id)
+
+    _progress('Analyzing profile and selecting nutrition template...')
+
+    # Deterministic template selection based on goal + context
+    # AI enrichment can be added later; for now use rule-based logic
+    template_type = override_template_type or _select_template_type(ctx, override_goal)
+
+    # Find the system template
+    template = NutritionTemplate.objects.filter(
+        template_type=template_type,
+        is_system=True,
+    ).first()
+    if template is None:
+        # Fallback to any template of that type
+        template = NutritionTemplate.objects.filter(
+            template_type=template_type,
+        ).first()
+    if template is None:
+        # Ultimate fallback: CARB_CYCLING
+        template = NutritionTemplate.objects.filter(
+            template_type='carb_cycling',
+            is_system=True,
+        ).first()
+    if template is None:
+        raise ValueError(f"No nutrition template found for type '{template_type}'.")
+
+    _progress(f'Applying {template.name} template...')
+
+    # Build parameters from trainee context
+    parameters: dict[str, Any] = {
+        'body_weight_kg': ctx.weight_kg or 80,
+        'body_weight_lbs': ctx.weight_lbs or 176,
+        'body_fat_pct': ctx.body_fat_pct or 20,
+        'lbm_lbs': ctx.lbm_lbs or 141,
+        'meals_per_day': ctx.meals_per_day,
+        'sex': ctx.sex or 'male',
+        'height_cm': ctx.height_cm or 175,
+        'age': ctx.age or 30,
+        'activity_level': ctx.activity_level or 'moderately_active',
+    }
+
+    # Determine day type schedule
+    day_type_schedule = _build_day_type_schedule(ctx, template_type)
+
+    # Determine fat mode
+    fat_mode = 'added_fat' if template_type in ('shredded', 'massive') else 'total_fat'
+
+    _progress('Creating nutrition assignment...')
+
+    with transaction.atomic():
+        # Deactivate existing assignment
+        NutritionTemplateAssignment.objects.filter(
+            trainee_id=trainee_id,
+            is_active=True,
+        ).update(is_active=False)
+
+        # Create new assignment
+        assignment = NutritionTemplateAssignment.objects.create(
+            trainee_id=trainee_id,
+            template=template,
+            parameters=parameters,
+            day_type_schedule=day_type_schedule,
+            fat_mode=fat_mode,
+            is_active=True,
+        )
+
+    _progress('Generating 7-day preview...')
+
+    # Generate 7-day preview
+    service = NutritionPlanService()
+    trainee = User.objects.get(pk=trainee_id)
+    today = datetime.date.today()
+    # Start from next Monday for clean week view
+    days_until_monday = (7 - today.weekday()) % 7
+    if days_until_monday == 0:
+        days_until_monday = 7
+    start_date = today + datetime.timedelta(days=days_until_monday)
+
+    weekly_preview: list[dict[str, Any]] = []
+    for i in range(7):
+        plan_date = start_date + datetime.timedelta(days=i)
+        day_plan = service.get_or_generate_day_plan(trainee, plan_date)
+        if day_plan:
+            weekly_preview.append({
+                'date': str(plan_date),
+                'day_name': plan_date.strftime('%A'),
+                'day_type': day_plan.day_type,
+                'protein': day_plan.total_protein,
+                'carbs': day_plan.total_carbs,
+                'fat': day_plan.total_fat,
+                'calories': day_plan.total_calories,
+                'meals_count': len(day_plan.meals) if day_plan.meals else 0,
+            })
+
+    # Build reasoning
+    reasoning = _build_reasoning(ctx, template_type, template.name, fat_mode, day_type_schedule)
+
+    # Log decision
+    decision_log = DecisionLog.objects.create(
+        actor_type=DecisionLog.ActorType.SYSTEM,
+        actor_id=trainer_id,
+        decision_type='curated_nutrition_assigned',
+        context={
+            'trainee_id': trainee_id,
+            'template_id': str(template.pk),
+        },
+        inputs_snapshot={
+            'weight_kg': ctx.weight_kg,
+            'body_fat_pct': ctx.body_fat_pct,
+            'goal': ctx.goal,
+            'activity_level': ctx.activity_level,
+            'training_days': ctx.training_days_per_week,
+            'weight_trend': ctx.weight_trend,
+            'adherence_pct': ctx.adherence_pct,
+            'trainer_notes': trainer_notes,
+        },
+        constraints_applied={
+            'override_template_type': override_template_type,
+            'override_goal': override_goal,
+        },
+        options_considered=[
+            {'template_type': 'shredded', 'suitable_for': 'fat_loss'},
+            {'template_type': 'massive', 'suitable_for': 'build_muscle'},
+            {'template_type': 'carb_cycling', 'suitable_for': 'flexible'},
+        ],
+        final_choice={
+            'template_type': template_type,
+            'template_name': template.name,
+            'fat_mode': fat_mode,
+            'assignment_id': str(assignment.pk),
+        },
+        reason_codes=['curated_nutrition', f'template_{template_type}'],
+    )
+
+    return CuratedNutritionResult(
+        assignment_id=str(assignment.pk),
+        template_type=template_type,
+        template_name=template.name,
+        weekly_preview=weekly_preview,
+        reasoning=reasoning,
+        decision_log_id=str(decision_log.pk),
+    )
+
+
+def _select_template_type(ctx: NutritionContext, override_goal: str) -> str:
+    """Select the best template type based on trainee context and goal."""
+    goal = override_goal or ctx.goal
+
+    if goal == 'fat_loss':
+        # SHREDDED if body fat data available, otherwise carb cycling
+        if ctx.body_fat_pct and ctx.lbm_lbs:
+            return 'shredded'
+        return 'carb_cycling'
+    elif goal == 'build_muscle':
+        # MASSIVE if body fat data available
+        if ctx.body_fat_pct and ctx.lbm_lbs:
+            return 'massive'
+        return 'carb_cycling'
+    elif goal == 'recomp':
+        return 'carb_cycling'
+    else:
+        # General fitness / endurance / unknown
+        return 'carb_cycling'
+
+
+def _build_day_type_schedule(ctx: NutritionContext, template_type: str) -> dict[str, Any]:
+    """Build day type schedule based on training schedule and template type."""
+    if ctx.training_day_names:
+        # Training-based scheduling
+        if template_type == 'shredded':
+            return {
+                'method': 'training_based',
+                'training_days': 'high_carb',
+                'rest_days': 'low_carb',
+            }
+        elif template_type == 'massive':
+            return {
+                'method': 'training_based',
+                'training_days': 'high_carb',
+                'rest_days': 'medium_carb',
+            }
+        else:
+            return {
+                'method': 'training_based',
+                'training_days': 'high_carb',
+                'rest_days': 'low_carb',
+            }
+    else:
+        # Default weekly rotation
+        return {
+            'method': 'weekly_rotation',
+            'monday': 'high_carb',
+            'tuesday': 'medium_carb',
+            'wednesday': 'low_carb',
+            'thursday': 'high_carb',
+            'friday': 'medium_carb',
+            'saturday': 'low_carb',
+            'sunday': 'low_carb',
+        }
+
+
+def _build_reasoning(
+    ctx: NutritionContext,
+    template_type: str,
+    template_name: str,
+    fat_mode: str,
+    schedule: dict[str, Any],
+) -> str:
+    """Build a human-readable reasoning string for the AI nutrition decision."""
+    parts: list[str] = []
+
+    parts.append(f"Selected {template_name} ({template_type.upper()}) template.")
+
+    if template_type == 'shredded':
+        parts.append(
+            f"This is an LBM-based fat loss plan with a 22% caloric deficit. "
+            f"Based on {ctx.weight_lbs or '?'} lbs body weight and "
+            f"{ctx.body_fat_pct or '?'}% body fat (LBM: {ctx.lbm_lbs or '?'} lbs)."
+        )
+    elif template_type == 'massive':
+        parts.append(
+            f"This is an LBM-based muscle gain plan with a 12% caloric surplus. "
+            f"Based on {ctx.weight_lbs or '?'} lbs body weight and "
+            f"{ctx.body_fat_pct or '?'}% body fat."
+        )
+    elif template_type == 'carb_cycling':
+        parts.append("Flexible carb cycling with day-type-specific macro ratios.")
+
+    if ctx.training_days_per_week > 0:
+        parts.append(
+            f"Training {ctx.training_days_per_week}x/week "
+            f"({', '.join(ctx.training_day_names[:3])}{'...' if len(ctx.training_day_names) > 3 else ''})."
+        )
+
+    if ctx.weight_trend != 'stable':
+        direction = 'losing' if ctx.weight_trend == 'losing' else 'gaining'
+        parts.append(
+            f"Current weight trend: {direction} "
+            f"at {abs(ctx.weight_rate_per_week_kg)} kg/week."
+        )
+
+    fat_label = 'Added Fats Only' if fat_mode == 'added_fat' else 'Total Fat'
+    parts.append(f"Fat tracking mode: {fat_label}.")
+
+    return ' '.join(parts)

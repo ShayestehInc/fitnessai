@@ -33,6 +33,9 @@ class _SessionFeedbackScreenState
     'difficulty': 3,
   };
   final Set<String> _frictionReasons = {};
+  final Set<String> _winReasons = {};
+  String _volumePerception = '';
+  String _requestedAction = '';
   bool _recoveryConcern = false;
   final List<Map<String, dynamic>> _painEvents = [];
   bool _isSubmitting = false;
@@ -102,6 +105,12 @@ class _SessionFeedbackScreenState
             _buildRatingsSection(theme),
             const SizedBox(height: 24),
             _buildFrictionReasons(theme),
+            const SizedBox(height: 24),
+            _buildWinReasons(theme),
+            const SizedBox(height: 24),
+            _buildVolumePerception(theme),
+            const SizedBox(height: 24),
+            _buildRequestedAction(theme),
             const SizedBox(height: 24),
             _buildRecoveryConcern(theme),
             const SizedBox(height: 24),
@@ -219,6 +228,162 @@ class _SessionFeedbackScreenState
               selectedColor:
                   theme.colorScheme.primary.withValues(alpha: 0.15),
               checkmarkColor: theme.colorScheme.primary,
+              side: BorderSide(
+                color: isSelected
+                    ? theme.colorScheme.primary
+                    : theme.dividerColor,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  static const List<MapEntry<String, String>> _availableWinReasons = [
+    MapEntry('strong_performance', 'Strong Performance'),
+    MapEntry('great_pump', 'Great Pump'),
+    MapEntry('smoother_technique', 'Smoother Technique'),
+    MapEntry('pain_free', 'Pain-Free'),
+    MapEntry('confidence_boost', 'Confidence Boost'),
+    MapEntry('efficient_session', 'Efficient Session'),
+  ];
+
+  static const List<MapEntry<String, String>> _volumeOptions = [
+    MapEntry('too_much', 'Too Much'),
+    MapEntry('about_right', 'About Right'),
+    MapEntry('too_little', 'Too Little'),
+  ];
+
+  static const List<MapEntry<String, String>> _actionOptions = [
+    MapEntry('no_followup', 'No Follow-up Needed'),
+    MapEntry('adjust_next_time', 'Adjust Next Time'),
+    MapEntry('message_trainer', 'Message Trainer'),
+    MapEntry('review_with_video', 'Review With Video'),
+  ];
+
+  Widget _buildWinReasons(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('What went well?', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _availableWinReasons.map((entry) {
+            final isSelected = _winReasons.contains(entry.key);
+            return FilterChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    _winReasons.add(entry.key);
+                  } else {
+                    _winReasons.remove(entry.key);
+                  }
+                });
+              },
+              selectedColor:
+                  const Color(0xFF22C55E).withValues(alpha: 0.15),
+              checkmarkColor: const Color(0xFF22C55E),
+              side: BorderSide(
+                color: isSelected
+                    ? const Color(0xFF22C55E)
+                    : theme.dividerColor,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVolumePerception(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Session volume', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(
+          'How did the workload feel for today?',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: _volumeOptions.map((entry) {
+            final isSelected = _volumePerception == entry.key;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: entry.key != _volumeOptions.last.key ? 8 : 0,
+                ),
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _volumePerception =
+                        _volumePerception == entry.key ? '' : entry.key;
+                  }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                              .withValues(alpha: 0.15)
+                          : theme.cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.dividerColor,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        entry.value,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRequestedAction(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('What would you like next?', style: theme.textTheme.titleMedium),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _actionOptions.map((entry) {
+            final isSelected = _requestedAction == entry.key;
+            return ChoiceChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  _requestedAction = selected ? entry.key : '';
+                });
+              },
+              selectedColor:
+                  theme.colorScheme.primary.withValues(alpha: 0.15),
               side: BorderSide(
                 color: isSelected
                     ? theme.colorScheme.primary
@@ -378,6 +543,9 @@ class _SessionFeedbackScreenState
           ratings: Map<String, int>.from(_ratings),
           frictionReasons: _frictionReasons.toList(),
           recoveryConcern: _recoveryConcern,
+          winReasons: _winReasons.toList(),
+          sessionVolumePerception: _volumePerception,
+          requestedAction: _requestedAction,
           notes: _notesController.text.trim(),
           painEvents: _painEvents,
         );

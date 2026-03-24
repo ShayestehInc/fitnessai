@@ -42,6 +42,7 @@ from .correlation_views import (
     CorrelationOverviewView,
     TraineePatternsView,
 )
+from .copilot_views import CopilotViewSet
 from .audit_views import (
     AuditSummaryView,
     AuditTimelineView,
@@ -73,6 +74,11 @@ from community.trainer_views import (
     # Phase 5 — Community Config
     TrainerCommunityConfigView,
 )
+
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'copilot', CopilotViewSet, basename='copilot')
 
 urlpatterns = [
     # Dashboard
@@ -198,4 +204,4 @@ urlpatterns = [
     path('export/trainee/<int:trainee_id>/workout-history/', TraineeWorkoutExportView.as_view(), name='export-trainee-workout'),
     path('export/trainee/<int:trainee_id>/nutrition-history/', TraineeNutritionExportView.as_view(), name='export-trainee-nutrition'),
     path('export/trainee/<int:trainee_id>/progress/', TraineeProgressExportView.as_view(), name='export-trainee-progress'),
-]
+] + router.urls

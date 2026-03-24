@@ -701,12 +701,289 @@ def _resolve_load_unit(
 # Evaluator dispatch
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Periodization evaluators (v6.5 §8B)
+# ---------------------------------------------------------------------------
+
+def _evaluate_dup(
+    slot: PlanSlot,
+    profile: ProgressionProfile,
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> NextPrescription:
+    """
+    Daily Undulating Periodization: pick emphasis based on session's day-of-week
+    within the training week (uses session index as proxy).
+    """
+    rules = profile.rules
+    rotation: list[str] = rules.get('day_emphasis_rotation', ['strength', 'hypertrophy', 'power'])
+    rep_ranges: dict[str, list[int]] = rules.get('rep_ranges', {})
+    intensity_map: dict[str, int] = rules.get('intensity_pct', {})
+    sets_map: dict[str, int] = rules.get('sets', {})
+    load_unit = _resolve_load_unit(lift_max, sessions)
+
+    # Determine which emphasis slot based on session order within week
+    session_index = slot.session.order if slot.session else 0
+    emphasis = rotation[session_index % len(rotation)]
+
+    reps = rep_ranges.get(emphasis, [6, 10])
+    pct = Decimal(str(intensity_map.get(emphasis, 75)))
+    target_sets = sets_map.get(emphasis, 4)
+
+    load_value = None
+    if lift_max and lift_max.tm_current:
+        load_value = _round_load(lift_max.tm_current * pct / 100)
+
+    return NextPrescription(
+        slot_id=str(slot.pk),
+        exercise_id=slot.exercise_id,
+        exercise_name=slot.exercise.name,
+        progression_type='dup',
+        event_type='progression',
+        sets=target_sets,
+        reps_min=reps[0],
+        reps_max=reps[1] if len(reps) > 1 else reps[0],
+        load_value=load_value,
+        load_unit=load_unit,
+        load_percentage=pct,
+        reason_codes=['dup', f'emphasis_{emphasis}'],
+        reason_display=f"DUP {emphasis.title()} day — {target_sets}x{reps[0]}-{reps[1] if len(reps) > 1 else reps[0]} @{pct}%",
+        confidence='high',
+    )
+
+
+def _evaluate_wup(
+    slot: PlanSlot,
+    profile: ProgressionProfile,
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> NextPrescription:
+    """
+    Weekly Undulating Periodization: pick emphasis based on week number in cycle.
+    """
+    rules = profile.rules
+    rotation: list[str] = rules.get('week_emphasis_rotation', ['volume', 'moderate', 'heavy', 'deload'])
+    week_config: dict[str, dict[str, int]] = rules.get('week_config', {})
+    load_unit = _resolve_load_unit(lift_max, sessions)
+
+    week_index = (slot.session.week.week_number - 1) % len(rotation) if slot.session and slot.session.week else 0
+    emphasis = rotation[week_index]
+    config = week_config.get(emphasis, {'sets': 3, 'reps': 8, 'pct': 70})
+
+    pct = Decimal(str(config.get('pct', 70)))
+    target_sets = config.get('sets', 3)
+    target_reps = config.get('reps', 8)
+
+    load_value = None
+    if lift_max and lift_max.tm_current:
+        load_value = _round_load(lift_max.tm_current * pct / 100)
+
+    event_type = 'deload' if emphasis == 'deload' else 'progression'
+
+    return NextPrescription(
+        slot_id=str(slot.pk),
+        exercise_id=slot.exercise_id,
+        exercise_name=slot.exercise.name,
+        progression_type='wup',
+        event_type=event_type,
+        sets=target_sets,
+        reps_min=target_reps,
+        reps_max=target_reps,
+        load_value=load_value,
+        load_unit=load_unit,
+        load_percentage=pct,
+        reason_codes=['wup', f'week_{emphasis}'],
+        reason_display=f"WUP {emphasis.title()} week — {target_sets}x{target_reps} @{pct}%",
+        confidence='high',
+    )
+
+
+def _evaluate_block(
+    slot: PlanSlot,
+    profile: ProgressionProfile,
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> NextPrescription:
+    """
+    Block Periodization: determine current block from absolute week number.
+    """
+    rules = profile.rules
+    blocks: list[dict[str, object]] = rules.get('blocks', [])
+    load_unit = _resolve_load_unit(lift_max, sessions)
+
+    absolute_week = slot.session.week.week_number if slot.session and slot.session.week else 1
+
+    # Determine which block we're in
+    accumulated = 0
+    current_block = blocks[-1] if blocks else {'name': 'accumulation', 'weeks': 4, 'intensity_range_pct': [65, 75], 'rep_range': [6, 12], 'volume_multiplier': 1.0}
+    for block in blocks:
+        block_weeks = int(block.get('weeks', 4))  # type: ignore[arg-type]
+        if absolute_week <= accumulated + block_weeks:
+            current_block = block
+            break
+        accumulated += block_weeks
+
+    intensity_range: list[int] = current_block.get('intensity_range_pct', [70, 80])  # type: ignore[assignment]
+    rep_range: list[int] = current_block.get('rep_range', [6, 10])  # type: ignore[assignment]
+    vol_mult = Decimal(str(current_block.get('volume_multiplier', 1.0)))
+    block_name: str = str(current_block.get('name', 'unknown'))
+
+    # Use midpoint of intensity range
+    pct = Decimal(str((intensity_range[0] + intensity_range[1]) // 2))
+    target_sets = max(1, int(slot.sets * vol_mult))
+
+    load_value = None
+    if lift_max and lift_max.tm_current:
+        load_value = _round_load(lift_max.tm_current * pct / 100)
+
+    return NextPrescription(
+        slot_id=str(slot.pk),
+        exercise_id=slot.exercise_id,
+        exercise_name=slot.exercise.name,
+        progression_type='block',
+        event_type='progression',
+        sets=target_sets,
+        reps_min=rep_range[0],
+        reps_max=rep_range[1] if len(rep_range) > 1 else rep_range[0],
+        load_value=load_value,
+        load_unit=load_unit,
+        load_percentage=pct,
+        reason_codes=['block', f'phase_{block_name}'],
+        reason_display=f"Block {block_name.title()} — {target_sets}x{rep_range[0]}-{rep_range[1] if len(rep_range) > 1 else rep_range[0]} @{pct}%",
+        confidence='high',
+    )
+
+
+def _evaluate_concurrent(
+    slot: PlanSlot,
+    profile: ProgressionProfile,
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> NextPrescription:
+    """
+    Concurrent: determine quality from session family/role, apply double progression
+    for primary quality and hold for secondary.
+    """
+    rules = profile.rules
+    qualities: list[dict[str, object]] = rules.get('qualities', [])
+    load_unit = _resolve_load_unit(lift_max, sessions)
+
+    # Match slot's session family to a quality
+    session_family = slot.session.session_family if slot.session else 'strength'
+    matched_quality: dict[str, object] | None = None
+    for q in qualities:
+        if str(q.get('name', '')).lower() in session_family.lower():
+            matched_quality = q
+            break
+    if matched_quality is None and qualities:
+        matched_quality = qualities[0]
+
+    is_primary = matched_quality is not None and int(matched_quality.get('priority', 99)) == 1  # type: ignore[arg-type]
+
+    # Primary quality: progress (use double progression logic)
+    # Secondary quality: hold current prescription
+    if is_primary and sessions:
+        last_session = sessions[0]
+        avg_rpe = _avg_rpe(last_session)
+        completed = _check_completion(last_session, slot.sets, slot.reps_min)
+        if completed and avg_rpe is not None and avg_rpe <= Decimal('9'):
+            load_value = None
+            if lift_max and lift_max.tm_current:
+                load_value = _round_load(lift_max.tm_current * Decimal('0.80'))
+            return NextPrescription(
+                slot_id=str(slot.pk),
+                exercise_id=slot.exercise_id,
+                exercise_name=slot.exercise.name,
+                progression_type='concurrent',
+                event_type='progression',
+                sets=slot.sets,
+                reps_min=slot.reps_min,
+                reps_max=slot.reps_max,
+                load_value=load_value,
+                load_unit=load_unit,
+                load_percentage=Decimal('80'),
+                reason_codes=['concurrent', 'primary_quality', 'progress'],
+                reason_display="Concurrent primary quality — progressing.",
+                confidence='high',
+            )
+
+    return _hold_prescription(slot, 'concurrent', ['concurrent', 'hold_secondary'])
+
+
+def _evaluate_conjugate(
+    slot: PlanSlot,
+    profile: ProgressionProfile,
+    lift_max: LiftMax | None,
+    sessions: list[list[LiftSetLog]],
+) -> NextPrescription:
+    """
+    Conjugate (ME/DE/RE): determine effort type from session stress/family.
+    ME: heavy top set. DE: speed work. RE: higher reps.
+    """
+    rules = profile.rules
+    rotations: dict[str, dict[str, object]] = rules.get('rotations', {})
+    load_unit = _resolve_load_unit(lift_max, sessions)
+
+    # Determine effort type from session day_stress
+    day_stress = slot.session.day_stress if slot.session else 'high_neural'
+    if day_stress == 'high_neural':
+        effort = 'max_effort'
+    elif day_stress == 'low_neural':
+        effort = 'repeated_effort'
+    else:
+        effort = 'dynamic_effort'
+
+    config = rotations.get(effort, {})
+    rep_range: list[int] = config.get('rep_range', [3, 5])  # type: ignore[assignment]
+
+    if effort == 'max_effort':
+        pct = Decimal('90')
+        target_sets = 1
+        reps = rep_range
+    elif effort == 'dynamic_effort':
+        pct = Decimal(str(config.get('intensity_pct', 60)))
+        set_rep_str = str(config.get('set_rep', '8x3'))
+        parts = set_rep_str.split('x')
+        target_sets = int(parts[0]) if len(parts) > 1 else 8
+        reps = [int(parts[1])] * 2 if len(parts) > 1 else [3, 3]
+    else:
+        pct = Decimal('70')
+        target_sets = 3
+        reps = rep_range
+
+    load_value = None
+    if lift_max and lift_max.tm_current:
+        load_value = _round_load(lift_max.tm_current * pct / 100)
+
+    return NextPrescription(
+        slot_id=str(slot.pk),
+        exercise_id=slot.exercise_id,
+        exercise_name=slot.exercise.name,
+        progression_type='conjugate',
+        event_type='progression',
+        sets=target_sets,
+        reps_min=reps[0],
+        reps_max=reps[1] if len(reps) > 1 else reps[0],
+        load_value=load_value,
+        load_unit=load_unit,
+        load_percentage=pct,
+        reason_codes=['conjugate', f'{effort}'],
+        reason_display=f"Conjugate {effort.replace('_', ' ').title()} — {target_sets}x{reps[0]} @{pct}%",
+        confidence='high',
+    )
+
+
 _EVALUATORS = {
     'staircase_percent': _evaluate_staircase_percent,
     'rep_staircase': _evaluate_rep_staircase,
     'double_progression': _evaluate_double_progression,
     'linear': _evaluate_linear,
     'wave_by_month': _evaluate_wave_by_month,
+    'dup': _evaluate_dup,
+    'wup': _evaluate_wup,
+    'block': _evaluate_block,
+    'concurrent': _evaluate_concurrent,
+    'conjugate': _evaluate_conjugate,
 }
 
 

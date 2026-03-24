@@ -97,15 +97,16 @@ class ImpersonationBanner extends ConsumerWidget {
   }
 
   Future<void> _endImpersonation(BuildContext context, WidgetRef ref) async {
+    // Capture router before async gap — the banner widget will be unmounted
+    // when state.clear() sets isImpersonating=false, making context invalid.
+    final router = GoRouter.of(context);
+
     final result = await ref.read(impersonationProvider.notifier).endImpersonation();
 
-    if (context.mounted) {
-      if (result['success']) {
-        // Navigate back to trainer dashboard
-        context.go('/trainer');
-      } else {
-        showAdaptiveToast(context, message: result['error'] ?? 'Failed to end session', type: ToastType.error);
-      }
+    if (result['success'] == true) {
+      router.go('/trainer');
+    } else if (context.mounted) {
+      showAdaptiveToast(context, message: result['error'] ?? 'Failed to end session', type: ToastType.error);
     }
   }
 }

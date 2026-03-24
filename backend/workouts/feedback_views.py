@@ -19,12 +19,19 @@ from users.models import User
 from .models import (
     ActiveSession,
     PainEvent,
+    PainTriageResponse,
     SessionFeedback,
     TrainerRoutingRule,
 )
 from .feedback_serializers import (
+    FinalizeProceedSerializer,
+    InterventionStepInputSerializer,
     PainEventInputSerializer,
     PainEventSerializer,
+    PainTriageResponseSerializer,
+    RemedySuggestionSerializer,
+    Round2InputSerializer,
+    PainTriageStartSerializer,
     SessionFeedbackSerializer,
     SubmitFeedbackInputSerializer,
     TrainerRoutingRuleListSerializer,
@@ -37,6 +44,12 @@ from .services.feedback_service import (
     get_pain_history,
     log_pain_event,
     submit_feedback,
+)
+from .services.pain_triage_service import (
+    finalize_triage,
+    record_intervention_result,
+    start_triage,
+    submit_round_2,
 )
 
 
@@ -119,6 +132,9 @@ class SessionFeedbackViewSet(
             ratings=data.get('ratings', {}),
             friction_reasons=data.get('friction_reasons', []),
             recovery_concern=data.get('recovery_concern', False),
+            win_reasons=data.get('win_reasons', []),
+            session_volume_perception=data.get('session_volume_perception', ''),
+            requested_action=data.get('requested_action', ''),
             notes=data.get('notes', ''),
             pain_events_data=data.get('pain_events', []),
             actor_id=user.pk,
@@ -245,6 +261,131 @@ class PainEventViewSet(
                 for r in result.triggered_rules
             ],
         }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Pain Triage ViewSet (v6.5 §24)
+# ---------------------------------------------------------------------------
+
+class PainTriageViewSet(viewsets.GenericViewSet[PainTriageResponse]):
+    """
+    Guided pain triage workflow.
+    POST /start/ → POST /{id}/round-2/ → POST /{id}/intervention/ → POST /{id}/finalize/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[PainTriageResponse]:
+        user = cast(User, self.request.user)
+        if user.role == 'ADMIN':
+            return PainTriageResponse.objects.all()
+        elif user.role == 'TRAINER':
+            return PainTriageResponse.objects.filter(
+                trainee__parent_trainer=user,
+            )
+        return PainTriageResponse.objects.filter(trainee=user)
+
+    @action(detail=False, methods=['post'], url_path='start')
+    def start(self, request: Request) -> Response:
+        """Start a triage flow from an existing pain event."""
+        serializer = PainTriageStartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        user = cast(User, request.user)
+        try:
+            pain_event = PainEvent.objects.get(pk=data['pain_event_id'])
+        except PainEvent.DoesNotExist:
+            return Response(
+                {'detail': 'Pain event not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            active_session = ActiveSession.objects.get(pk=data['active_session_id'])
+        except ActiveSession.DoesNotExist:
+            return Response(
+                {'detail': 'Active session not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        result = start_triage(
+            pain_event=pain_event,
+            active_session=active_session,
+            trainee_id=user.pk,
+            active_set_log_id=str(data['active_set_log_id']) if data.get('active_set_log_id') else None,
+        )
+
+        return Response({
+            'triage_response_id': result.triage_response_id,
+            'pain_event_id': result.pain_event_id,
+            'round_1_answers': result.round_1_answers,
+        }, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='round-2')
+    def round_2(self, request: Request, pk: str | None = None) -> Response:
+        """Submit round 2 answers and get the remedy ladder."""
+        serializer = Round2InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = submit_round_2(
+            triage_response_id=pk or '',
+            round_2_answers=serializer.validated_data,
+        )
+
+        return Response({
+            'triage_response_id': result.triage_response_id,
+            'suggestions': RemedySuggestionSerializer(
+                result.suggestions, many=True,
+            ).data,
+        })
+
+    @action(detail=True, methods=['post'], url_path='intervention')
+    def intervention(self, request: Request, pk: str | None = None) -> Response:
+        """Record the result of trying an intervention step."""
+        serializer = InterventionStepInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        result = record_intervention_result(
+            triage_response_id=pk or '',
+            step_order=data['step_order'],
+            applied=data['applied'],
+            result=data['result'],
+        )
+
+        return Response({
+            'step_id': result.step_id,
+            'intervention_type': result.intervention_type,
+            'applied': result.applied,
+            'result': result.result,
+        })
+
+    @action(detail=True, methods=['post'], url_path='finalize')
+    def finalize(self, request: Request, pk: str | None = None) -> Response:
+        """Finalize the triage with a proceed decision."""
+        serializer = FinalizeProceedSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = cast(User, request.user)
+        result = finalize_triage(
+            triage_response_id=pk or '',
+            proceed_decision=serializer.validated_data['proceed_decision'],
+            actor_id=user.pk,
+        )
+
+        return Response({
+            'triage_response_id': result.triage_response_id,
+            'proceed_decision': result.proceed_decision,
+            'trainer_notified': result.trainer_notified,
+            'decision_log_id': result.decision_log_id,
+        })
+
+    @action(detail=True, methods=['get'])
+    def detail_view(self, request: Request, pk: str | None = None) -> Response:
+        """Get full triage response with intervention steps."""
+        triage = PainTriageResponse.objects.prefetch_related('steps').get(pk=pk)
+        serializer = PainTriageResponseSerializer(triage)
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------

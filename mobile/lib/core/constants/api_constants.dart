@@ -358,10 +358,18 @@ class ApiConstants {
   // Builder endpoints
   static String get quickBuild =>
       '$apiBaseUrl/workouts/training-plans/quick-build/';
+  static String quickBuildStatus(String taskId) =>
+      '$apiBaseUrl/workouts/training-plans/quick-build/$taskId/status/';
+  static String get curatedBuild =>
+      '$apiBaseUrl/workouts/training-plans/curated-build/';
+  static String get curatedNutritionBuild =>
+      '$apiBaseUrl/workouts/nutrition-template-assignments/curated-build/';
   static String get builderStart =>
       '$apiBaseUrl/workouts/training-plans/builder/start/';
   static String builderAdvance(String planId) =>
       '$apiBaseUrl/workouts/training-plans/$planId/builder/advance/';
+  static String builderAdvanceStatus(String taskId) =>
+      '$apiBaseUrl/workouts/training-plans/builder/advance/$taskId/status/';
   static String convertToProgram(String planId) =>
       '$apiBaseUrl/workouts/training-plans/$planId/convert-to-program/';
   static String builderState(String planId) =>
@@ -467,6 +475,17 @@ class ApiConstants {
       '$apiBaseUrl/workouts/session-feedback/for-session/$sessionId/';
   static String get painEvents => '$apiBaseUrl/workouts/pain-events/';
   static String get painEventLog => '$apiBaseUrl/workouts/pain-events/log/';
+  // Pain triage endpoints (v6.5 §24)
+  static String get painTriageStart => '$apiBaseUrl/workouts/pain-triage/start/';
+  static String painTriageRound2(String id) =>
+      '$apiBaseUrl/workouts/pain-triage/$id/round-2/';
+  static String painTriageIntervention(String id) =>
+      '$apiBaseUrl/workouts/pain-triage/$id/intervention/';
+  static String painTriageFinalize(String id) =>
+      '$apiBaseUrl/workouts/pain-triage/$id/finalize/';
+  static String painTriageDetail(String id) =>
+      '$apiBaseUrl/workouts/pain-triage/$id/detail_view/';
+
   static String get routingRules => '$apiBaseUrl/workouts/routing-rules/';
   static String get routingRulesDefaults => '$apiBaseUrl/workouts/routing-rules/defaults/';
   static String get routingRulesInitialize => '$apiBaseUrl/workouts/routing-rules/initialize/';
@@ -484,6 +503,16 @@ class ApiConstants {
       '$apiBaseUrl/workouts/video-analysis/$id/';
   static String videoAnalysisConfirm(String id) =>
       '$apiBaseUrl/workouts/video-analysis/$id/confirm/';
+
+  // Dual Capture video message endpoints (v6.5 §22)
+  static String get videoMessageStart =>
+      '$apiBaseUrl/workouts/video-messages/start/';
+  static String videoMessageComplete(String id) =>
+      '$apiBaseUrl/workouts/video-messages/$id/complete/';
+  static String videoMessageDetail(String id) =>
+      '$apiBaseUrl/workouts/video-messages/$id/';
+  static String videoMessageAttach(String id) =>
+      '$apiBaseUrl/workouts/video-messages/$id/attach/';
 
   // Decision log endpoints (v6.5)
   static String get decisionLogs => '$apiBaseUrl/workouts/decision-logs/';

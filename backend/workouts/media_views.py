@@ -268,3 +268,123 @@ class VideoAnalysisConfirmView(APIView):
             'rep_count': result.rep_count,
             'form_score': result.form_score,
         })
+
+
+# ---------------------------------------------------------------------------
+# v6.5 §22: Video Message (Dual Capture) Views
+# ---------------------------------------------------------------------------
+
+class VideoMessageStartView(APIView):
+    """Start a new dual capture recording."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        from .services.video_message_service import start_recording
+
+        user = request.user
+        capture_mode = request.data.get('capture_mode', 'front_only')
+        screen_route_context = request.data.get('screen_route_context', {})
+        trainee_id = request.data.get('trainee_id')
+        ref_type = request.data.get('referenced_object_type', '')
+        ref_id = request.data.get('referenced_object_id', '')
+
+        result = start_recording(
+            owner=user,
+            capture_mode=capture_mode,
+            screen_route_context=screen_route_context,
+            trainee_id=int(trainee_id) if trainee_id else None,
+            referenced_object_type=ref_type,
+            referenced_object_id=str(ref_id),
+        )
+
+        return Response({
+            'asset_id': result.asset_id,
+            'upload_status': result.upload_status,
+            'capture_mode': result.capture_mode,
+        }, status=status.HTTP_201_CREATED)
+
+
+class VideoMessageCompleteView(APIView):
+    """Complete upload of a dual capture recording."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, asset_id: str) -> Response:
+        from .services.video_message_service import complete_upload
+
+        result = complete_upload(
+            asset_id=asset_id,
+            raw_upload_uri=request.data.get('raw_upload_uri', ''),
+            duration_seconds=float(request.data.get('duration_seconds', 0)),
+            orientation=request.data.get('orientation', 'portrait'),
+            camera_layout=request.data.get('camera_layout'),
+        )
+
+        return Response({
+            'asset_id': result.asset_id,
+            'upload_status': result.upload_status,
+            'processing_status': result.processing_status,
+        })
+
+
+class VideoMessageDetailView(APIView):
+    """Get details of a video message."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, asset_id: str) -> Response:
+        from .services.video_message_service import get_asset
+
+        asset = get_asset(asset_id, request.user)
+        return Response({
+            'id': str(asset.pk),
+            'capture_mode': asset.capture_mode,
+            'duration_seconds': asset.duration_seconds,
+            'upload_status': asset.upload_status,
+            'processing_status': asset.processing_status,
+            'raw_upload_uri': asset.raw_upload_uri,
+            'processed_stream_uri': asset.processed_stream_uri,
+            'thumbnail_uri': asset.thumbnail_uri,
+            'transcript_text': asset.transcript_text,
+            'transcript_confidence': asset.transcript_confidence,
+            'visibility_scope': asset.visibility_scope,
+            'created_at': asset.created_at.isoformat(),
+        })
+
+    def delete(self, request: Request, asset_id: str) -> Response:
+        from .services.video_message_service import delete_asset
+
+        delete_asset(asset_id, request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class VideoMessageAttachView(APIView):
+    """Attach a video message to a thread or check-in."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request, asset_id: str) -> Response:
+        from .services.video_message_service import attach_to_checkin, attach_to_thread
+
+        attach_type = request.data.get('attach_type', '')  # 'thread' or 'checkin'
+        target_id = request.data.get('target_id', '')
+
+        if attach_type == 'thread':
+            result = attach_to_thread(
+                asset_id=asset_id,
+                thread_id=int(target_id),
+                user=request.user,
+            )
+        elif attach_type == 'checkin':
+            result = attach_to_checkin(
+                asset_id=asset_id,
+                checkin_id=str(target_id),
+                user=request.user,
+            )
+        else:
+            return Response(
+                {'detail': 'attach_type must be "thread" or "checkin".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({
+            'asset_id': result.asset_id,
+            'upload_status': result.upload_status,
+        })

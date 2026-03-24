@@ -75,6 +75,55 @@ SYSTEM_MODALITIES = [
         'use_when': ['Injury rehab or return from injury', 'Driving metabolites with light loads'],
         'avoid_when': ['Compound moves', 'Core exercises', 'Longer than one mesocycle per muscle group'],
     },
+    # v6.5 UI/UX Packet §6 — Additional modalities
+    {
+        'name': '1.5 Reps',
+        'slug': '1-5-reps',
+        'description': 'Full rep + half rep = one count. Increases time under tension at the hardest range.',
+        'volume_multiplier': Decimal('1.00'),
+        'use_when': ['Hypertrophy with lengthened emphasis', 'Building bottom-range strength'],
+        'avoid_when': ['Heavy strength sets (5 reps or fewer)', 'Exercises with poor bottom control'],
+    },
+    {
+        'name': 'Iso-Hold + Reps',
+        'slug': 'iso-hold-reps',
+        'description': 'Static hold at a weak point, then complete prescribed reps. Builds position ownership.',
+        'volume_multiplier': Decimal('1.00'),
+        'use_when': ['Tendon tolerance', 'Position ownership at weak point', 'Rehab exposure'],
+        'avoid_when': ['Very heavy loads', 'Exercises where hold position is unsafe'],
+    },
+    {
+        'name': 'Burnout Sets',
+        'slug': 'burnout-sets',
+        'description': 'Final set taken to technical failure after working sets. High fatigue, pump-focused.',
+        'volume_multiplier': Decimal('0.67'),
+        'use_when': ['End of isolation work', 'Pump / metabolite accumulation'],
+        'avoid_when': ['Main compound lifts', 'Exercises with injury risk at failure'],
+    },
+    {
+        'name': 'Widowmaker Sets',
+        'slug': 'widowmaker',
+        'description': 'Single high-rep set (typically 20+ reps). Extreme metabolic stress and mental toughness.',
+        'volume_multiplier': Decimal('1.00'),
+        'use_when': ['End of session finisher', 'Metabolic conditioning on safe exercises'],
+        'avoid_when': ['Technical lifts', 'Exercises with high spinal load'],
+    },
+    {
+        'name': 'E2MOM',
+        'slug': 'e2mom',
+        'description': 'Every 2 Minutes On the Minute. Longer recovery between clusters for heavier work.',
+        'volume_multiplier': Decimal('1.00'),
+        'use_when': ['Moderate-heavy strength work with controlled density', 'Compound movements'],
+        'avoid_when': ['Very light isolation work (EMOM suffices)'],
+    },
+    {
+        'name': 'AMQR',
+        'slug': 'amqr',
+        'description': 'As Many Quality Reps. Stop when rep quality degrades, not at a fixed number.',
+        'volume_multiplier': Decimal('1.00'),
+        'use_when': ['Technical work', 'Autoregulated volume', 'Skill-based movements'],
+        'avoid_when': ['Users who struggle to self-regulate effort'],
+    },
 ]
 
 

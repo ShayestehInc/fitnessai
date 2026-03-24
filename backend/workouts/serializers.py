@@ -68,7 +68,7 @@ class ExerciseSerializer(serializers.ModelSerializer[Exercise]):
             'version',
             'is_public', 'created_by', 'created_by_email', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at', 'version', 'is_public', 'created_by']
+        read_only_fields = ['created_at', 'updated_at', 'version', 'is_public', 'created_by', 'image_url']
 
     def validate_muscle_contribution_map(self, value: dict[str, float]) -> dict[str, float]:
         """Validate that muscle contribution weights sum to 1.0."""
@@ -193,7 +193,7 @@ class ProgramSerializer(serializers.ModelSerializer[Program]):
             'duration_weeks', 'difficulty_level', 'goal_type',
             'created_by', 'created_by_email', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at', 'image_url']
 
     def get_trainee_name(self, obj: Program) -> str:
         """Get trainee's display name."""
@@ -1585,9 +1585,49 @@ QuickBuildSerializer = BuilderBriefSerializer
 BuilderStartSerializer = BuilderBriefSerializer
 
 
+class CuratedNutritionSerializer(serializers.Serializer[None]):
+    """Input for generating an AI-curated nutrition plan for a specific trainee."""
+    trainee_id = serializers.IntegerField(required=True)
+    override_template_type = serializers.ChoiceField(
+        choices=[
+            ('', ''), ('shredded', 'SHREDDED'), ('massive', 'MASSIVE'),
+            ('carb_cycling', 'Carb Cycling'), ('custom', 'Custom'),
+        ],
+        required=False, default='',
+    )
+    override_goal = serializers.CharField(
+        max_length=30, required=False, default='', allow_blank=True,
+    )
+    trainer_notes = serializers.CharField(
+        max_length=1000, required=False, default='', allow_blank=True,
+    )
+
+
+class CuratedBuildSerializer(serializers.Serializer[None]):
+    """Input for generating an AI-curated program for a specific trainee."""
+    trainee_id = serializers.IntegerField(required=True)
+    override_goal = serializers.CharField(
+        max_length=30, required=False, default='', allow_blank=True,
+    )
+    override_days_per_week = serializers.IntegerField(
+        min_value=2, max_value=7, required=False, default=0,
+    )
+    override_equipment = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False, default=list,
+    )
+    override_difficulty = serializers.CharField(
+        max_length=20, required=False, default='', allow_blank=True,
+    )
+    trainer_notes = serializers.CharField(
+        max_length=1000, required=False, default='', allow_blank=True,
+    )
+
+
 class BuilderAdvanceSerializer(serializers.Serializer[None]):
     """Input for advancing to the next builder step. Override is step-specific."""
     override = serializers.DictField(required=False, allow_null=True, default=None)
+    current_step = serializers.CharField(required=False, allow_null=True, default=None)
 
 
 class SplitTemplateSerializer(serializers.ModelSerializer[SplitTemplate]):

@@ -143,7 +143,7 @@ def ai_quick_build(brief: dict[str, Any]) -> AIBuilderResponse:
     prompt = _build_quick_build_prompt(brief, exercise_bank, splits)
 
     try:
-        raw = _call_ai(prompt, max_tokens=4096)
+        raw = _call_ai(prompt, max_tokens=4096, timeout_seconds=10)
         data = _parse_json_from_response(raw)
         return AIBuilderResponse(data=data, raw_text=raw, used_ai=True)
     except Exception:
@@ -260,9 +260,39 @@ def _build_step_prompt(
     brief: dict[str, Any],
     context: dict[str, Any],
 ) -> str:
-    """Build a step-specific prompt for the advanced builder."""
+    """Build a step-specific prompt for the advanced builder.
+
+    Includes the decision tree from the UI/UX Master Packet §12 so the AI
+    follows structured reasoning at each step.
+    """
+    from workouts.ai_prompts import get_builder_decision_tree_prompt
+
     pain_tol = brief.get('pain_tolerances') or {}
     brief_summary = f"""Client: goal={brief.get('goal')}, {brief.get('days_per_week')} days/week, {brief.get('session_length_minutes', 60)}min sessions, difficulty={brief.get('difficulty')}, equipment={brief.get('equipment', [])}, injuries={brief.get('injuries', [])}, pain_tolerances={pain_tol}, style={brief.get('style', 'none')}, body_part_emphasis={brief.get('body_part_emphasis', [])}"""
+
+    # Map builder step names to decision tree names
+    _step_to_tree: dict[str, str] = {
+        'split': 'choose_split',
+        'length': 'choose_split',  # length uses split tree context
+        'roles': 'choose_day_role',
+        'skeleton': 'choose_slot_roles',
+        'structures': 'choose_set_structure',
+        'exercises': 'choose_exercise',
+        'swaps': 'build_swaps',
+        'progression': 'choose_progression',
+        'publish': 'timing_check',
+    }
+
+    tree_name = _step_to_tree.get(step_name, '')
+    decision_tree = ''
+    if tree_name:
+        decision_tree = get_builder_decision_tree_prompt(tree_name, {
+            'goal': brief.get('goal', ''),
+            'days_per_week': brief.get('days_per_week', 0),
+            'difficulty': brief.get('difficulty', ''),
+            'equipment': str(brief.get('equipment', [])),
+            'injuries': str(brief.get('injuries', [])),
+        })
 
     if step_name == 'length':
         return f"""{brief_summary}
@@ -304,6 +334,7 @@ Recommend a progression strategy. Return JSON:
         return f"""{brief_summary}
 Step: {step_name}
 Context: {json.dumps(context)}
+{decision_tree}
 Provide a recommendation for this step. Return JSON with "recommendation" and "why" keys."""
 
 

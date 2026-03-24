@@ -12,6 +12,8 @@ from .views import (
     LiftSetLogViewSet,
     MacroPresetViewSet,
     MealLogViewSet,
+    MuscleCoverageView,
+    MuscleReferenceViewSet,
     NutritionDayPlanViewSet,
     NutritionGoalViewSet,
     NutritionTemplateAssignmentViewSet,
@@ -33,6 +35,7 @@ from .views import (
 from .session_views import ActiveSessionViewSet
 from .feedback_views import (
     PainEventViewSet,
+    PainTriageViewSet,
     SessionFeedbackViewSet,
     TrainerRoutingRuleViewSet,
 )
@@ -56,6 +59,10 @@ from .media_views import (
     VideoAnalysisDetailView,
     VideoAnalysisListView,
     VideoAnalysisUploadView,
+    VideoMessageAttachView,
+    VideoMessageCompleteView,
+    VideoMessageDetailView,
+    VideoMessageStartView,
     VoiceMemoDetailView,
     VoiceMemoListView,
     VoiceMemoUploadView,
@@ -93,7 +100,9 @@ router.register(r'progression-profiles', ProgressionProfileViewSet, basename='pr
 router.register(r'sessions', ActiveSessionViewSet, basename='activesession')
 router.register(r'session-feedback', SessionFeedbackViewSet, basename='sessionfeedback')
 router.register(r'pain-events', PainEventViewSet, basename='painevent')
+router.register(r'pain-triage', PainTriageViewSet, basename='paintriage')
 router.register(r'routing-rules', TrainerRoutingRuleViewSet, basename='routingrule')
+router.register(r'muscles', MuscleReferenceViewSet, basename='musclereference')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -126,4 +135,13 @@ urlpatterns = [
     path('video-analysis/list/', VideoAnalysisListView.as_view(), name='video-analysis-list'),
     path('video-analysis/<str:analysis_id>/', VideoAnalysisDetailView.as_view(), name='video-analysis-detail'),
     path('video-analysis/<str:analysis_id>/confirm/', VideoAnalysisConfirmView.as_view(), name='video-analysis-confirm'),
+
+    # v6.5 §22: Dual Capture Video Messages
+    path('video-messages/start/', VideoMessageStartView.as_view(), name='video-message-start'),
+    path('video-messages/<str:asset_id>/complete/', VideoMessageCompleteView.as_view(), name='video-message-complete'),
+    path('video-messages/<str:asset_id>/', VideoMessageDetailView.as_view(), name='video-message-detail'),
+    path('video-messages/<str:asset_id>/attach/', VideoMessageAttachView.as_view(), name='video-message-attach'),
+
+    # Muscle coverage / anatomy heatmap
+    path('muscle-coverage/', MuscleCoverageView.as_view(), name='muscle-coverage'),
 ]
