@@ -304,7 +304,7 @@ def log_set(
     with transaction.atomic():
         session = (
             ActiveSession.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .select_related('plan_session', 'trainee')
             .get(pk=active_session_id)
         )
@@ -347,7 +347,7 @@ def skip_set(
     with transaction.atomic():
         session = (
             ActiveSession.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .select_related('plan_session', 'trainee')
             .get(pk=active_session_id)
         )
@@ -380,7 +380,7 @@ def complete_session(
     with transaction.atomic():
         session = (
             ActiveSession.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .select_related('plan_session')
             .get(pk=active_session_id)
         )
@@ -466,7 +466,7 @@ def abandon_session(
     with transaction.atomic():
         session = (
             ActiveSession.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .select_related('plan_session')
             .get(pk=active_session_id)
         )
@@ -657,7 +657,7 @@ def _fetch_and_find_pending_set(
     """
     all_set_logs = list(
         ActiveSetLog.objects
-        .select_for_update()
+        .select_for_update(of=('self',))
         .filter(active_session=session)
         .select_related('plan_slot', 'exercise')
         .order_by('plan_slot__order', 'set_number')
@@ -746,7 +746,7 @@ def _auto_abandon_stale_sessions(trainee_id: int) -> None:
     with transaction.atomic():
         stale_sessions = list(
             ActiveSession.objects
-            .select_for_update()
+            .select_for_update(of=('self',))
             .filter(
                 trainee_id=trainee_id,
                 status=ActiveSession.Status.IN_PROGRESS,
