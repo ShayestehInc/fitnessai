@@ -407,13 +407,87 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
   }
 
   Widget _buildNutritionTab(TraineeDetailModel trainee) {
-    return Column(
+    final theme = Theme.of(context);
+    final goal = trainee.nutritionGoal;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-          child: _NutritionTemplateSection(traineeId: trainee.id),
+        // ── AI Nutrition Plan Card ──
+        _buildCuratedNutritionCard(trainee),
+        const SizedBox(height: 16),
+
+        // ── Current Macro Targets ──
+        if (goal != null) ...[
+          _buildSectionTitle('Current Macro Targets'),
+          const SizedBox(height: 8),
+          _NutritionMacroSummaryCard(
+            protein: goal.proteinGoal,
+            carbs: goal.carbsGoal,
+            fat: goal.fatGoal,
+            calories: goal.caloriesGoal,
+            isTrainerAdjusted: goal.isTrainerAdjusted,
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // ── Active Template Assignment ──
+        _buildSectionTitle('Nutrition Template'),
+        const SizedBox(height: 8),
+        _NutritionTemplateSection(traineeId: trainee.id),
+        const SizedBox(height: 16),
+
+        // ── Recent Adherence (last 7 days) ──
+        if (trainee.recentActivity.isNotEmpty) ...[
+          _buildSectionTitle('Meal Logging (Last 7 Days)'),
+          const SizedBox(height: 8),
+          _NutritionAdherenceCard(
+            activities: trainee.recentActivity,
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // ── Quick Actions ──
+        _buildSectionTitle('Quick Actions'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _NutritionQuickActionButton(
+                icon: Icons.restaurant_menu,
+                label: 'Assign Template',
+                onTap: () => context.push(
+                  '/nutrition/template-assignment/${trainee.id}',
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _NutritionQuickActionButton(
+                icon: Icons.edit_note,
+                label: 'Edit Macros',
+                onTap: () {
+                  // TODO: Open macro editing for this trainee
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _NutritionQuickActionButton(
+                icon: Icons.calendar_view_week,
+                label: 'View Week',
+                onTap: () => context.push('/nutrition/week-plan'),
+              ),
+            ),
+          ],
         ),
-        Expanded(
+        const SizedBox(height: 16),
+
+        // ── Macro Presets (existing) ──
+        _buildSectionTitle('Macro Presets'),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 300,
           child: _MacroPresetsTab(
             traineeId: trainee.id,
             traineeName: trainee.firstName ?? 'Trainee',
@@ -1979,6 +2053,278 @@ class _ActionButton extends StatelessWidget {
             Icon(icon, color: color),
             const SizedBox(height: 8),
             Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact macro summary card showing P/C/F/Cal with visual bars.
+class _NutritionMacroSummaryCard extends StatelessWidget {
+  final int protein;
+  final int carbs;
+  final int fat;
+  final int calories;
+  final bool isTrainerAdjusted;
+
+  const _NutritionMacroSummaryCard({
+    required this.protein,
+    required this.carbs,
+    required this.fat,
+    required this.calories,
+    this.isTrainerAdjusted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = (protein * 4 + carbs * 4 + fat * 9).toDouble();
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.dividerColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$calories kcal/day',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (isTrainerAdjusted)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Trainer Adjusted',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Macro bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(
+                height: 8,
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: (protein * 4 * 100 ~/ (total > 0 ? total : 1))
+                          .toInt(),
+                      child: Container(color: const Color(0xFF3B82F6)),
+                    ),
+                    Expanded(
+                      flex: (carbs * 4 * 100 ~/ (total > 0 ? total : 1))
+                          .toInt(),
+                      child: Container(color: const Color(0xFFF59E0B)),
+                    ),
+                    Expanded(
+                      flex: (fat * 9 * 100 ~/ (total > 0 ? total : 1))
+                          .toInt(),
+                      child: Container(color: const Color(0xFFEF4444)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _MacroLabel(
+                  label: 'Protein',
+                  value: '${protein}g',
+                  color: const Color(0xFF3B82F6),
+                ),
+                _MacroLabel(
+                  label: 'Carbs',
+                  value: '${carbs}g',
+                  color: const Color(0xFFF59E0B),
+                ),
+                _MacroLabel(
+                  label: 'Fat',
+                  value: '${fat}g',
+                  color: const Color(0xFFEF4444),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MacroLabel extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MacroLabel({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(value,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ],
+        ),
+        Text(label, style: theme.textTheme.labelSmall),
+      ],
+    );
+  }
+}
+
+/// 7-day meal logging adherence strip.
+class _NutritionAdherenceCard extends StatelessWidget {
+  final List<dynamic> activities;
+
+  const _NutritionAdherenceCard({required this.activities});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final logged = activities.where((a) => a.loggedFood == true).length;
+    final total = activities.length;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: theme.dividerColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$logged of $total days logged',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${total > 0 ? (logged / total * 100).round() : 0}%',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: logged / (total > 0 ? total : 1) >= 0.7
+                        ? const Color(0xFF22C55E)
+                        : const Color(0xFFF59E0B),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: activities.map<Widget>((a) {
+                final didLog = a.loggedFood == true;
+                return Expanded(
+                  child: Container(
+                    height: 24,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: didLog
+                          ? const Color(0xFF22C55E).withValues(alpha: 0.2)
+                          : theme.dividerColor.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        didLog ? Icons.check : Icons.remove,
+                        size: 14,
+                        color: didLog
+                            ? const Color(0xFF22C55E)
+                            : theme.dividerColor,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact quick action button for the Nutrition tab.
+class _NutritionQuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NutritionQuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 22, color: theme.colorScheme.primary),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: theme.textTheme.labelSmall,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
