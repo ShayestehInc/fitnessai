@@ -98,6 +98,53 @@ def get_ai_config() -> AIModelConfig:
     return config
 
 
+def get_builder_config() -> AIModelConfig:
+    """
+    Get AI config optimized for the program/nutrition builder.
+
+    Priority:
+    1. AI_BUILDER_PROVIDER + AI_BUILDER_MODEL env vars (explicit override)
+    2. Google Gemini 2.0 Flash (if GOOGLE_API_KEY set) — fastest, ~2-5s
+    3. OpenAI GPT-4o-mini (if OPENAI_API_KEY set) — fast, ~3-8s
+    4. Falls back to general AI config (claude/gpt-4o) — slowest, ~15-30s
+    """
+    # Check for explicit builder config
+    builder_provider = os.getenv("AI_BUILDER_PROVIDER")
+    builder_model = os.getenv("AI_BUILDER_MODEL")
+
+    if builder_provider and builder_model:
+        try:
+            provider = AIProvider(builder_provider.lower())
+            return AIModelConfig(
+                provider=provider,
+                model_name=builder_model,
+                temperature=0.5,
+                max_tokens=4096,
+            )
+        except ValueError:
+            pass
+
+    # Auto-detect fastest available: Google > OpenAI mini > fallback
+    if os.getenv("GOOGLE_API_KEY"):
+        return AIModelConfig(
+            provider=AIProvider.GOOGLE,
+            model_name="gemini-2.0-flash",
+            temperature=0.5,
+            max_tokens=4096,
+        )
+
+    if os.getenv("OPENAI_API_KEY"):
+        return AIModelConfig(
+            provider=AIProvider.OPENAI,
+            model_name="gpt-4o-mini",
+            temperature=0.5,
+            max_tokens=4096,
+        )
+
+    # Last resort: use general config
+    return get_ai_config()
+
+
 def get_api_key(provider: AIProvider) -> Optional[str]:
     """Get API key for the specified provider."""
     key_map = {

@@ -31,15 +31,15 @@ class AIBuilderResponse:
     used_ai: bool
 
 
-def _get_llm(max_tokens: int = 2048, temperature: float = 0.7) -> Any:
-    """Get the configured LLM instance."""
-    from trainer.ai_config import get_ai_config, get_api_key, AIModelConfig
+def _get_llm(max_tokens: int = 2048, temperature: float = 0.5) -> Any:
+    """Get the LLM optimized for builder tasks (fast model by default)."""
+    from trainer.ai_config import get_builder_config, get_api_key, AIModelConfig
     from trainer.ai_chat import get_chat_model
 
-    config = get_ai_config()
+    config = get_builder_config()
     api_key = get_api_key(config.provider)
     if not api_key:
-        raise RuntimeError("No AI API key configured.")
+        raise RuntimeError(f"No API key configured for {config.provider.value}.")
 
     gen_config = AIModelConfig(
         provider=config.provider,
