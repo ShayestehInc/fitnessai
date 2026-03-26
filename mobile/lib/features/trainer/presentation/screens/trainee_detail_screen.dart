@@ -1023,7 +1023,14 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: SizedBox()),
+            Expanded(
+              child: _ActionButton(
+                icon: Icons.videocam,
+                label: 'Record Video',
+                color: Colors.red,
+                onTap: () => context.push('/dual-capture'),
+              ),
+            ),
           ],
         ),
       ],
