@@ -7,6 +7,7 @@ import '../../../../shared/widgets/adaptive/adaptive_spinner.dart';
 import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../../../nutrition/presentation/providers/nutrition_template_provider.dart';
 import '../../../training_plans/presentation/providers/training_plan_provider.dart';
+import '../providers/trainer_provider.dart';
 
 /// Bottom sheet for generating an AI-curated nutrition plan for a trainee.
 class CuratedNutritionSheet extends ConsumerStatefulWidget {
@@ -234,11 +235,36 @@ class _CuratedNutritionSheetState
 
       if (taskStatus == 'completed') {
         _pollTimer?.cancel();
-        Navigator.of(context).pop();
-        if (context.mounted) {
+
+        // Extract result details
+        final resultData = result['data'];
+        String templateName = '';
+        String reasoning = '';
+        if (resultData is Map) {
+          final inner = resultData['result'] ?? resultData;
+          if (inner is Map) {
+            templateName = inner['template_name']?.toString() ?? '';
+            reasoning = inner['reasoning']?.toString() ?? '';
+          }
+        }
+
+        // Invalidate providers so the Nutrition tab refreshes with new data
+        ref.invalidate(traineeActiveAssignmentProvider(widget.traineeId));
+        ref.invalidate(traineeDetailProvider(widget.traineeId));
+
+        setState(() {
+          _isSubmitting = false;
+          _progressStep = '';
+        });
+
+        // Show result in the sheet instead of just closing
+        if (mounted) {
+          Navigator.of(context).pop();
           showAdaptiveToast(
             context,
-            message: 'Nutrition plan generated successfully!',
+            message: templateName.isNotEmpty
+                ? '$templateName plan assigned!'
+                : 'Nutrition plan generated successfully!',
             type: ToastType.success,
           );
         }
