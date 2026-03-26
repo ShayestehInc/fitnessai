@@ -34,7 +34,17 @@ class NutritionTemplateRepository {
       queryParameters: queryParams,
     );
 
-    final data = response.data as List<dynamic>;
+    // Handle both paginated ({count, results}) and plain list responses
+    final rawData = response.data;
+    final List<dynamic> data;
+    if (rawData is List) {
+      data = rawData;
+    } else if (rawData is Map && rawData.containsKey('results')) {
+      data = rawData['results'] as List<dynamic>;
+    } else {
+      return null;
+    }
+
     final activeList = data
         .map((e) => NutritionTemplateAssignmentModel.fromJson(
             e as Map<String, dynamic>))
