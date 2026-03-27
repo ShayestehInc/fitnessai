@@ -1,15 +1,17 @@
 import 'dart:async';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../shared/widgets/adaptive/adaptive_toast.dart';
 import '../widgets/camera_bubble.dart';
 import '../widgets/recording_controls.dart';
 
 /// Dual Capture screen — Loom-style recording (v6.5 §22).
 ///
-/// Supports: screen only, camera only, screen + camera PiP.
-/// Controls: record, pause, resume, stop, discard.
+/// Supports: camera only, screen + camera PiP, screen only.
+/// Uses the `camera` package for live preview + video recording.
 class DualCaptureScreen extends ConsumerStatefulWidget {
   final String? traineeId;
   final String? referencedObjectType;
@@ -26,13 +28,19 @@ class DualCaptureScreen extends ConsumerStatefulWidget {
   ConsumerState<DualCaptureScreen> createState() => _DualCaptureScreenState();
 }
 
-class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
+class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen>
+    with WidgetsBindingObserver {
   String _captureMode = 'front_only';
   bool _isRecording = false;
   bool _isPaused = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
   bool _useFrontCamera = true;
+
+  CameraController? _cameraController;
+  List<CameraDescription> _cameras = [];
+  bool _isCameraInitialized = false;
+  String? _cameraError;
 
   static const _captureModes = [
     MapEntry('front_only', 'Camera Only'),
@@ -41,25 +49,83 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initCamera();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _cameraController?.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+    if (state == AppLifecycleState.inactive) {
+      _cameraController?.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _initCamera();
+    }
+  }
 
+  Future<void> _initCamera() async {
+    try {
+      _cameras = await availableCameras();
+      if (_cameras.isEmpty) {
+        setState(() => _cameraError = 'No cameras available');
+        return;
+      }
+
+      final camera = _useFrontCamera
+          ? _cameras.firstWhere(
+              (c) => c.lensDirection == CameraLensDirection.front,
+              orElse: () => _cameras.first,
+            )
+          : _cameras.firstWhere(
+              (c) => c.lensDirection == CameraLensDirection.back,
+              orElse: () => _cameras.first,
+            );
+
+      _cameraController = CameraController(
+        camera,
+        ResolutionPreset.high,
+        enableAudio: true,
+      );
+
+      await _cameraController!.initialize();
+
+      if (mounted) {
+        setState(() {
+          _isCameraInitialized = true;
+          _cameraError = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _cameraError = 'Camera error: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
-            // Camera preview placeholder
-            _buildCameraPreview(theme),
+            // Camera preview or placeholder
+            _buildCameraPreview(),
 
             // Top bar with close + mode selector
-            _buildTopBar(theme),
+            _buildTopBar(),
 
             // Camera bubble (PiP mode)
             if (_captureMode == 'screen_plus_front' ||
@@ -93,51 +159,79 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
     );
   }
 
-  Widget _buildCameraPreview(ThemeData theme) {
-    // In production: use CameraPreview from the `camera` package
-    return Container(
-      color: Colors.black87,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _captureMode == 'screen_only'
-                  ? Icons.screen_share_rounded
-                  : Icons.videocam_rounded,
-              size: 64,
-              color: Colors.white24,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _isRecording
-                  ? (_isPaused ? 'Paused' : 'Recording...')
-                  : 'Ready to record',
-              style: const TextStyle(color: Colors.white54, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _captureMode == 'screen_only'
-                  ? 'Screen recording mode'
-                  : _useFrontCamera
-                      ? 'Front camera'
-                      : 'Rear camera',
-              style: const TextStyle(color: Colors.white30, fontSize: 13),
-            ),
-          ],
+  Widget _buildCameraPreview() {
+    if (_captureMode == 'screen_only') {
+      return Container(
+        color: Colors.black87,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.screen_share_rounded, size: 64, color: Colors.white24),
+              SizedBox(height: 16),
+              Text('Screen recording mode',
+                  style: TextStyle(color: Colors.white54, fontSize: 16)),
+              SizedBox(height: 8),
+              Text('Your screen will be captured',
+                  style: TextStyle(color: Colors.white30, fontSize: 13)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_cameraError != null) {
+      return Container(
+        color: Colors.black87,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.videocam_off, size: 48, color: Colors.white24),
+              const SizedBox(height: 16),
+              Text(_cameraError!,
+                  style: const TextStyle(color: Colors.white54),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _initCamera,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!_isCameraInitialized || _cameraController == null) {
+      return Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white38),
+        ),
+      );
+    }
+
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: _cameraController!.value.previewSize?.height ?? 1,
+          height: _cameraController!.value.previewSize?.width ?? 1,
+          child: CameraPreview(_cameraController!),
         ),
       ),
     );
   }
 
-  Widget _buildTopBar(ThemeData theme) {
+  Widget _buildTopBar() {
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -156,14 +250,14 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
                 }
               },
             ),
-            // Mode selector (centered, flexible)
             if (!_isRecording)
               Expanded(
                 child: Center(
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.white12,
                         borderRadius: BorderRadius.circular(20),
@@ -173,20 +267,27 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
                         children: _captureModes.map((mode) {
                           final isSelected = _captureMode == mode.key;
                           return GestureDetector(
-                            onTap: () => setState(() => _captureMode = mode.key),
+                            onTap: () {
+                              setState(() => _captureMode = mode.key);
+                              if (mode.key != 'screen_only') {
+                                _initCamera();
+                              }
+                            },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: isSelected ? Colors.white24 : Colors.transparent,
+                                color: isSelected
+                                    ? Colors.white24
+                                    : Colors.transparent,
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
                                 mode.value,
                                 style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.white54,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white54,
                                   fontSize: 11,
                                   fontWeight: isSelected
                                       ? FontWeight.w600
@@ -203,14 +304,27 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
               )
             else
               const Spacer(),
-            const SizedBox(width: 48), // Balance close button
+            const SizedBox(width: 48),
           ],
         ),
       ),
     );
   }
 
-  void _startRecording() {
+  Future<void> _startRecording() async {
+    if (_captureMode != 'screen_only' && _cameraController != null) {
+      try {
+        await _cameraController!.startVideoRecording();
+      } catch (e) {
+        if (mounted) {
+          showAdaptiveToast(context,
+              message: 'Failed to start recording: $e',
+              type: ToastType.error);
+        }
+        return;
+      }
+    }
+
     setState(() {
       _isRecording = true;
       _isPaused = false;
@@ -221,43 +335,63 @@ class _DualCaptureScreenState extends ConsumerState<DualCaptureScreen> {
         setState(() => _elapsedSeconds++);
       }
     });
-    // TODO: Start actual camera/screen recording via platform channels
   }
 
-  void _pauseRecording() {
+  Future<void> _pauseRecording() async {
+    if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
+      await _cameraController!.pauseVideoRecording();
+    }
     setState(() => _isPaused = true);
-    // TODO: Pause recording
   }
 
-  void _resumeRecording() {
+  Future<void> _resumeRecording() async {
+    if (_cameraController != null && _cameraController!.value.isRecordingPaused) {
+      await _cameraController!.resumeVideoRecording();
+    }
     setState(() => _isPaused = false);
-    // TODO: Resume recording
   }
 
-  void _stopRecording() {
+  Future<void> _stopRecording() async {
     _timer?.cancel();
+
+    XFile? videoFile;
+    if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
+      videoFile = await _cameraController!.stopVideoRecording();
+    }
+
     setState(() {
       _isRecording = false;
       _isPaused = false;
     });
-    // TODO: Stop recording, save file, upload to backend
-    // For now, pop back
-    Navigator.of(context).pop();
+
+    if (videoFile != null && mounted) {
+      showAdaptiveToast(context,
+          message: 'Video saved: ${videoFile.name}',
+          type: ToastType.success);
+      // TODO: Upload to backend via video_message_service
+    }
+
+    if (mounted) Navigator.of(context).pop();
   }
 
-  void _discardRecording() {
+  void _discardRecording() async {
     _timer?.cancel();
+    if (_cameraController != null && _cameraController!.value.isRecordingVideo) {
+      await _cameraController!.stopVideoRecording();
+    }
     setState(() {
       _isRecording = false;
       _isPaused = false;
       _elapsedSeconds = 0;
     });
-    // TODO: Discard recording file
   }
 
-  void _flipCamera() {
+  Future<void> _flipCamera() async {
     setState(() => _useFrontCamera = !_useFrontCamera);
-    // TODO: Switch camera source
+    await _cameraController?.dispose();
+    _cameraController = null;
+    setState(() => _isCameraInitialized = false);
+    await _initCamera();
   }
 
   void _showDiscardConfirmation() {

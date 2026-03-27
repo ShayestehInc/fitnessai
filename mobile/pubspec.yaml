@@ -65,6 +65,9 @@ dependencies:
   # Google Maps
   google_maps_flutter: ^2.6.1
 
+  # Camera (live preview for dual capture)
+  camera: ^0.11.0+2
+
   # Image Picker
   image_picker: ^1.0.7
 
