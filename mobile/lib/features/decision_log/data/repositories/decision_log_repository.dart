@@ -28,7 +28,26 @@ class DecisionLogRepository {
       );
 
       final data = response.data;
-      final List<dynamic> results = data['results'] ?? [];
+      final List<dynamic> results;
+      int count = 0;
+      String? next;
+      String? previous;
+
+      if (data is List) {
+        // Non-paginated response (raw list)
+        results = data;
+        count = data.length;
+      } else if (data is Map<String, dynamic>) {
+        results = data['results'] as List<dynamic>? ?? [];
+        count = (data['count'] as num?)?.toInt() ?? results.length;
+        next = data['next'] as String?;
+        previous = data['previous'] as String?;
+      } else {
+        throw FormatException(
+          'Unexpected response type: ${data.runtimeType}',
+        );
+      }
+
       final logs = results
           .map((e) => DecisionLogModel.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -36,14 +55,19 @@ class DecisionLogRepository {
       return {
         'success': true,
         'data': logs,
-        'count': data['count'] ?? logs.length,
-        'next': data['next'],
-        'previous': data['previous'],
+        'count': count,
+        'next': next,
+        'previous': previous,
       };
     } on DioException catch (e) {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to load decision logs',
+      };
+    } on Exception catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
       };
     }
   }
@@ -60,6 +84,11 @@ class DecisionLogRepository {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to load decision detail',
       };
+    } on Exception catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
     }
   }
 
@@ -74,6 +103,11 @@ class DecisionLogRepository {
       return {
         'success': false,
         'error': e.response?.data?['error'] ?? 'Failed to undo decision',
+      };
+    } on Exception catch (e) {
+      return {
+        'success': false,
+        'error': e.toString(),
       };
     }
   }

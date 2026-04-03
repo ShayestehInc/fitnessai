@@ -283,42 +283,6 @@ class ProgramRepository {
     }
   }
 
-  /// Update a program template's image URL
-  Future<Map<String, dynamic>> updateTemplateImage(int templateId, String? imageUrl) async {
-    try {
-      await _apiClient.dio.patch(
-        '${ApiConstants.programTemplates}$templateId/',
-        data: {'image_url': imageUrl},
-      );
-      return {
-        'success': true,
-      };
-    } on DioException catch (e) {
-      return {
-        'success': false,
-        'error': e.response?.data?['error'] ?? 'Failed to update template image',
-      };
-    }
-  }
-
-  /// Update a trainee program's image URL
-  Future<Map<String, dynamic>> updateProgramImage(int programId, String? imageUrl) async {
-    try {
-      await _apiClient.dio.patch(
-        '${ApiConstants.programs}$programId/',
-        data: {'image_url': imageUrl},
-      );
-      return {
-        'success': true,
-      };
-    } on DioException catch (e) {
-      return {
-        'success': false,
-        'error': e.response?.data?['error'] ?? 'Failed to update program image',
-      };
-    }
-  }
-
   /// Upload an image file for a program or template
   Future<Map<String, dynamic>> uploadProgramImage(int id, File imageFile, {required bool isTemplate}) async {
     try {

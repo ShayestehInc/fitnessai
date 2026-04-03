@@ -48,6 +48,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   AuthNotifier(this._repository, this._pushService) : super(AuthState());
 
+  /// Try to restore a previous session from saved tokens.
+  /// Returns true if user was restored, false otherwise.
+  Future<bool> tryRestoreSession(ApiClient apiClient) async {
+    // Check if we have a saved token before making any API call
+    final token = await apiClient.getAccessToken();
+    if (token == null) return false;
+
+    final result = await _repository.getCurrentUser();
+
+    if (result['success'] == true) {
+      state = state.copyWith(
+        user: result['user'] as UserModel,
+      );
+      unawaited(_pushService.initialize());
+      return true;
+    }
+
+    // Token was invalid — clear stale tokens
+    await apiClient.clearTokens();
+    return false;
+  }
+
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
 

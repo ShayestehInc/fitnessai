@@ -66,23 +66,26 @@ class DashboardHeader extends ConsumerWidget {
         const SizedBox(width: 4),
         _NotificationBell(),
         const SizedBox(width: 8),
-        // Avatar
-        CircleAvatar(
-          radius: 18,
-          backgroundColor: AppTheme.primary,
-          backgroundImage: user?.profileImage != null
-              ? NetworkImage(user!.profileImage!)
-              : null,
-          child: user?.profileImage == null
-              ? Text(
-                  initials,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                )
-              : null,
+        // Avatar → Settings
+        GestureDetector(
+          onTap: () => context.push('/settings'),
+          child: CircleAvatar(
+            radius: 18,
+            backgroundColor: AppTheme.primary,
+            backgroundImage: user?.profileImage != null
+                ? NetworkImage(user!.profileImage!)
+                : null,
+            child: user?.profileImage == null
+                ? Text(
+                    initials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : null,
+          ),
         ),
       ],
     );

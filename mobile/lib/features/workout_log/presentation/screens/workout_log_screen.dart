@@ -105,7 +105,10 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   Widget _buildHeader(ThemeData theme, WorkoutState state) {
-    final programName = state.activeProgram?.name ?? 'My Program';
+    final program = state.activeProgram;
+    final programName = program?.name ?? 'My Program';
+    final weekNum = program?.currentWeekNumber ?? 0;
+    final totalWeeks = program?.durationWeeks ?? 0;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -134,6 +137,16 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (totalWeeks > 0) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Week $weekNum of $totalWeeks · ${program?.goalDisplay ?? ''}'.trimRight(),
+                        style: TextStyle(
+                          color: theme.textTheme.bodySmall?.color,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -165,6 +178,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       return const SizedBox.shrink();
     }
 
+    final currentWeek = state.activeProgram?.currentWeekNumber ?? 0;
+
     return Container(
       height: 60,
       margin: const EdgeInsets.only(bottom: 16),
@@ -175,6 +190,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
         itemBuilder: (context, index) {
           final week = state.programWeeks[index];
           final isSelected = index == state.selectedWeekIndex;
+          final isCurrent = week.weekNumber == currentWeek;
           final completion = (week.completionPercentage * 100).round();
 
           return GestureDetector(
@@ -190,21 +206,40 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                 border: Border.all(
                   color: isSelected
                       ? theme.colorScheme.primary
-                      : theme.dividerColor,
+                      : isCurrent
+                          ? theme.colorScheme.primary.withValues(alpha: 0.5)
+                          : theme.dividerColor,
+                  width: isCurrent && !isSelected ? 1.5 : 1,
                 ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Week ${week.weekNumber}',
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : theme.textTheme.bodyLarge?.color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Week ${week.weekNumber}',
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : theme.textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (isCurrent && !isSelected) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(

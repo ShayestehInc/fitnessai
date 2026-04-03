@@ -35,6 +35,7 @@ class CommunityEventSerializer(serializers.ModelSerializer[CommunityEvent]):
         fields = [
             'id', 'title', 'description', 'event_type', 'status',
             'starts_at', 'ends_at', 'meeting_url', 'max_attendees',
+            'location_address', 'location_lat', 'location_lng',
             'is_recurring', 'recurrence_rule', 'space',
             'attendee_counts', 'my_rsvp',
             'created_at', 'updated_at',
@@ -68,6 +69,15 @@ class CommunityEventCreateSerializer(serializers.Serializer[dict[str, Any]]):
     meeting_url = serializers.URLField(required=False, allow_blank=True, default='')
     max_attendees = serializers.IntegerField(
         required=False, allow_null=True, default=None, min_value=1,
+    )
+    location_address = serializers.CharField(
+        max_length=500, required=False, allow_blank=True, default='',
+    )
+    location_lat = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=False, allow_null=True, default=None,
+    )
+    location_lng = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=False, allow_null=True, default=None,
     )
     is_recurring = serializers.BooleanField(default=False)
     recurrence_rule = serializers.JSONField(required=False, default=dict)

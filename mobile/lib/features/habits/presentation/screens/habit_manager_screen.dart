@@ -512,8 +512,8 @@ class _HabitFormSheetState extends ConsumerState<_HabitFormSheet> {
               SegmentedButton<String>(
                 segments: [
                   ButtonSegment(value: 'daily', label: Text('Daily')),
-                  ButtonSegment(value: 'daily', label: Text('Daily')),
-                  ButtonSegment(value: 'daily', label: Text('Daily')),
+                  ButtonSegment(value: 'weekdays', label: Text('Weekdays')),
+                  ButtonSegment(value: 'custom', label: Text('Custom')),
                 ],
                 selected: {_selectedFrequency},
                 onSelectionChanged: (selection) {

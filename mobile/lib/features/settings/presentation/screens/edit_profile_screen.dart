@@ -17,11 +17,10 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
-  final _ageController = TextEditingController();
-  final _heightFeetController = TextEditingController();
-  final _heightInchesController = TextEditingController();
-  final _heightCmController = TextEditingController();
-  final _weightController = TextEditingController();
+  bool _initialized = false;
+  double _age = 30;
+  double _heightCm = 170;
+  double _weightKg = 70;
 
   @override
   void initState() {
@@ -31,28 +30,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _ageController.dispose();
-    _heightFeetController.dispose();
-    _heightInchesController.dispose();
-    _heightCmController.dispose();
-    _weightController.dispose();
-    super.dispose();
-  }
-
-  void _initControllers(SettingsState state) {
-    if (state.profile != null && _ageController.text.isEmpty) {
-      _ageController.text = state.profile!.age?.toString() ?? '';
-      if (state.useMetric) {
-        _heightCmController.text = state.profile!.heightCm?.toString() ?? '';
-        _weightController.text = state.profile!.weightKg?.toString() ?? '';
-      } else {
-        final totalInches = (state.profile!.heightCm ?? 0) / 2.54;
-        _heightFeetController.text = (totalInches / 12).floor().toString();
-        _heightInchesController.text = (totalInches % 12).round().toString();
-        _weightController.text = ((state.profile!.weightKg ?? 0) * 2.205).round().toString();
-      }
+  void _initValues(SettingsState state) {
+    if (state.profile != null && !_initialized) {
+      _initialized = true;
+      _age = (state.profile!.age ?? 30).toDouble();
+      _heightCm = state.profile!.heightCm ?? 170;
+      _weightKg = state.profile!.weightKg ?? 70;
     }
   }
 
@@ -62,7 +45,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final notifier = ref.read(settingsStateProvider.notifier);
     final theme = Theme.of(context);
 
-    _initControllers(state);
+    _initValues(state);
+
+    // Derived display values for imperial
+    final totalInches = _heightCm / 2.54;
+    final feet = (totalInches / 12).floor();
+    final inches = (totalInches % 12).round();
+    final weightLbs = (_weightKg * 2.205).round();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -135,23 +124,29 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 24),
 
                   // Age
-                  Text(context.l10n.onboardingAgeLabel, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _ageController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: context.l10n.onboardingEnterYourAge,
-                      filled: true,
-                      fillColor: theme.cardColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: theme.dividerColor),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(context.l10n.onboardingAgeLabel, style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        '${_age.round()}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSlider(
+                    value: _age,
+                    min: 13,
+                    max: 100,
+                    divisions: 87,
+                    theme: theme,
                     onChanged: (value) {
-                      final age = int.tryParse(value);
-                      if (age != null) notifier.updateAge(age);
+                      setState(() => _age = value);
+                      notifier.updateAge(value.round());
                     },
                   ),
                   const SizedBox(height: 24),
@@ -184,83 +179,61 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   const SizedBox(height: 12),
 
                   // Height
-                  if (state.useMetric)
-                    TextField(
-                      controller: _heightCmController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        hintText: context.l10n.onboardingHeightLabel,
-                        filled: true,
-                        fillColor: theme.cardColor,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: theme.dividerColor),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Height', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        state.useMetric
+                            ? '${_heightCm.round()} cm'
+                            : '$feet\'$inches"',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      onChanged: (value) {
-                        final cm = double.tryParse(value);
-                        if (cm != null) notifier.updateHeight(cm);
-                      },
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _heightFeetController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              hintText: context.l10n.onboardingFeet,
-                              filled: true,
-                              fillColor: theme.cardColor,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: theme.dividerColor),
-                              ),
-                            ),
-                            onChanged: (_) => _updateHeightFromImperial(notifier),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: _heightInchesController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              hintText: context.l10n.onboardingInches,
-                              filled: true,
-                              fillColor: theme.cardColor,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: theme.dividerColor),
-                              ),
-                            ),
-                            onChanged: (_) => _updateHeightFromImperial(notifier),
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSlider(
+                    value: _heightCm,
+                    min: 120,
+                    max: 220,
+                    divisions: 100,
+                    theme: theme,
+                    onChanged: (value) {
+                      setState(() => _heightCm = value);
+                      notifier.updateHeight(value);
+                    },
+                  ),
                   const SizedBox(height: 16),
 
                   // Weight
-                  TextField(
-                    controller: _weightController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: state.useMetric ? 'Weight (kg)' : 'Weight (lbs)',
-                      filled: true,
-                      fillColor: theme.cardColor,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: theme.dividerColor),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Weight', style: Theme.of(context).textTheme.titleMedium),
+                      Text(
+                        state.useMetric
+                            ? '${_weightKg.round()} kg'
+                            : '$weightLbs lbs',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _buildSlider(
+                    value: _weightKg,
+                    min: 30,
+                    max: 200,
+                    divisions: 340,
+                    theme: theme,
                     onChanged: (value) {
-                      final weight = double.tryParse(value);
-                      if (weight != null) {
-                        final kg = state.useMetric ? weight : weight / 2.205;
-                        notifier.updateWeight(kg);
-                      }
+                      setState(() => _weightKg = value);
+                      notifier.updateWeight(value);
                     },
                   ),
                   const SizedBox(height: 32),
@@ -298,11 +271,30 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     );
   }
 
-  void _updateHeightFromImperial(SettingsNotifier notifier) {
-    final feet = int.tryParse(_heightFeetController.text) ?? 0;
-    final inches = int.tryParse(_heightInchesController.text) ?? 0;
-    final totalInches = (feet * 12) + inches;
-    final cm = totalInches * 2.54;
-    notifier.updateHeight(cm);
+  Widget _buildSlider({
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required ThemeData theme,
+    required ValueChanged<double> onChanged,
+  }) {
+    return SliderTheme(
+      data: SliderThemeData(
+        activeTrackColor: theme.colorScheme.primary,
+        inactiveTrackColor: theme.cardColor,
+        thumbColor: theme.colorScheme.primary,
+        overlayColor: theme.colorScheme.primary.withValues(alpha: 0.2),
+        trackHeight: 6,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+      ),
+      child: Slider(
+        value: value.clamp(min, max),
+        min: min,
+        max: max,
+        divisions: divisions,
+        onChanged: onChanged,
+      ),
+    );
   }
 }

@@ -240,9 +240,12 @@ class PaymentRepository {
         ApiConstants.trainerCoupons,
         queryParameters: params.isNotEmpty ? params : null,
       );
+      final data = response.data;
+      final List<dynamic> results =
+          data is List ? data : (data['results'] as List<dynamic>? ?? []);
       return {
         'success': true,
-        'data': response.data,
+        'data': results,
       };
     } on DioException catch (e) {
       return {

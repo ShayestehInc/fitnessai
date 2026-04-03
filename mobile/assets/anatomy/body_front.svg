@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600" width="300" height="600">
+  <!-- Body outline -->
+  <path d="M150 20 C170 20 185 35 185 55 C185 75 170 90 150 90 C130 90 115 75 115 55 C115 35 130 20 150 20Z" fill="#27272A" opacity="0.9"/>
+  <!-- Neck -->
+  <path d="M138 88 L162 88 L162 105 L138 105Z" fill="#27272A" opacity="0.8"/>
+
+  <!-- Front Delts (anterior deltoids) -->
+  <path id="front_delts" d="M108 108 C108 108 120 100 150 100 C180 100 192 108 192 108 L188 130 C188 130 175 118 150 118 C125 118 112 130 112 130Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Side Delts (lateral deltoids) - left -->
+  <path id="side_delts" d="M108 108 L92 118 C88 120 85 130 86 140 L96 155 L112 130Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Side Delts - right (same id, will be colored together) -->
+  <path id="side_delts_r" d="M192 108 L208 118 C212 120 215 130 214 140 L204 155 L188 130Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Chest (pectoralis major) - left -->
+  <path id="chest" d="M112 130 L150 125 L150 185 C150 185 140 190 130 188 C118 185 108 175 108 165 L108 145Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Chest - right -->
+  <path id="chest_r" d="M188 130 L150 125 L150 185 C150 185 160 190 170 188 C182 185 192 175 192 165 L192 145Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Biceps - left -->
+  <path id="biceps" d="M96 155 L86 140 C82 148 78 165 80 180 C82 195 88 205 92 210 L100 200 C98 190 95 175 96 155Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Biceps - right -->
+  <path id="biceps_r" d="M204 155 L214 140 C218 148 222 165 220 180 C218 195 212 205 208 210 L200 200 C202 190 205 175 204 155Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Abs Rectus (rectus abdominis) -->
+  <path id="abs_rectus" d="M135 190 L165 190 L165 290 C165 295 160 300 150 300 C140 300 135 295 135 290Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Ab separation lines -->
+  <line x1="135" y1="210" x2="165" y2="210" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+  <line x1="135" y1="230" x2="165" y2="230" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+  <line x1="135" y1="250" x2="165" y2="250" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+  <line x1="135" y1="270" x2="165" y2="270" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+  <line x1="150" y1="190" x2="150" y2="300" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+
+  <!-- Obliques - left -->
+  <path id="obliques" d="M108 175 L135 190 L135 290 C135 290 125 295 118 290 L108 275 L105 230Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Obliques - right -->
+  <path id="obliques_r" d="M192 175 L165 190 L165 290 C165 290 175 295 182 290 L192 275 L195 230Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Forearms and Grip - left -->
+  <path id="forearms_and_grip" d="M92 210 L80 215 C75 230 72 250 74 265 C76 275 80 280 82 278 L90 255 C88 240 90 225 92 210Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Forearms and Grip - right -->
+  <path id="forearms_and_grip_r" d="M208 210 L220 215 C225 230 228 250 226 265 C224 275 220 280 218 278 L210 255 C212 240 210 225 208 210Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Hip Flexors -->
+  <path id="hip_flexors" d="M118 290 L135 300 L150 305 L165 300 L182 290 L182 315 C175 325 160 330 150 330 C140 330 125 325 118 315Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Hip Adductors (inner thigh) - left -->
+  <path id="hip_adductors" d="M135 330 L150 335 L150 430 C150 430 145 435 140 432 L130 410 L128 370 L135 330Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Hip Adductors - right -->
+  <path id="hip_adductors_r" d="M165 330 L150 335 L150 430 C150 430 155 435 160 432 L170 410 L172 370 L165 330Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Quads (quadriceps) - left -->
+  <path id="quads" d="M118 315 L128 370 L130 410 L140 432 L145 450 C140 455 132 458 125 455 L115 440 L105 400 L100 365 L105 330 L118 315Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Quads - right -->
+  <path id="quads_r" d="M182 315 L172 370 L170 410 L160 432 L155 450 C160 455 168 458 175 455 L185 440 L195 400 L200 365 L195 330 L182 315Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Lower legs (shin area, still part of quads visual) - left -->
+  <path id="quads_lower_l" d="M125 455 L115 440 L110 475 L112 520 C112 520 118 540 125 545 L135 540 L138 510 L140 475 L145 450Z" fill="#27272A" opacity="0.6"/>
+  <!-- Lower legs - right -->
+  <path id="quads_lower_r" d="M175 455 L185 440 L190 475 L188 520 C188 520 182 540 175 545 L165 540 L162 510 L160 475 L155 450Z" fill="#27272A" opacity="0.6"/>
+
+  <!-- Feet -->
+  <path d="M112 545 L138 545 L140 555 L135 560 L115 560 L110 555Z" fill="#27272A" opacity="0.5"/>
+  <path d="M162 545 L188 545 L190 555 L185 560 L165 560 L160 555Z" fill="#27272A" opacity="0.5"/>
+
+  <!-- Hands -->
+  <path d="M70 278 C68 282 66 290 68 295 C70 300 74 298 76 292 L82 278Z" fill="#27272A" opacity="0.5"/>
+  <path d="M230 278 C232 282 234 290 232 295 C230 300 226 298 224 292 L218 278Z" fill="#27272A" opacity="0.5"/>
+</svg>

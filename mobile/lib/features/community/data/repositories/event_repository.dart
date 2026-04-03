@@ -11,7 +11,9 @@ class EventRepository {
 
   Future<List<CommunityEventModel>> getEvents() async {
     final response = await _apiClient.dio.get(ApiConstants.communityEvents);
-    final results = response.data as List<dynamic>;
+    final data = response.data;
+    final List<dynamic> results =
+        data is List ? data : (data['results'] as List<dynamic>? ?? []);
     return results
         .map((e) =>
             CommunityEventModel.fromJson(e as Map<String, dynamic>))
@@ -41,7 +43,9 @@ class EventRepository {
 
   Future<List<CommunityEventModel>> getTrainerEvents() async {
     final response = await _apiClient.dio.get(ApiConstants.trainerEvents);
-    final results = response.data as List<dynamic>;
+    final data = response.data;
+    final List<dynamic> results =
+        data is List ? data : (data['results'] as List<dynamic>? ?? []);
     return results
         .map((e) =>
             CommunityEventModel.fromJson(e as Map<String, dynamic>))
@@ -56,6 +60,9 @@ class EventRepository {
     String description = '',
     String meetingUrl = '',
     int? maxAttendees,
+    String locationAddress = '',
+    double? locationLat,
+    double? locationLng,
   }) async {
     final response = await _apiClient.dio.post(
       ApiConstants.trainerEvents,
@@ -67,6 +74,9 @@ class EventRepository {
         'description': description,
         'meeting_url': meetingUrl,
         if (maxAttendees != null) 'max_attendees': maxAttendees,
+        'location_address': locationAddress,
+        if (locationLat != null) 'location_lat': locationLat,
+        if (locationLng != null) 'location_lng': locationLng,
       },
     );
     return CommunityEventModel.fromJson(
@@ -84,6 +94,10 @@ class EventRepository {
     String? meetingUrl,
     int? maxAttendees,
     bool clearMaxAttendees = false,
+    String? locationAddress,
+    double? locationLat,
+    double? locationLng,
+    bool clearLocation = false,
   }) async {
     final data = <String, dynamic>{};
     if (title != null) data['title'] = title;
@@ -100,6 +114,15 @@ class EventRepository {
       data['max_attendees'] = null;
     } else if (maxAttendees != null) {
       data['max_attendees'] = maxAttendees;
+    }
+    if (clearLocation) {
+      data['location_address'] = '';
+      data['location_lat'] = null;
+      data['location_lng'] = null;
+    } else {
+      if (locationAddress != null) data['location_address'] = locationAddress;
+      if (locationLat != null) data['location_lat'] = locationLat;
+      if (locationLng != null) data['location_lng'] = locationLng;
     }
 
     final response = await _apiClient.dio.patch(

@@ -1028,7 +1028,9 @@ class _TraineeDetailScreenState extends ConsumerState<TraineeDetailScreen>
                 icon: Icons.videocam,
                 label: 'Record Video',
                 color: Colors.red,
-                onTap: () => context.push('/dual-capture'),
+                onTap: () => context.push(
+                  '/dual-capture?traineeId=${trainee.id}',
+                ),
               ),
             ),
           ],

@@ -213,8 +213,28 @@ class PlanSlotModel {
         return 'Accessory';
       case 'isolation':
         return 'Isolation';
+      case 'prep':
+        return 'Warm-Up';
+      case 'technique':
+        return 'Technique';
+      case 'main_strength':
+        return 'Main Lift';
+      case 'hypertrophy_compound':
+        return 'Hypertrophy';
+      case 'hypertrophy_isolation':
+        return 'Hypertrophy Iso';
+      case 'unilateral_support':
+        return 'Unilateral';
+      case 'trunk':
+        return 'Core';
+      case 'carry':
+        return 'Carry';
+      case 'conditioning':
+        return 'Conditioning';
+      case 'cooldown':
+        return 'Cooldown';
       default:
-        return slotRole;
+        return slotRole.replaceAll('_', ' ');
     }
   }
 

@@ -62,8 +62,8 @@ class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
       complexityTolerance: _complexityTolerance,
     );
 
-    await ref.read(quickBuildProvider.notifier).build(brief);
     setState(() => _showResult = true);
+    ref.read(quickBuildProvider.notifier).build(brief);
   }
 
   @override
@@ -151,7 +151,57 @@ class _QuickBuildScreenState extends ConsumerState<QuickBuildScreen> {
 
   Widget _buildResult(QuickBuildState state) {
     if (state.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Completed steps
+              ...state.completedSteps.map((step) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFF22C55E), size: 20),
+                        const SizedBox(width: 12),
+                        Text(
+                          step,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppTheme.zinc300,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+              // Current step
+              if (state.progressStep != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        state.progressStep!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.foreground,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
     }
     if (state.error != null) {
       return Center(

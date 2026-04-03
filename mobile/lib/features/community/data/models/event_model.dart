@@ -8,6 +8,9 @@ class CommunityEventModel {
   final DateTime endsAt;
   final String meetingUrl;
   final int? maxAttendees;
+  final String locationAddress;
+  final double? locationLat;
+  final double? locationLng;
   final bool isRecurring;
   final int? spaceId;
   final Map<String, int> attendeeCounts;
@@ -25,6 +28,9 @@ class CommunityEventModel {
     required this.endsAt,
     required this.meetingUrl,
     this.maxAttendees,
+    required this.locationAddress,
+    this.locationLat,
+    this.locationLng,
     required this.isRecurring,
     this.spaceId,
     required this.attendeeCounts,
@@ -56,6 +62,9 @@ class CommunityEventModel {
       endsAt: DateTime.tryParse(json['ends_at'] as String? ?? '') ?? DateTime.now(),
       meetingUrl: json['meeting_url'] as String? ?? '',
       maxAttendees: json['max_attendees'] as int?,
+      locationAddress: json['location_address'] as String? ?? '',
+      locationLat: (json['location_lat'] as num?)?.toDouble(),
+      locationLng: (json['location_lng'] as num?)?.toDouble(),
       isRecurring: json['is_recurring'] as bool? ?? false,
       spaceId: json['space'] as int?,
       attendeeCounts: counts,
@@ -73,6 +82,8 @@ class CommunityEventModel {
   bool get isCompleted => status == 'completed';
   bool get isScheduled => status == 'scheduled';
   bool get isVirtual => meetingUrl.isNotEmpty;
+  bool get hasLocation =>
+      locationAddress.isNotEmpty && locationLat != null && locationLng != null;
   bool get isPast => endsAt.isBefore(DateTime.now());
   bool get isHappeningNow =>
       startsAt.isBefore(DateTime.now()) && endsAt.isAfter(DateTime.now());
@@ -118,6 +129,9 @@ class CommunityEventModel {
       endsAt: endsAt,
       meetingUrl: meetingUrl,
       maxAttendees: maxAttendees,
+      locationAddress: locationAddress,
+      locationLat: locationLat,
+      locationLng: locationLng,
       isRecurring: isRecurring,
       spaceId: spaceId,
       attendeeCounts: attendeeCounts ?? this.attendeeCounts,

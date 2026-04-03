@@ -235,24 +235,25 @@ class _CalendarConnectionScreenState
                         : null,
                     isLoading: state.isLoading,
                   ),
-                  const SizedBox(height: 16),
-                  CalendarCard(
-                    provider: 'microsoft',
-                    title: context.l10n.calendarMicrosoftOutlook,
-                    icon: Icons.mail_outline,
-                    iconColor: Colors.blue,
-                    connection: state.microsoftConnection,
-                    onConnect: () => _connectProvider('microsoft'),
-                    onDisconnect: state.microsoftConnection != null
-                        ? () => _disconnectCalendar(state.microsoftConnection!)
-                        : null,
-                    onSync: state.hasMicrosoftConnected
-                        ? () => ref
-                            .read(calendarProvider.notifier)
-                            .syncCalendar('microsoft')
-                        : null,
-                    isLoading: state.isLoading,
-                  ),
+                  // TODO: Re-enable Microsoft calendar when keys are configured
+                  // const SizedBox(height: 16),
+                  // CalendarCard(
+                  //   provider: 'microsoft',
+                  //   title: context.l10n.calendarMicrosoftOutlook,
+                  //   icon: Icons.mail_outline,
+                  //   iconColor: Colors.blue,
+                  //   connection: state.microsoftConnection,
+                  //   onConnect: () => _connectProvider('microsoft'),
+                  //   onDisconnect: state.microsoftConnection != null
+                  //       ? () => _disconnectCalendar(state.microsoftConnection!)
+                  //       : null,
+                  //   onSync: state.hasMicrosoftConnected
+                  //       ? () => ref
+                  //           .read(calendarProvider.notifier)
+                  //           .syncCalendar('microsoft')
+                  //       : null,
+                  //   isLoading: state.isLoading,
+                  // ),
                   const SizedBox(height: 32),
                   if (state.hasAnyConnection) ...[
                     const CalendarActionsSection(),

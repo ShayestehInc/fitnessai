@@ -509,6 +509,8 @@ class ApiConstants {
       '$apiBaseUrl/workouts/video-messages/start/';
   static String videoMessageComplete(String id) =>
       '$apiBaseUrl/workouts/video-messages/$id/complete/';
+  static String videoMessageUpload(String id) =>
+      '$apiBaseUrl/workouts/video-messages/$id/upload/';
   static String videoMessageDetail(String id) =>
       '$apiBaseUrl/workouts/video-messages/$id/';
   static String videoMessageAttach(String id) =>

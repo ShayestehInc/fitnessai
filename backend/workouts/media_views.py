@@ -356,6 +356,40 @@ class VideoMessageDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class VideoMessageUploadView(APIView):
+    """Upload a recorded video file for a dual capture asset."""
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request: Request, asset_id: str) -> Response:
+        from .services.video_message_service import upload_video_file
+
+        video_file = request.FILES.get('video_file')
+        if not video_file:
+            return Response(
+                {'detail': 'video_file is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        duration_seconds = float(request.data.get('duration_seconds', 0))
+        orientation = request.data.get('orientation', 'portrait')
+
+        result = upload_video_file(
+            asset_id=asset_id,
+            video_file=video_file,
+            duration_seconds=duration_seconds,
+            orientation=orientation,
+            user=request.user,
+        )
+
+        return Response({
+            'asset_id': result.asset_id,
+            'upload_status': result.upload_status,
+            'processing_status': result.processing_status,
+            'raw_upload_uri': result.raw_upload_uri,
+        })
+
+
 class VideoMessageAttachView(APIView):
     """Attach a video message to a thread or check-in."""
     permission_classes = [IsAuthenticated]

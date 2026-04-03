@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/adaptive/adaptive_scroll_physics.dart';
+import '../../../workout_log/data/models/workout_models.dart';
 import '../providers/home_provider.dart';
 import 'activity_rings_card.dart';
 import 'dashboard_error_banner.dart';
@@ -77,6 +80,14 @@ class DashboardContent extends StatelessWidget {
               ),
             ),
 
+          if (homeState.activeProgram != null) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _ActiveProgramBanner(program: homeState.activeProgram!),
+            ),
+          ],
+
           const SizedBox(height: 16),
           TodaysWorkoutsSection(state: homeState),
 
@@ -140,6 +151,98 @@ class DashboardContent extends StatelessWidget {
       } catch (_) {}
     }
     return days;
+  }
+}
+
+class _ActiveProgramBanner extends StatelessWidget {
+  final ProgramModel program;
+
+  const _ActiveProgramBanner({required this.program});
+
+  @override
+  Widget build(BuildContext context) {
+    final weekNum = program.currentWeekNumber;
+    final totalWeeks = program.durationWeeks ?? 0;
+    final progress = totalWeeks > 0 ? (weekNum / totalWeeks).clamp(0.0, 1.0) : 0.0;
+
+    return GestureDetector(
+      onTap: () => context.push('/logbook'),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.fitness_center, color: AppTheme.primary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    program.name,
+                    style: const TextStyle(
+                      color: AppTheme.foreground,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      if (program.goalDisplay.isNotEmpty) ...[
+                        Text(
+                          program.goalDisplay,
+                          style: const TextStyle(fontSize: 12, color: AppTheme.zinc400),
+                        ),
+                        const Text(' · ', style: TextStyle(color: AppTheme.zinc500)),
+                      ],
+                      Text(
+                        program.difficultyDisplay,
+                        style: const TextStyle(fontSize: 12, color: AppTheme.zinc400),
+                      ),
+                      if (totalWeeks > 0) ...[
+                        const Text(' · ', style: TextStyle(color: AppTheme.zinc500)),
+                        Text(
+                          'Week $weekNum of $totalWeeks',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.primary),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (totalWeeks > 0) ...[
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(2),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: AppTheme.zinc700,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                        minHeight: 3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right, color: AppTheme.zinc500, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 }
 

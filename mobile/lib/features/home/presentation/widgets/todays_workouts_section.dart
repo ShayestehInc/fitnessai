@@ -137,6 +137,7 @@ class TodaysWorkoutsSection extends StatelessWidget {
     final schedule = program.schedule;
     if (schedule == null) return [];
 
+    final difficulty = program.difficultyDisplay;
     final now = DateTime.now();
     final dayNames = [
       'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
@@ -151,11 +152,22 @@ class TodaysWorkoutsSection extends StatelessWidget {
         for (final day in days) {
           if (day is Map && (day['day'] as String?)?.toLowerCase() == todayName) {
             final exercises = (day['exercises'] as List?) ?? [];
-            final name = (day['name'] as String?) ?? todayName.substring(0, 1).toUpperCase() + todayName.substring(1);
+            final name = (day['label'] as String?) ??
+                (day['name'] as String?) ??
+                todayName.substring(0, 1).toUpperCase() + todayName.substring(1);
+            // Estimate duration: ~3 min per exercise + sum of rest seconds
+            var estimatedMin = exercises.length * 3;
+            for (final ex in exercises) {
+              if (ex is Map) {
+                final rest = (ex['rest_seconds'] as num?)?.toInt() ?? 60;
+                final sets = (ex['sets'] as num?)?.toInt() ?? 3;
+                estimatedMin += (rest * sets) ~/ 60;
+              }
+            }
             workouts.add(_WorkoutInfo(
               name: name,
-              difficulty: 'Intermediate',
-              estimatedMinutes: exercises.length * 5,
+              difficulty: difficulty,
+              estimatedMinutes: estimatedMin.clamp(10, 180),
             ));
           }
         }
@@ -165,11 +177,10 @@ class TodaysWorkoutsSection extends StatelessWidget {
     }
 
     if (workouts.isEmpty && !state.todayIsRestDay) {
-      // Fallback: show next workout info if available
       if (state.nextWorkout != null) {
         workouts.add(_WorkoutInfo(
           name: state.nextWorkout!.dayName,
-          difficulty: 'Intermediate',
+          difficulty: difficulty,
           estimatedMinutes: state.nextWorkout!.exercises.length * 5,
         ));
       }

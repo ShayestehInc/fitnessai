@@ -165,8 +165,8 @@ class _AdvancedBuilderScreenState
               ),
               const Spacer(),
               Text(
-                currentStep < _stepLabels.length
-                    ? _stepLabels[currentStep]
+                (currentStep + 1) < _stepLabels.length
+                    ? _stepLabels[currentStep + 1]
                     : 'Complete',
                 style: const TextStyle(
                   fontSize: 12,
@@ -640,12 +640,18 @@ class _AdvancedBuilderScreenState
             );
           }).toList(),
         );
+      case 'swaps':
+        return Text(
+          'Swap alternatives are available for each exercise. '
+          'Review and continue when ready.',
+          style: const TextStyle(fontSize: 13, color: AppTheme.zinc300),
+        );
       case 'progression':
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              rec['profile']?.toString().replaceAll('_', ' ') ?? '',
+              _toTitleCase(rec['profile']?.toString() ?? ''),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: AppTheme.foreground,
                     fontWeight: FontWeight.w600,
@@ -691,7 +697,7 @@ class _AdvancedBuilderScreenState
     if (preview.isEmpty) return const SizedBox.shrink();
 
     final entries = preview.entries
-        .where((e) => e.value != null)
+        .where((e) => e.value != null && e.value is! List && e.value is! Map)
         .take(5)
         .toList();
     if (entries.isEmpty) return const SizedBox.shrink();
@@ -718,19 +724,23 @@ class _AdvancedBuilderScreenState
           ...entries.map((e) => Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      e.key.replaceAll('_', ' '),
+                      _toTitleCase(e.key),
                       style: const TextStyle(
                           fontSize: 12, color: AppTheme.zinc400),
                     ),
-                    Text(
-                      e.value.toString(),
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.foreground,
-                          fontWeight: FontWeight.w500),
+                    const Spacer(),
+                    Flexible(
+                      child: Text(
+                        e.value.toString(),
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.foreground,
+                            fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
                     ),
                   ],
                 ),
@@ -780,9 +790,13 @@ class _AdvancedBuilderScreenState
               height: 52,
               child: FilledButton(
                 onPressed: () {
-                  context.push('/plan-detail/${step.planId}');
+                  if (preview['program_id'] != null) {
+                    context.go('/trainer/programs');
+                  } else {
+                    context.push('/plan-detail/${step.planId}');
+                  }
                 },
-                child: const Text('View Plan'),
+                child: Text(preview['program_id'] != null ? 'View Program' : 'View Plan'),
               ),
             ),
             const SizedBox(height: 12),
@@ -863,13 +877,26 @@ class _RoleBadge extends StatelessWidget {
   Color get _color {
     switch (role) {
       case 'primary_compound':
+      case 'main_strength':
         return AppTheme.primary;
       case 'secondary_compound':
+      case 'hypertrophy_compound':
         return const Color(0xFF8B5CF6);
       case 'accessory':
+      case 'unilateral_support':
         return const Color(0xFF22C55E);
       case 'isolation':
+      case 'hypertrophy_isolation':
         return const Color(0xFFFBBF24);
+      case 'prep':
+      case 'technique':
+        return const Color(0xFF06B6D4);
+      case 'trunk':
+      case 'carry':
+      case 'conditioning':
+        return const Color(0xFFF97316);
+      case 'cooldown':
+        return const Color(0xFF64748B);
       default:
         return AppTheme.zinc500;
     }
@@ -885,6 +912,26 @@ class _RoleBadge extends StatelessWidget {
         return 'A';
       case 'isolation':
         return 'I';
+      case 'main_strength':
+        return 'M';
+      case 'hypertrophy_compound':
+        return 'H';
+      case 'hypertrophy_isolation':
+        return 'Hi';
+      case 'unilateral_support':
+        return 'U';
+      case 'prep':
+        return 'W';
+      case 'technique':
+        return 'T';
+      case 'trunk':
+        return 'C';
+      case 'carry':
+        return 'Ca';
+      case 'conditioning':
+        return 'Co';
+      case 'cooldown':
+        return 'Cd';
       default:
         return '?';
     }
@@ -910,4 +957,12 @@ class _RoleBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+String _toTitleCase(String input) {
+  return input
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 }

@@ -358,7 +358,6 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
 
   Widget _buildDaySelector(BuildContext context) {
     final theme = Theme.of(context);
-    final dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     return Container(
       height: 70,
@@ -370,7 +369,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
-        itemCount: 7,
+        itemCount: _week.days.length,
         itemBuilder: (context, index) {
           final day = _week.days[index];
           final isSelected = index == _selectedDayIndex;
@@ -392,7 +391,7 @@ class _WeekEditorScreenState extends ConsumerState<WeekEditorScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    dayNames[index],
+                    day.name.length > 3 ? day.name.substring(0, 3) : day.name,
                     style: TextStyle(
                       color: isSelected ? Colors.white : Colors.grey[600],
                       fontSize: 12,

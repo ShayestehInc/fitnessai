@@ -135,9 +135,15 @@ class ExerciseVideoThumbnail extends StatelessWidget {
     this.size = 48,
   });
 
+  bool get _hasValidUrl {
+    if (videoUrl == null || videoUrl!.isEmpty) return false;
+    final uri = Uri.tryParse(videoUrl!);
+    return uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (videoUrl == null || videoUrl!.isEmpty) {
+    if (!_hasValidUrl) {
       return const SizedBox.shrink();
     }
 

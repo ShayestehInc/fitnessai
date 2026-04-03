@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600" width="300" height="600">
+  <!-- Head -->
+  <path d="M150 20 C170 20 185 35 185 55 C185 75 170 90 150 90 C130 90 115 75 115 55 C115 35 130 20 150 20Z" fill="#27272A" opacity="0.9"/>
+  <!-- Neck -->
+  <path d="M138 88 L162 88 L162 105 L138 105Z" fill="#27272A" opacity="0.8"/>
+
+  <!-- Upper Traps (trapezius upper) -->
+  <path id="upper_traps" d="M108 108 C108 108 120 100 150 100 C180 100 192 108 192 108 L185 130 C185 130 170 120 150 120 C130 120 115 130 115 130Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Rear Delts (posterior deltoids) - left -->
+  <path id="rear_delts" d="M108 108 L92 118 C88 120 86 128 87 138 L96 152 L115 130Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Rear Delts - right -->
+  <path id="rear_delts_r" d="M192 108 L208 118 C212 120 214 128 213 138 L204 152 L185 130Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Mid Back (rhomboids / mid traps) -->
+  <path id="mid_back" d="M130 130 L170 130 L170 185 C170 185 165 190 150 190 C135 190 130 185 130 185Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Lats (latissimus dorsi) - left -->
+  <path id="lats" d="M115 130 L130 130 L130 185 C130 185 128 195 120 200 L108 195 L105 170 L108 145Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Lats - right -->
+  <path id="lats_r" d="M185 130 L170 130 L170 185 C170 185 172 195 180 200 L192 195 L195 170 L192 145Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Triceps - left -->
+  <path id="triceps" d="M96 152 L87 138 C83 148 80 165 82 180 C84 192 88 200 92 205 L100 195 C98 185 96 170 96 152Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Triceps - right -->
+  <path id="triceps_r" d="M204 152 L213 138 C217 148 220 165 218 180 C216 192 212 200 208 205 L200 195 C202 185 204 170 204 152Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Spinal Erectors -->
+  <path id="spinal_erectors" d="M140 195 L160 195 L162 285 C162 285 158 290 150 290 C142 290 138 285 138 285Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Erector separation line -->
+  <line x1="150" y1="195" x2="150" y2="290" stroke="#27272A" stroke-width="0.5" opacity="0.4"/>
+
+  <!-- Deep Core (transverse abdominis, visible from back as lower torso) -->
+  <path id="deep_core" d="M108 195 L140 195 L138 285 C138 285 130 290 118 288 L108 275Z" fill="#3F3F46" opacity="0.8"/>
+  <path id="deep_core_r" d="M192 195 L160 195 L162 285 C162 285 170 290 182 288 L192 275Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Glutes (gluteus maximus) - left -->
+  <path id="glutes" d="M118 288 L150 295 L150 335 C150 335 142 342 130 340 C118 338 110 328 108 318 L110 300Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Glutes - right -->
+  <path id="glutes_r" d="M182 288 L150 295 L150 335 C150 335 158 342 170 340 C182 338 190 328 192 318 L190 300Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Hip Abductors (gluteus medius, tensor fasciae latae) - left -->
+  <path id="hip_abductors" d="M108 318 L118 340 L120 360 L110 355 L100 340 L100 325Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Hip Abductors - right -->
+  <path id="hip_abductors_r" d="M192 318 L182 340 L180 360 L190 355 L200 340 L200 325Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Hamstrings - left -->
+  <path id="hamstrings" d="M118 340 L130 340 L150 335 L150 445 C150 445 145 450 138 448 L125 440 L115 415 L110 380 L110 355 L120 360Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Hamstrings - right -->
+  <path id="hamstrings_r" d="M182 340 L170 340 L150 335 L150 445 C150 445 155 450 162 448 L175 440 L185 415 L190 380 L190 355 L180 360Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Calves (gastrocnemius / soleus) - left -->
+  <path id="calves" d="M125 440 L138 448 L145 455 L142 490 C140 510 135 530 130 540 L120 545 L112 535 C112 520 115 490 118 470 L115 415Z" fill="#3F3F46" opacity="0.8"/>
+  <!-- Calves - right -->
+  <path id="calves_r" d="M175 440 L162 448 L155 455 L158 490 C160 510 165 530 170 540 L180 545 L188 535 C188 520 185 490 182 470 L185 415Z" fill="#3F3F46" opacity="0.8"/>
+
+  <!-- Forearms (back view) - left -->
+  <path d="M92 205 L82 210 C78 225 75 245 76 260 C78 272 82 278 84 276 L92 258 C90 240 90 220 92 205Z" fill="#27272A" opacity="0.6"/>
+  <!-- Forearms - right -->
+  <path d="M208 205 L218 210 C222 225 225 245 224 260 C222 272 218 278 216 276 L208 258 C210 240 210 220 208 205Z" fill="#27272A" opacity="0.6"/>
+
+  <!-- Feet -->
+  <path d="M112 545 L138 545 L140 555 L135 560 L115 560 L110 555Z" fill="#27272A" opacity="0.5"/>
+  <path d="M162 545 L188 545 L190 555 L185 560 L165 560 L160 555Z" fill="#27272A" opacity="0.5"/>
+
+  <!-- Hands -->
+  <path d="M72 276 C70 280 68 288 70 293 C72 298 76 296 78 290 L84 276Z" fill="#27272A" opacity="0.5"/>
+  <path d="M228 276 C230 280 232 288 230 293 C228 298 224 296 222 290 L216 276Z" fill="#27272A" opacity="0.5"/>
+</svg>

@@ -110,7 +110,9 @@ class EventCard extends StatelessWidget {
         const SizedBox(height: 4),
         _detailRow(
           event.isVirtual ? Icons.videocam_outlined : Icons.location_on_outlined,
-          event.isVirtual ? 'Virtual' : 'In Person',
+          event.isVirtual
+              ? 'Virtual'
+              : (event.hasLocation ? event.locationAddress : 'In Person'),
           muted,
         ),
         const SizedBox(height: 4),

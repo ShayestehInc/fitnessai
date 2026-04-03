@@ -10,14 +10,41 @@ final featureRequestRepositoryProvider = Provider<FeatureRequestRepository>((ref
   return FeatureRequestRepository(apiClient);
 });
 
+class FeatureRequestFilterParams {
+  final String? category;
+  final String? status;
+  final String? search;
+  final String sort;
+
+  const FeatureRequestFilterParams({
+    this.category,
+    this.status,
+    this.search,
+    this.sort = 'votes',
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FeatureRequestFilterParams &&
+          runtimeType == other.runtimeType &&
+          category == other.category &&
+          status == other.status &&
+          search == other.search &&
+          sort == other.sort;
+
+  @override
+  int get hashCode => Object.hash(category, status, search, sort);
+}
+
 // Feature requests list provider
-final featureRequestsProvider = FutureProvider.autoDispose.family<List<FeatureRequestModel>, Map<String, dynamic>?>((ref, params) async {
+final featureRequestsProvider = FutureProvider.autoDispose.family<List<FeatureRequestModel>, FeatureRequestFilterParams>((ref, params) async {
   final repository = ref.watch(featureRequestRepositoryProvider);
   final result = await repository.getFeatureRequests(
-    status: params?['status'],
-    category: params?['category'],
-    search: params?['search'],
-    sort: params?['sort'] ?? 'votes',
+    status: params.status,
+    category: params.category,
+    search: params.search,
+    sort: params.sort,
   );
   if (result['success']) {
     return result['data'] as List<FeatureRequestModel>;

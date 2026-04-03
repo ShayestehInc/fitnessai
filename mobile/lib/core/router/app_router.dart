@@ -481,10 +481,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dual-capture',
         name: 'dual-capture',
-        pageBuilder: (context, state) => adaptivePage(
-          key: state.pageKey,
-          child: const DualCaptureScreen(),
-        ),
+        pageBuilder: (context, state) {
+          final queryParams = state.uri.queryParameters;
+          return adaptivePage(
+            key: state.pageKey,
+            child: DualCaptureScreen(
+              traineeId: queryParams['traineeId'],
+              referencedObjectType: queryParams['refType'],
+              referencedObjectId: queryParams['refId'],
+            ),
+          );
+        },
       ),
 
       // Trainer payment routes

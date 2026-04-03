@@ -502,6 +502,9 @@ class TrainerEventListCreateView(generics.ListCreateAPIView[CommunityEvent]):
             ends_at=data['ends_at'],
             meeting_url=data.get('meeting_url', ''),
             max_attendees=data.get('max_attendees'),
+            location_address=data.get('location_address', ''),
+            location_lat=data.get('location_lat'),
+            location_lng=data.get('location_lng'),
             is_recurring=data.get('is_recurring', False),
             recurrence_rule=data.get('recurrence_rule', {}),
         )
@@ -568,7 +571,8 @@ class TrainerEventDetailView(views.APIView):
 
         update_fields: list[str] = ['updated_at']
         for field in ('title', 'description', 'event_type', 'starts_at', 'ends_at',
-                       'meeting_url', 'max_attendees', 'is_recurring', 'recurrence_rule'):
+                       'meeting_url', 'max_attendees', 'location_address',
+                       'location_lat', 'location_lng', 'is_recurring', 'recurrence_rule'):
             if field in serializer.validated_data:
                 new_value = serializer.validated_data[field]
                 if getattr(event, field) != new_value:

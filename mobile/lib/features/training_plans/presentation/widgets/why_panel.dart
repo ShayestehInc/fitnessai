@@ -180,10 +180,12 @@ class AlternativesPanel extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              alt['name']?.toString() ??
-                                  alt['label']?.toString() ??
-                                  alt['profile']?.toString() ??
-                                  'Option',
+                              _toTitleCase(
+                                alt['name']?.toString() ??
+                                    alt['label']?.toString() ??
+                                    alt['profile']?.toString() ??
+                                    'Option',
+                              ),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: AppTheme.foreground,
@@ -218,4 +220,12 @@ class AlternativesPanel extends StatelessWidget {
       ],
     );
   }
+}
+
+String _toTitleCase(String input) {
+  return input
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 }

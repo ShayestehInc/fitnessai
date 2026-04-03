@@ -175,7 +175,6 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
                 child: Row(
                   children: [
                     _headerCell(theme, 'SET', 50),
-                    _headerCell(theme, 'PREVIOUS', 80),
                     Expanded(
                       child: Text(
                         'LBS',
@@ -238,10 +237,6 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
     int setIndex,
     SetLogState set,
   ) {
-    final previousText = set.lastWeight != null && set.lastReps != null
-        ? '${set.lastWeight!.round()} x ${set.lastReps}'
-        : '-';
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -274,18 +269,6 @@ class _ClassicWorkoutLayoutState extends State<ClassicWorkoutLayout> {
                     fontSize: 13,
                   ),
                 ),
-              ),
-            ),
-          ),
-
-          // Previous
-          SizedBox(
-            width: 80,
-            child: Text(
-              previousText,
-              style: TextStyle(
-                color: theme.textTheme.bodySmall?.color,
-                fontSize: 13,
               ),
             ),
           ),

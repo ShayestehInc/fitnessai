@@ -913,10 +913,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
 
   void _showEditImageDialog(BuildContext context, ExerciseModel exercise) {
     final theme = Theme.of(context);
-    final imageUrlController = TextEditingController(text: exercise.imageUrl ?? '');
-    bool isLoading = false;
     bool isUploading = false;
-    String? previewUrl;
     File? selectedImageFile;
 
     showAdaptiveBottomSheet(
@@ -974,7 +971,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                               fit: BoxFit.cover,
                             )
                           : Image.network(
-                              previewUrl ?? exercise.thumbnailUrl,
+                              exercise.thumbnailUrl,
                               fit: BoxFit.cover,
                               loadingBuilder: (context, child, loadingProgress) {
                                 if (loadingProgress == null) return child;
@@ -991,7 +988,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                                     Icon(Icons.broken_image, color: theme.colorScheme.error, size: 32),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Invalid URL',
+                                      'No image',
                                       style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
                                     ),
                                   ],
@@ -1007,7 +1004,7 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: isLoading || isUploading
+                    onPressed: isUploading
                         ? null
                         : () async {
                             final picker = ImagePicker();
@@ -1021,8 +1018,6 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                             if (pickedFile != null) {
                               setDialogState(() {
                                 selectedImageFile = File(pickedFile.path);
-                                previewUrl = null;
-                                imageUrlController.clear();
                               });
                             }
                           },
@@ -1078,105 +1073,15 @@ class _ExerciseBankScreenState extends ConsumerState<ExerciseBankScreen> {
                   ),
                 ],
 
-                const SizedBox(height: 16),
-
-                // Divider with "OR" text
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'OR',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.textTheme.bodySmall?.color,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: theme.dividerColor)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Image URL input
-                TextField(
-                  controller: imageUrlController,
-                  enabled: selectedImageFile == null,
-                  decoration: InputDecoration(
-                    labelText: context.l10n.exercisesImageURL,
-                    hintText: 'https://images.unsplash.com/...',
-                    prefixIcon: const Icon(Icons.link),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.preview),
-                      tooltip: context.l10n.exercisesPreview,
-                      onPressed: selectedImageFile == null
-                          ? () {
-                              final url = imageUrlController.text.trim();
-                              if (url.isNotEmpty) {
-                                setDialogState(() => previewUrl = url);
-                              }
-                            }
-                          : null,
-                    ),
-                  ),
-                  keyboardType: TextInputType.url,
-                  onSubmitted: (value) {
-                    if (value.trim().isNotEmpty && selectedImageFile == null) {
-                      setDialogState(() => previewUrl = value.trim());
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Tip: Use Unsplash for free high-quality images',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.textTheme.bodySmall?.color,
-                  ),
-                ),
                 const SizedBox(height: 24),
 
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(context.l10n.commonCancel),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: (isLoading || isUploading || selectedImageFile != null)
-                            ? null
-                            : () async {
-                                final newUrl = imageUrlController.text.trim();
-
-                                setDialogState(() => isLoading = true);
-
-                                final repository = ref.read(exerciseRepositoryProvider);
-                                final result = await repository.updateExercise(
-                                  exercise.id,
-                                  {'image_url': newUrl.isEmpty ? null : newUrl},
-                                );
-
-                                if (!context.mounted) return;
-
-                                if (result['success'] == true) {
-                                  Navigator.pop(context);
-                                  ref.invalidate(exercisesProvider);
-                                  showAdaptiveToast(context, message: context.l10n.exercisesImageUpdated, type: ToastType.success);
-                                } else {
-                                  setDialogState(() => isLoading = false);
-                                  showAdaptiveToast(context, message: result['error'] ?? 'Failed to update image', type: ToastType.error);
-                                }
-                              },
-                        child: isLoading
-                            ? const AdaptiveSpinner.small()
-                            : Text(context.l10n.exercisesSaveURL),
-                      ),
-                    ),
-                  ],
+                // Cancel button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(context.l10n.commonCancel),
+                  ),
                 ),
               ],
             ),

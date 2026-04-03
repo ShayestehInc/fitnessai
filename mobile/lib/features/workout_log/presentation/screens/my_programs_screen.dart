@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/workout_provider.dart';
-import '../../data/models/workout_models.dart';
 import '../../../../core/l10n/l10n_extension.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../data/models/workout_models.dart';
+import '../providers/workout_provider.dart';
 
 class MyProgramsScreen extends ConsumerWidget {
   const MyProgramsScreen({super.key});
@@ -87,101 +88,134 @@ class _ProgramCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final weekNum = program.currentWeekNumber;
+    final totalWeeks = program.durationWeeks ?? 0;
+    final progress = totalWeeks > 0 ? (weekNum / totalWeeks).clamp(0.0, 1.0) : 0.0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isActive
-              ? theme.colorScheme.primary.withValues(alpha: 0.5)
-              : theme.dividerColor,
-          width: isActive ? 2 : 1,
+    return GestureDetector(
+      onTap: () => context.push('/logbook'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive
+                ? AppTheme.primary.withValues(alpha: 0.5)
+                : AppTheme.border,
+            width: isActive ? 2 : 1,
+          ),
         ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                        : theme.dividerColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.fitness_center,
-                    color: isActive
-                        ? theme.colorScheme.primary
-                        : theme.textTheme.bodySmall?.color,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        program.name,
-                        style: TextStyle(
-                          color: theme.textTheme.bodyLarge?.color,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatDateRange(program.startDate, program.endDate),
-                        style: TextStyle(
-                          color: theme.textTheme.bodySmall?.color,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isActive)
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
+                      color: isActive
+                          ? AppTheme.primary.withValues(alpha: 0.1)
+                          : AppTheme.zinc800,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'Active',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Icon(
+                      Icons.fitness_center,
+                      color: isActive ? AppTheme.primary : AppTheme.zinc400,
+                      size: 24,
                     ),
                   ),
-              ],
-            ),
-            if (program.description.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                program.description,
-                style: TextStyle(
-                  color: theme.textTheme.bodySmall?.color,
-                  fontSize: 14,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          program.name,
+                          style: const TextStyle(
+                            color: AppTheme.foreground,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            if (program.goalDisplay.isNotEmpty) ...[
+                              _MetaPill(program.goalDisplay),
+                              const SizedBox(width: 6),
+                            ],
+                            _MetaPill(program.difficultyDisplay),
+                            if (totalWeeks > 0) ...[
+                              const SizedBox(width: 6),
+                              _MetaPill('$totalWeeks weeks'),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Active',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
               ),
+              if (isActive && totalWeeks > 0) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: AppTheme.zinc700,
+                          valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                          minHeight: 3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Week $weekNum of $totalWeeks',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.primary),
+                    ),
+                  ],
+                ),
+              ],
+              if (!isActive) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _formatDateRange(program.startDate, program.endDate),
+                  style: const TextStyle(fontSize: 12, color: AppTheme.zinc400),
+                ),
+              ],
+              if (program.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  program.description,
+                  style: const TextStyle(fontSize: 13, color: AppTheme.zinc400),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -191,12 +225,31 @@ class _ProgramCard extends StatelessWidget {
     try {
       final start = DateTime.parse(startDate);
       final end = DateTime.parse(endDate);
-      final duration = end.difference(start).inDays ~/ 7;
       final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${months[start.month - 1]} ${start.day} - ${months[end.month - 1]} ${end.day} ($duration weeks)';
+      return '${months[start.month - 1]} ${start.day} - ${months[end.month - 1]} ${end.day}';
     } catch (_) {
       return '$startDate - $endDate';
     }
+  }
+}
+
+class _MetaPill extends StatelessWidget {
+  final String label;
+  const _MetaPill(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppTheme.zinc800,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, color: AppTheme.zinc300),
+      ),
+    );
   }
 }

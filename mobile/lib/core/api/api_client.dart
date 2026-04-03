@@ -44,9 +44,10 @@ class ApiClient {
           final path = error.requestOptions.path;
           final isAuthEndpoint = path.contains('/auth/jwt/create') ||
                                   path.contains('/auth/jwt/refresh') ||
-                                  path.contains('/auth/users/') ||
-                                  path.contains('/auth/google') ||
-                                  path.contains('/auth/apple');
+                                  path.contains('/auth/users/reset_password') ||
+                                  path.contains('/auth/users/set_password') ||
+                                  path.contains('/users/auth/google') ||
+                                  path.contains('/users/auth/apple');
 
           if (error.response?.statusCode == 401 && !isAuthEndpoint) {
             // Try to refresh token

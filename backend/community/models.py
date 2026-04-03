@@ -865,6 +865,18 @@ class CommunityEvent(models.Model):
         null=True, blank=True,
         help_text="Maximum attendees (null = unlimited).",
     )
+    location_address = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text="Physical address for in-person events.",
+    )
+    location_lat = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text="Latitude of the event location.",
+    )
+    location_lng = models.DecimalField(
+        max_digits=9, decimal_places=6, null=True, blank=True,
+        help_text="Longitude of the event location.",
+    )
     is_recurring = models.BooleanField(default=False)
     recurrence_rule = models.JSONField(
         default=dict, blank=True,

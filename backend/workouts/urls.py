@@ -63,6 +63,7 @@ from .media_views import (
     VideoMessageCompleteView,
     VideoMessageDetailView,
     VideoMessageStartView,
+    VideoMessageUploadView,
     VoiceMemoDetailView,
     VoiceMemoListView,
     VoiceMemoUploadView,
@@ -139,6 +140,7 @@ urlpatterns = [
     # v6.5 §22: Dual Capture Video Messages
     path('video-messages/start/', VideoMessageStartView.as_view(), name='video-message-start'),
     path('video-messages/<str:asset_id>/complete/', VideoMessageCompleteView.as_view(), name='video-message-complete'),
+    path('video-messages/<str:asset_id>/upload/', VideoMessageUploadView.as_view(), name='video-message-upload'),
     path('video-messages/<str:asset_id>/', VideoMessageDetailView.as_view(), name='video-message-detail'),
     path('video-messages/<str:asset_id>/attach/', VideoMessageAttachView.as_view(), name='video-message-attach'),
 

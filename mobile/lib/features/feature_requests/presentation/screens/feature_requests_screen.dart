@@ -23,14 +23,15 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
   String? _selectedStatus;
   String _sortBy = 'votes';
 
+  FeatureRequestFilterParams get _params => FeatureRequestFilterParams(
+        category: _selectedCategory,
+        status: _selectedStatus,
+        sort: _sortBy,
+      );
+
   @override
   Widget build(BuildContext context) {
-    final params = {
-      'category': _selectedCategory,
-      'status': _selectedStatus,
-      'sort': _sortBy,
-    };
-    final featuresAsync = ref.watch(featureRequestsProvider(params));
+    final featuresAsync = ref.watch(featureRequestsProvider(_params));
 
     return Scaffold(
       appBar: AppBar(
@@ -50,7 +51,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
       ),
       body: AdaptiveRefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(featureRequestsProvider(params));
+          ref.invalidate(featureRequestsProvider(_params));
         },
         child: featuresAsync.when(
           data: (features) {
@@ -276,12 +277,7 @@ class _FeatureRequestsScreenState extends ConsumerState<FeatureRequestsScreen> {
         );
 
     if (result['success']) {
-      final params = {
-        'category': _selectedCategory,
-        'status': _selectedStatus,
-        'sort': _sortBy,
-      };
-      ref.invalidate(featureRequestsProvider(params));
+      ref.invalidate(featureRequestsProvider(_params));
     } else {
       if (mounted) {
         showAdaptiveToast(context, message: result['error'] ?? 'Failed to vote', type: ToastType.error);

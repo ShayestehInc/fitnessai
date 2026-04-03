@@ -46,7 +46,38 @@ class VideoMessageRepository {
     }
   }
 
-  /// Complete upload of a recording.
+  /// Upload a recorded video file to the backend.
+  Future<Map<String, dynamic>> uploadVideoFile({
+    required String assetId,
+    required String filePath,
+    required double durationSeconds,
+    String orientation = 'portrait',
+  }) async {
+    try {
+      final formData = FormData.fromMap({
+        'video_file': await MultipartFile.fromFile(
+          filePath,
+          filename: filePath.split('/').last,
+        ),
+        'duration_seconds': durationSeconds,
+        'orientation': orientation,
+      });
+
+      final response = await _apiClient.dio.post(
+        ApiConstants.videoMessageUpload(assetId),
+        data: formData,
+      );
+
+      return {'success': true, 'data': response.data};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['detail'] ?? 'Video upload failed',
+      };
+    }
+  }
+
+  /// Complete upload of a recording (when URI is already known).
   Future<Map<String, dynamic>> completeUpload({
     required String assetId,
     required String rawUploadUri,
@@ -90,6 +121,21 @@ class VideoMessageRepository {
       return {
         'success': false,
         'error': e.response?.data?['detail'] ?? 'Get details failed',
+      };
+    }
+  }
+
+  /// Delete a video message asset.
+  Future<Map<String, dynamic>> deleteAsset(String assetId) async {
+    try {
+      await _apiClient.dio.delete(
+        ApiConstants.videoMessageDetail(assetId),
+      );
+      return {'success': true};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'error': e.response?.data?['detail'] ?? 'Delete failed',
       };
     }
   }

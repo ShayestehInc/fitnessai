@@ -172,6 +172,9 @@ class TrainerEventNotifier extends StateNotifier<EventListState> {
     String description = '',
     String meetingUrl = '',
     int? maxAttendees,
+    String locationAddress = '',
+    double? locationLat,
+    double? locationLng,
   }) async {
     final event = await _repo.createEvent(
       title: title,
@@ -181,6 +184,9 @@ class TrainerEventNotifier extends StateNotifier<EventListState> {
       description: description,
       meetingUrl: meetingUrl,
       maxAttendees: maxAttendees,
+      locationAddress: locationAddress,
+      locationLat: locationLat,
+      locationLng: locationLng,
     );
     state = state.copyWith(events: [event, ...state.events]);
     return event;
@@ -196,6 +202,10 @@ class TrainerEventNotifier extends StateNotifier<EventListState> {
     String? meetingUrl,
     int? maxAttendees,
     bool clearMaxAttendees = false,
+    String? locationAddress,
+    double? locationLat,
+    double? locationLng,
+    bool clearLocation = false,
   }) async {
     final updated = await _repo.updateEvent(
       eventId,
@@ -207,6 +217,10 @@ class TrainerEventNotifier extends StateNotifier<EventListState> {
       meetingUrl: meetingUrl,
       maxAttendees: maxAttendees,
       clearMaxAttendees: clearMaxAttendees,
+      locationAddress: locationAddress,
+      locationLat: locationLat,
+      locationLng: locationLng,
+      clearLocation: clearLocation,
     );
     state = state.copyWith(
       events: state.events.map((e) => e.id == eventId ? updated : e).toList(),

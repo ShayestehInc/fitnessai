@@ -107,12 +107,11 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
       final data = result['data'] as Map<String, dynamic>;
       final msg = traineeId != null
           ? 'Program assigned to ${data['assigned_to']}'
-          : 'Saved as template: ${data['template_name']}';
+          : 'Program created: ${data['template_name']}';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
       );
-      // Navigate back to Programs page
-      if (mounted) context.pop();
+      if (mounted) context.go('/trainer/programs');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result['error']?.toString() ?? 'Failed')),
@@ -141,7 +140,7 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
           child: FilledButton.icon(
             onPressed: _isConverting ? null : () => _convertToProgram(),
             icon: const Icon(Icons.save_outlined, size: 18),
-            label: const Text('Save as Template'),
+            label: const Text('Save as Program'),
           ),
         ),
         const SizedBox(height: 10),
@@ -189,7 +188,10 @@ class _PlanDetailScreenState extends ConsumerState<PlanDetailScreen> {
               _buildInfoPill(
                 theme,
                 Icons.calendar_view_week,
-                '${plan.weeksCount} week${plan.weeksCount == 1 ? '' : 's'}',
+                () {
+                  final count = plan.durationWeeks ?? plan.weeks?.length ?? plan.weeksCount;
+                  return '$count week${count == 1 ? '' : 's'}';
+                }(),
               ),
             ],
           ),

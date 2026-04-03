@@ -287,7 +287,7 @@ class _CuratedBuildSheetState extends ConsumerState<CuratedBuildSheet> {
 
       if (taskStatus == 'completed') {
         _pollTimer?.cancel();
-        final data = result['data'];
+        final data = result['result'];
         final planId = data is Map ? data['plan_id'] : null;
 
         if (planId != null) {

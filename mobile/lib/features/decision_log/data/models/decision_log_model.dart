@@ -13,14 +13,16 @@ class DecisionLogModel with _$DecisionLogModel {
     @JsonKey(name: 'actor_type') required String actorType,
     int? actor,
     @JsonKey(name: 'decision_type') required String decisionType,
-    @Default('') String context,
+    @JsonKey(name: 'actor_email') String? actorEmail,
+    @JsonKey(name: 'is_undoable') @Default(false) bool isUndoable,
+    @Default({}) Map<String, dynamic> context,
     @JsonKey(name: 'inputs_snapshot') @Default({}) Map<String, dynamic> inputsSnapshot,
-    @JsonKey(name: 'constraints_applied') @Default([]) List<dynamic> constraintsApplied,
+    @JsonKey(name: 'constraints_applied') @Default({}) Map<String, dynamic> constraintsApplied,
     @JsonKey(name: 'options_considered') @Default([]) List<dynamic> optionsConsidered,
     @JsonKey(name: 'final_choice') @Default({}) Map<String, dynamic> finalChoice,
     @JsonKey(name: 'reason_codes') @Default([]) List<String> reasonCodes,
     @JsonKey(name: 'override_info') Map<String, dynamic>? overrideInfo,
-    @JsonKey(name: 'undo_snapshot') String? undoSnapshot,
+    @JsonKey(name: 'undo_snapshot') Map<String, dynamic>? undoSnapshot,
     @JsonKey(name: 'created_at') String? createdAt,
   }) = _DecisionLogModel;
 
@@ -63,7 +65,7 @@ class DecisionLogModel with _$DecisionLogModel {
     }
   }
 
-  bool get canUndo => undoSnapshot != null;
+  bool get canUndo => isUndoable;
 
   String get finalChoiceSummary {
     if (finalChoice.containsKey('description')) {

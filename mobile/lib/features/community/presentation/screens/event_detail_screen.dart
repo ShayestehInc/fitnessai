@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/models/event_model.dart';
@@ -134,7 +135,9 @@ class _EventDetailBody extends ConsumerWidget {
               ? Icons.videocam_outlined
               : Icons.location_on_outlined,
           title: event.isVirtual ? 'Virtual Event' : 'Location',
-          value: event.isVirtual ? 'Online' : 'In Person',
+          value: event.isVirtual
+              ? 'Online'
+              : (event.hasLocation ? event.locationAddress : 'In Person'),
         ),
         if (event.canJoinVirtual) ...[
           const SizedBox(height: 8),
@@ -148,6 +151,14 @@ class _EventDetailBody extends ConsumerWidget {
                 label: Text(context.l10n.communityJoinMeeting),
               ),
             ),
+          ),
+        ],
+        if (event.hasLocation) ...[
+          const SizedBox(height: 12),
+          _LocationMap(
+            lat: event.locationLat!,
+            lng: event.locationLng!,
+            address: event.locationAddress,
           ),
         ],
         const Divider(height: 24),
@@ -264,6 +275,69 @@ class _EventDetailBody extends ConsumerWidget {
           SnackBar(content: Text(context.l10n.communityCouldNotOpenMeetingLink)),
         );
       }
+    }
+  }
+}
+
+class _LocationMap extends StatelessWidget {
+  final double lat;
+  final double lng;
+  final String address;
+
+  const _LocationMap({
+    required this.lat,
+    required this.lng,
+    required this.address,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final position = LatLng(lat, lng);
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: position,
+                zoom: 15,
+              ),
+              markers: {
+                Marker(
+                  markerId: const MarkerId('event_location'),
+                  position: position,
+                  infoWindow: InfoWindow(title: address),
+                ),
+              },
+              liteModeEnabled: true,
+              zoomControlsEnabled: false,
+              myLocationButtonEnabled: false,
+              mapToolbarEnabled: false,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _openInMaps(context),
+            icon: const Icon(Icons.directions, size: 18),
+            label: const Text('Open in Maps'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openInMaps(BuildContext context) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 }

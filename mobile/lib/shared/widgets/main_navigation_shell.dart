@@ -188,6 +188,17 @@ class _NavItem extends StatelessWidget {
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
+            const SizedBox(height: 3),
+            // Active indicator dot
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: isSelected ? 20 : 0,
+              height: 3,
+              decoration: BoxDecoration(
+                color: isSelected ? primaryColor : Colors.transparent,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
           ],
         ),
       ),

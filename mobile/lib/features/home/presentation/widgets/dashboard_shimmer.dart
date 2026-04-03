@@ -64,9 +64,9 @@ class _DashboardShimmerState extends State<DashboardShimmer>
                 height: 240,
                 child: Row(
                   children: [
-                    _bar(200, 240, radius: 16),
+                    Expanded(child: _bar(double.infinity, 240, radius: 16)),
                     const SizedBox(width: 12),
-                    _bar(200, 240, radius: 16),
+                    Expanded(child: _bar(double.infinity, 240, radius: 16)),
                   ],
                 ),
               ),

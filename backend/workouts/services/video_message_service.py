@@ -7,9 +7,13 @@ start → upload (chunked/resumable) → complete → process → attach.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import os
+import uuid
+from dataclasses import dataclass, field
 from typing import Any
 
+from django.conf import settings
+from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
 from django.utils import timezone
 
@@ -26,6 +30,7 @@ class VideoMessageResult:
     upload_status: str
     processing_status: str
     capture_mode: str
+    raw_upload_uri: str = ''
 
 
 def start_recording(
@@ -131,6 +136,53 @@ def attach_to_checkin(
         upload_status=asset.upload_status,
         processing_status=asset.processing_status,
         capture_mode=asset.capture_mode,
+    )
+
+
+def upload_video_file(
+    *,
+    asset_id: str,
+    video_file: UploadedFile,
+    duration_seconds: float,
+    orientation: str = 'portrait',
+    user: User,
+) -> VideoMessageResult:
+    """Save the uploaded video file to media storage and mark upload complete."""
+    asset = VideoMessageAsset.objects.get(pk=asset_id)
+    _check_ownership(asset, user)
+
+    # Save file to media/video_messages/<asset_id>.<ext>
+    upload_dir = os.path.join(settings.MEDIA_ROOT, 'video_messages')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = os.path.splitext(video_file.name)[1] or '.mp4'
+    filename = f'{asset_id}{ext}'
+    filepath = os.path.join(upload_dir, filename)
+
+    with open(filepath, 'wb+') as dest:
+        for chunk in video_file.chunks():
+            dest.write(chunk)
+
+    raw_uri = f'{settings.MEDIA_URL}video_messages/{filename}'
+
+    asset.raw_upload_uri = raw_uri
+    asset.duration_seconds = duration_seconds
+    asset.orientation = orientation
+    asset.upload_status = VideoMessageAsset.UploadStatus.UPLOADED
+    asset.completed_at = timezone.now()
+    asset.save(update_fields=[
+        'raw_upload_uri', 'duration_seconds', 'orientation',
+        'upload_status', 'completed_at',
+    ])
+
+    _process_asset_sync(asset)
+
+    return VideoMessageResult(
+        asset_id=str(asset.pk),
+        upload_status=asset.upload_status,
+        processing_status=asset.processing_status,
+        capture_mode=asset.capture_mode,
+        raw_upload_uri=raw_uri,
     )
 
 

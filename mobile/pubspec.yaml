@@ -68,6 +68,9 @@ dependencies:
   # Camera (live preview for dual capture)
   camera: ^0.11.0+2
 
+  # Screen recording (ReplayKit on iOS, MediaProjection on Android)
+  flutter_screen_recording: ^2.0.16
+
   # Image Picker
   image_picker: ^1.0.7
 

@@ -140,7 +140,7 @@ class CalendarCard extends StatelessWidget {
                 icon: isLoading
                     ? const AdaptiveSpinner.small()
                     : const Icon(Icons.add_link),
-                label: Text(context.l10n.calendarConnecttitle),
+                label: Text('${context.l10n.calendarConnect} $title'),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size(double.infinity, 48),
                 ),

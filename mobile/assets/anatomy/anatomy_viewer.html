@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Anatomy Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #09090B;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* ── Loader ── */
+  #loader {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: #09090B; z-index: 100;
+    transition: opacity 0.6s ease;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(99,102,241,0.15);
+    border-top-color: #6366F1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── HUD Overlay ── */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none; z-index: 10;
+  }
+  .corner {
+    position: absolute; width: 24px; height: 24px;
+    border: 1.5px solid rgba(99,102,241,0.18);
+  }
+  .corner.tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+  .corner.tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+  .corner.bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+  .corner.br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent 5%, rgba(99,102,241,0.12) 30%, rgba(99,102,241,0.12) 70%, transparent 95%);
+    animation: scan 6s ease-in-out infinite;
+  }
+  @keyframes scan { 0%,100% { top: 5%; opacity: 0; } 10% { opacity: 1; } 50% { top: 95%; opacity: 1; } 60% { opacity: 0; } }
+
+  #vignette {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.45) 100%);
+    pointer-events: none; z-index: 5;
+  }
+
+  #muscle-label {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 2.5px; text-transform: uppercase;
+    color: rgba(99,102,241,0.95);
+    background: rgba(9,9,11,0.75);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    padding: 6px 18px; border-radius: 4px;
+    border: 1px solid rgba(99,102,241,0.2);
+    opacity: 0; transition: opacity 0.3s ease;
+    z-index: 20; pointer-events: none;
+    box-shadow: 0 0 20px rgba(99,102,241,0.1);
+  }
+</style>
+</head>
+<body>
+<div id="loader"><div class="spinner"></div></div>
+<div id="vignette"></div>
+<div id="hud">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+  <div class="scan-line"></div>
+</div>
+<div id="muscle-label"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ═══════════════════════════
+// ──  Constants
+// ═══════════════════════════
+const BG = 0x09090B;
+const DEFAULT_MUSCLE = 0x8B3A3A;
+const HIGHLIGHT_COLOR = 0x6366F1;
+const AUTO_ROTATE_SPEED = 0.25;
+const IDLE_TIMEOUT = 5000;
+const LERP_MS = 500;
+
+const GRAD = [
+  { t: 0.0, c: new THREE.Color(0x8B3A3A) },
+  { t: 0.3, c: new THREE.Color(0x6366F1) },
+  { t: 0.7, c: new THREE.Color(0xF59E0B) },
+  { t: 1.0, c: new THREE.Color(0xEF4444) },
+];
+
+function intensityColor(v) {
+  v = Math.max(0, Math.min(1, v));
+  for (let i = 0; i < GRAD.length - 1; i++) {
+    if (v >= GRAD[i].t && v <= GRAD[i + 1].t) {
+      const f = (v - GRAD[i].t) / (GRAD[i + 1].t - GRAD[i].t);
+      return new THREE.Color().lerpColors(GRAD[i].c, GRAD[i + 1].c, f);
+    }
+  }
+  return GRAD[GRAD.length - 1].c.clone();
+}
+
+// ═══════════════════════════
+// ──  Renderer
+// ═══════════════════════════
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(BG, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.8;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(BG);
+
+// ═══════════════════════════
+// ──  Camera & Controls
+// ═══════════════════════════
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
+const defCamPos = new THREE.Vector3(0, 1.0, 3.2);
+const defCamTarget = new THREE.Vector3(0, 0.85, 0);
+camera.position.copy(defCamPos);
+camera.lookAt(defCamTarget);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(defCamTarget);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.minDistance = 0.8;
+controls.maxDistance = 6;
+controls.minPolarAngle = Math.PI * 0.05;
+controls.maxPolarAngle = Math.PI * 0.95;
+controls.autoRotate = true;
+controls.autoRotateSpeed = AUTO_ROTATE_SPEED;
+controls.update();
+
+// ═══════════════════════════
+// ──  Lighting
+// ═══════════════════════════
+scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+const keyLight = new THREE.DirectionalLight(0xFFF5E6, 2.0);
+keyLight.position.set(3, 4, 3);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(1024, 1024);
+keyLight.shadow.bias = -0.001;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0xC4D4FF, 1.2);
+fillLight.position.set(-3, 2, 1);
+scene.add(fillLight);
+
+const frontFill = new THREE.DirectionalLight(0xffeedd, 1.0);
+frontFill.position.set(0, 1.5, 4);
+scene.add(frontFill);
+
+const rimLight = new THREE.DirectionalLight(0x8B8BFF, 1.0);
+rimLight.position.set(0, 3, -4);
+scene.add(rimLight);
+
+scene.add(new THREE.DirectionalLight(0xffffff, 0.4).translateY(-2).translateZ(1));
+scene.add(new THREE.HemisphereLight(0x6666FF, 0x443322, 0.5));
+
+// ═══════════════════════════
+// ──  Post-Processing
+// ═══════════════════════════
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.25, 0.5, 0.88
+);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+// ═══════════════════════════
+// ──  State
+// ═══════════════════════════
+const muscleMeshes = {};
+let skeletonGroup = null;
+let selectedMesh = null;
+let idleTimer = null;
+let currentLayer = 'muscles';
+const colorLerps = [];
+let cameraAnim = null;
+const originalMuscleData = {};  // Store original material state per mesh
+
+// ═══════════════════════════
+// ──  Raycasting
+// ═══════════════════════════
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+// ═══════════════════════════
+// ──  Skeleton Builder
+// ═══════════════════════════
+
+const boneMat = new THREE.MeshPhysicalMaterial({
+  color: 0xF0EBE0, roughness: 0.55, metalness: 0.0,
+  transparent: true, opacity: 0.92,
+  clearcoat: 0.25, clearcoatRoughness: 0.4,
+  emissive: 0x334466, emissiveIntensity: 0.18,
+});
+
+const jointMat = new THREE.MeshPhysicalMaterial({
+  color: 0xE5DDD0, roughness: 0.6, metalness: 0.02,
+  transparent: true, opacity: 0.88,
+  emissive: 0x445577, emissiveIntensity: 0.22,
+});
+
+// Helper: position from fractional coords relative to bounding box
+function makeP(bbox, fx, fy, fz) {
+  const s = bbox.getSize(new THREE.Vector3());
+  const c = bbox.getCenter(new THREE.Vector3());
+  return new THREE.Vector3(c.x + fx * s.y, bbox.min.y + fy * s.y, c.z + fz * s.y);
+}
+
+function makeBone(from, to, radius, mat) {
+  const dir = new THREE.Vector3().subVectors(to, from);
+  const len = dir.length();
+  const cylLen = Math.max(0.001, len - 2 * radius);
+  const geo = new THREE.CapsuleGeometry(radius, cylLen, 4, 8);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(from).add(to).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  return mesh;
+}
+
+function makeJoint(pos, radius) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 8), jointMat);
+  mesh.position.copy(pos);
+  return mesh;
+}
+
+function makeRibCurve(bbox, yFrac, maxW, lengthFrac, side) {
+  const s = bbox.getSize(new THREE.Vector3());
+  const h = s.y;
+  const c = bbox.getCenter(new THREE.Vector3());
+  const sign = side === 'L' ? -1 : 1;
+  const y = bbox.min.y + yFrac * h;
+  const spZ = c.z - 0.03 * h;
+  const stZ = c.z + 0.05 * h;
+  const w = maxW * h;
+
+  const pts = [new THREE.Vector3(c.x, y, spZ)];
+  pts.push(new THREE.Vector3(c.x + sign * w * 0.4, y - 0.003 * h, spZ + 0.025 * h));
+  pts.push(new THREE.Vector3(c.x + sign * w, y - 0.008 * h, c.z));
+
+  if (lengthFrac > 0.5) {
+    pts.push(new THREE.Vector3(c.x + sign * w * 0.6, y - 0.013 * h, c.z + 0.035 * h));
+    if (lengthFrac > 0.85) {
+      pts.push(new THREE.Vector3(c.x + sign * 0.015 * h, y - 0.018 * h, stZ));
+    }
+  } else {
+    pts.push(new THREE.Vector3(c.x + sign * w * 0.85, y - 0.01 * h, c.z + 0.015 * h));
+  }
+
+  const curve = new THREE.CatmullRomCurve3(pts);
+  return new THREE.TubeGeometry(curve, 18, 0.0035 * h, 6, false);
+}
+
+function buildSkeleton(bbox) {
+  const group = new THREE.Group();
+  group.name = 'skeleton';
+  const h = bbox.getSize(new THREE.Vector3()).y;
+  const p = (fx, fy, fz) => makeP(bbox, fx, fy, fz);
+  const b = (f, t, r) => makeBone(f, t, r * h, boneMat);
+  const j = (pos, r) => makeJoint(pos, r * h);
+
+  // ── Spine ──
+  group.add(b(p(0, 0.48, -0.03), p(0, 0.52, -0.03), 0.015));   // sacrum
+  group.add(b(p(0, 0.52, -0.03), p(0, 0.57, -0.03), 0.012));    // lumbar
+  group.add(b(p(0, 0.57, -0.03), p(0, 0.65, -0.03), 0.010));    // thoracic low
+  group.add(b(p(0, 0.65, -0.03), p(0, 0.73, -0.03), 0.010));    // thoracic mid
+  group.add(b(p(0, 0.73, -0.03), p(0, 0.79, -0.03), 0.009));    // thoracic high
+  group.add(b(p(0, 0.79, -0.025), p(0, 0.855, -0.01), 0.007));  // cervical
+
+  // ── Skull ──
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.048 * h, 16, 12), boneMat.clone());
+  skull.position.copy(p(0, 0.91, 0.01));
+  skull.scale.set(0.85, 1.0, 0.9);
+  group.add(skull);
+
+  // Jaw
+  group.add(b(p(-0.02, 0.87, 0.03), p(0.02, 0.87, 0.03), 0.006));
+
+  // ── Sternum ──
+  group.add(b(p(0, 0.66, 0.05), p(0, 0.79, 0.04), 0.009));
+
+  // ── Clavicles ──
+  group.add(b(p(0.005, 0.795, 0.035), p(-0.10, 0.79, -0.01), 0.005));
+  group.add(b(p(-0.005, 0.795, 0.035), p(0.10, 0.79, -0.01), 0.005));
+
+  // ── Scapulae ──
+  group.add(b(p(-0.05, 0.71, -0.04), p(-0.10, 0.79, -0.04), 0.012));
+  group.add(b(p(0.05, 0.71, -0.04), p(0.10, 0.79, -0.04), 0.012));
+
+  // ── Arms ──
+  const shoulderL = p(-0.11, 0.785, 0.0);
+  const shoulderR = p(0.11, 0.785, 0.0);
+  const elbowL = p(-0.135, 0.60, 0.02);
+  const elbowR = p(0.135, 0.60, 0.02);
+  const wristL = p(-0.115, 0.45, 0.04);
+  const wristR = p(0.115, 0.45, 0.04);
+
+  group.add(b(shoulderL, elbowL, 0.011));  // humerus L
+  group.add(b(shoulderR, elbowR, 0.011));  // humerus R
+  group.add(b(elbowL, wristL, 0.007));     // radius L
+  group.add(b(elbowR, wristR, 0.007));     // radius R
+  group.add(b(p(-0.135, 0.60, 0.01), p(-0.12, 0.45, 0.03), 0.005)); // ulna L
+  group.add(b(p(0.135, 0.60, 0.01), p(0.12, 0.45, 0.03), 0.005));   // ulna R
+
+  // ── Pelvis ──
+  group.add(b(p(-0.01, 0.52, -0.02), p(-0.08, 0.51, 0.02), 0.017)); // iliac L
+  group.add(b(p(0.01, 0.52, -0.02), p(0.08, 0.51, 0.02), 0.017));   // iliac R
+  group.add(b(p(-0.06, 0.49, 0.0), p(-0.08, 0.50, 0.02), 0.013));   // ischium L
+  group.add(b(p(0.06, 0.49, 0.0), p(0.08, 0.50, 0.02), 0.013));     // ischium R
+
+  // ── Legs ──
+  const hipL = p(-0.07, 0.49, 0.01);
+  const hipR = p(0.07, 0.49, 0.01);
+  const kneeL = p(-0.055, 0.28, 0.02);
+  const kneeR = p(0.055, 0.28, 0.02);
+  const ankleL = p(-0.045, 0.05, 0.01);
+  const ankleR = p(0.045, 0.05, 0.01);
+
+  group.add(b(hipL, kneeL, 0.013));      // femur L
+  group.add(b(hipR, kneeR, 0.013));      // femur R
+  group.add(b(kneeL, ankleL, 0.010));    // tibia L
+  group.add(b(kneeR, ankleR, 0.010));    // tibia R
+  group.add(b(p(-0.065, 0.27, 0.01), p(-0.055, 0.06, 0.0), 0.004)); // fibula L
+  group.add(b(p(0.065, 0.27, 0.01), p(0.055, 0.06, 0.0), 0.004));   // fibula R
+
+  // ── Joints ──
+  [shoulderL, shoulderR].forEach(pos => group.add(j(pos, 0.014)));
+  [elbowL, elbowR].forEach(pos => group.add(j(pos, 0.010)));
+  [wristL, wristR].forEach(pos => group.add(j(pos, 0.008)));
+  [hipL, hipR].forEach(pos => group.add(j(pos, 0.016)));
+  [kneeL, kneeR].forEach(pos => group.add(j(pos, 0.012)));
+  [ankleL, ankleR].forEach(pos => group.add(j(pos, 0.008)));
+
+  // ── Ribs ──
+  const ribs = [
+    { y: 0.775, w: 0.060, l: 1.0 },
+    { y: 0.760, w: 0.072, l: 1.0 },
+    { y: 0.740, w: 0.082, l: 1.0 },
+    { y: 0.720, w: 0.090, l: 1.0 },
+    { y: 0.700, w: 0.096, l: 1.0 },
+    { y: 0.680, w: 0.100, l: 1.0 },
+    { y: 0.660, w: 0.100, l: 1.0 },
+    { y: 0.640, w: 0.095, l: 0.80 },
+    { y: 0.625, w: 0.085, l: 0.70 },
+    { y: 0.610, w: 0.075, l: 0.60 },
+    { y: 0.595, w: 0.050, l: 0.35 },
+    { y: 0.580, w: 0.040, l: 0.28 },
+  ];
+  for (const rib of ribs) {
+    for (const side of ['L', 'R']) {
+      const geo = makeRibCurve(bbox, rib.y, rib.w, rib.l, side);
+      group.add(new THREE.Mesh(geo, boneMat));
+    }
+  }
+
+  // ── Ground ring ──
+  const ringGeo = new THREE.RingGeometry(0.35 * h, 0.42 * h, 48);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x6366F1, transparent: true, opacity: 0.06, side: THREE.DoubleSide,
+  });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = bbox.min.y - 0.005 * h;
+  ring.position.copy(new THREE.Vector3(
+    bbox.getCenter(new THREE.Vector3()).x,
+    bbox.min.y - 0.005 * h,
+    bbox.getCenter(new THREE.Vector3()).z,
+  ));
+  group.add(ring);
+
+  group.visible = false;  // Hidden by default (muscles layer)
+  return group;
+}
+
+// ═══════════════════════════
+// ──  Particles
+// ═══════════════════════════
+const PARTICLE_COUNT = 60;
+const particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+const particleVelocities = new Float32Array(PARTICLE_COUNT * 3);
+
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  particlePositions[i * 3] = (Math.random() - 0.5) * 3;
+  particlePositions[i * 3 + 1] = Math.random() * 2.2;
+  particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 3;
+  particleVelocities[i * 3] = (Math.random() - 0.5) * 0.0015;
+  particleVelocities[i * 3 + 1] = (Math.random() - 0.5) * 0.001;
+  particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * 0.0015;
+}
+
+const particleGeo = new THREE.BufferGeometry();
+particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+// Soft glow texture via canvas
+const particleCanvas = document.createElement('canvas');
+particleCanvas.width = 32; particleCanvas.height = 32;
+const pCtx = particleCanvas.getContext('2d');
+const grad = pCtx.createRadialGradient(16, 16, 0, 16, 16, 16);
+grad.addColorStop(0, 'rgba(99,102,241,0.7)');
+grad.addColorStop(0.4, 'rgba(99,102,241,0.25)');
+grad.addColorStop(1, 'rgba(99,102,241,0)');
+pCtx.fillStyle = grad;
+pCtx.fillRect(0, 0, 32, 32);
+
+const particleMat = new THREE.PointsMaterial({
+  map: new THREE.CanvasTexture(particleCanvas),
+  size: 0.06, transparent: true, opacity: 0.5,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// ═══════════════════════════
+// ──  Model Loading
+// ═══════════════════════════
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+const gltfLoader = new GLTFLoader();
+gltfLoader.setDRACOLoader(dracoLoader);
+
+gltfLoader.load('anatomy_muscles.glb', (gltf) => {
+  const model = gltf.scene;
+  scene.add(model);
+
+  model.traverse((child) => {
+    if (child.isMesh) {
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(DEFAULT_MUSCLE),
+        roughness: 0.5, metalness: 0.02,
+        clearcoat: 0.2, clearcoatRoughness: 0.35,
+        sheen: 0.4, sheenRoughness: 0.5,
+        sheenColor: new THREE.Color(0x553333),
+        emissive: new THREE.Color(0x1a0808),
+        emissiveIntensity: 1.0, envMapIntensity: 0.6,
+      });
+      child.material = mat;
+      child.castShadow = true;
+      child.receiveShadow = true;
+
+      const name = child.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      muscleMeshes[name] = child;
+      originalMuscleData[name] = {
+        color: mat.color.clone(),
+        emissive: mat.emissive.clone(),
+        opacity: 1.0,
+        transparent: false,
+      };
+    }
+  });
+
+  // Center camera on model
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+
+  defCamTarget.copy(center);
+  defCamPos.set(center.x + 0.15, center.y + maxDim * 0.05, center.z + maxDim * 1.4);
+  camera.position.copy(defCamPos);
+  controls.target.copy(defCamTarget);
+  controls.update();
+
+  // Build skeleton
+  skeletonGroup = buildSkeleton(box);
+  scene.add(skeletonGroup);
+
+  // Subtle ground glow
+  const groundGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(maxDim * 0.6, 32),
+    new THREE.MeshBasicMaterial({ color: 0x6366F1, transparent: true, opacity: 0.05, side: THREE.DoubleSide })
+  );
+  groundGlow.rotation.x = -Math.PI / 2;
+  groundGlow.position.set(center.x, box.min.y - 0.005, center.z);
+  scene.add(groundGlow);
+
+  // Hide loader
+  const loader = document.getElementById('loader');
+  if (loader) loader.classList.add('hidden');
+  setTimeout(() => { if (loader) loader.remove(); }, 700);
+}, undefined, (err) => {
+  console.error('GLB load error:', err);
+  const loader = document.getElementById('loader');
+  if (loader) loader.innerHTML = '<div style="color:#EF4444;font-family:system-ui;font-size:14px;">Failed to load model</div>';
+});
+
+// ═══════════════════════════
+// ──  Idle / Auto-Rotate
+// ═══════════════════════════
+function resetIdleTimer() {
+  controls.autoRotate = false;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { controls.autoRotate = true; }, IDLE_TIMEOUT);
+}
+controls.addEventListener('start', resetIdleTimer);
+
+// ═══════════════════════════
+// ──  Tap Handler
+// ═══════════════════════════
+let tapStart = null;
+let tapTime = 0;
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  tapStart = { x: e.clientX, y: e.clientY };
+  tapTime = Date.now();
+});
+
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!tapStart) return;
+  const dx = e.clientX - tapStart.x;
+  const dy = e.clientY - tapStart.y;
+  if (Math.sqrt(dx * dx + dy * dy) < 10 && Date.now() - tapTime < 300) {
+    handleTap(e);
+  }
+  tapStart = null;
+});
+
+function handleTap(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+
+  // Determine which meshes are tappable based on current layer
+  let tappable = [];
+  if (currentLayer !== 'skeleton') {
+    tappable = Object.values(muscleMeshes).filter(m => m.visible);
+  }
+
+  const intersects = raycaster.intersectObjects(tappable, false);
+
+  if (intersects.length > 0) {
+    const hit = intersects[0].object;
+    const slug = Object.keys(muscleMeshes).find(k => muscleMeshes[k] === hit);
+
+    // Deselect previous
+    if (selectedMesh && selectedMesh !== hit) {
+      const prevSlug = Object.keys(muscleMeshes).find(k => muscleMeshes[k] === selectedMesh);
+      const prev = originalMuscleData[prevSlug] || { color: new THREE.Color(DEFAULT_MUSCLE), emissive: new THREE.Color(0) };
+      lerpColor(selectedMesh, selectedMesh.material.color.clone(), prev.color,
+        selectedMesh.material.emissive.clone(), prev.emissive, LERP_MS);
+    }
+
+    selectedMesh = hit;
+    lerpColor(hit, hit.material.color.clone(), new THREE.Color(HIGHLIGHT_COLOR),
+      hit.material.emissive.clone(), new THREE.Color(HIGHLIGHT_COLOR), LERP_MS);
+
+    // Show label
+    const label = document.getElementById('muscle-label');
+    if (label && slug) {
+      label.textContent = slug.replace(/_/g, ' ');
+      label.style.opacity = '1';
+    }
+
+    // Notify Flutter
+    if (slug && window.flutter_inappwebview) {
+      window.flutter_inappwebview.callHandler('onMuscleTapped', slug);
+    }
+  } else {
+    // Tapped empty space — deselect
+    if (selectedMesh) {
+      const prevSlug = Object.keys(muscleMeshes).find(k => muscleMeshes[k] === selectedMesh);
+      const prev = originalMuscleData[prevSlug] || { color: new THREE.Color(DEFAULT_MUSCLE), emissive: new THREE.Color(0) };
+      lerpColor(selectedMesh, selectedMesh.material.color.clone(), prev.color,
+        selectedMesh.material.emissive.clone(), prev.emissive, LERP_MS);
+      selectedMesh = null;
+    }
+    const label = document.getElementById('muscle-label');
+    if (label) label.style.opacity = '0';
+  }
+}
+
+// ═══════════════════════════
+// ──  Color Lerp System
+// ═══════════════════════════
+function lerpColor(mesh, fromC, toC, fromE, toE, dur) {
+  const idx = colorLerps.findIndex(l => l.mesh === mesh);
+  if (idx !== -1) colorLerps.splice(idx, 1);
+  colorLerps.push({
+    mesh,
+    fromC: fromC.clone(), toC: toC.clone(),
+    fromE: fromE.clone(), toE: toE.clone(),
+    start: performance.now(), dur,
+  });
+}
+
+function updateLerps(now) {
+  for (let i = colorLerps.length - 1; i >= 0; i--) {
+    const l = colorLerps[i];
+    let t = (now - l.start) / l.dur;
+    if (t >= 1) { t = 1; colorLerps.splice(i, 1); }
+    const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    l.mesh.material.color.lerpColors(l.fromC, l.toC, ease);
+    l.mesh.material.emissive.lerpColors(l.fromE, l.toE, ease);
+  }
+}
+
+// ═══════════════════════════
+// ──  Camera Animation
+// ═══════════════════════════
+function smoothCamera(pos, target, dur) {
+  cameraAnim = {
+    sP: camera.position.clone(), sT: controls.target.clone(),
+    eP: pos.clone(), eT: target.clone(),
+    start: performance.now(), dur,
+  };
+}
+
+function updateCameraAnim(now) {
+  if (!cameraAnim) return;
+  let t = (now - cameraAnim.start) / cameraAnim.dur;
+  if (t >= 1) {
+    camera.position.copy(cameraAnim.eP);
+    controls.target.copy(cameraAnim.eT);
+    cameraAnim = null;
+  } else {
+    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    camera.position.lerpVectors(cameraAnim.sP, cameraAnim.eP, e);
+    controls.target.lerpVectors(cameraAnim.sT, cameraAnim.eT, e);
+  }
+  controls.update();
+}
+
+// ═══════════════════════════
+// ──  Render Loop
+// ═══════════════════════════
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const time = now * 0.001;
+
+  updateLerps(now);
+  updateCameraAnim(now);
+  controls.update();
+
+  // Particle drift
+  const pos = particleGeo.attributes.position.array;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let a = 0; a < 3; a++) {
+      pos[i * 3 + a] += particleVelocities[i * 3 + a];
+      if (Math.abs(pos[i * 3 + a]) > 2.5) pos[i * 3 + a] *= -0.4;
+    }
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+  particleMat.opacity = 0.35 + Math.sin(time * 0.6) * 0.12;
+
+  composer.render();
+}
+animate();
+
+// ═══════════════════════════
+// ──  Resize
+// ═══════════════════════════
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloomPass.resolution.set(w, h);
+});
+
+// ═══════════════════════════════════
+// ──  Public API (Flutter bridge)
+// ═══════════════════════════════════
+
+window.setMuscleIntensities = function(jsonString) {
+  let data;
+  try { data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString; }
+  catch (e) { return; }
+
+  for (const [slug, mesh] of Object.entries(muscleMeshes)) {
+    const intensity = data[slug];
+    if (intensity != null) {
+      const tc = intensityColor(intensity);
+      const te = intensity > 0 ? tc.clone().multiplyScalar(0.3) : new THREE.Color(0);
+      lerpColor(mesh, mesh.material.color.clone(), tc, mesh.material.emissive.clone(), te, LERP_MS);
+      originalMuscleData[slug] = { color: tc.clone(), emissive: te.clone(), opacity: 1.0, transparent: false };
+    } else {
+      lerpColor(mesh, mesh.material.color.clone(), new THREE.Color(DEFAULT_MUSCLE),
+        mesh.material.emissive.clone(), new THREE.Color(0), LERP_MS);
+      originalMuscleData[slug] = { color: new THREE.Color(DEFAULT_MUSCLE), emissive: new THREE.Color(0), opacity: 1.0, transparent: false };
+    }
+  }
+};
+
+window.highlightMuscle = function(slug, hexColor) {
+  const mesh = muscleMeshes[slug];
+  if (!mesh) return;
+  const c = new THREE.Color(hexColor);
+  lerpColor(mesh, mesh.material.color.clone(), c, mesh.material.emissive.clone(), c.clone().multiplyScalar(0.4), LERP_MS);
+};
+
+window.clearHighlights = function() {
+  selectedMesh = null;
+  const label = document.getElementById('muscle-label');
+  if (label) label.style.opacity = '0';
+  for (const [slug, mesh] of Object.entries(muscleMeshes)) {
+    const orig = originalMuscleData[slug] || { color: new THREE.Color(DEFAULT_MUSCLE), emissive: new THREE.Color(0) };
+    lerpColor(mesh, mesh.material.color.clone(), orig.color, mesh.material.emissive.clone(), orig.emissive, LERP_MS);
+  }
+};
+
+window.resetCamera = function() {
+  smoothCamera(defCamPos.clone(), defCamTarget.clone(), 800);
+};
+
+window.setAutoRotate = function(enabled) {
+  controls.autoRotate = !!enabled;
+  if (enabled && idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+};
+
+window.setLayer = function(layer) {
+  currentLayer = layer;
+  const label = document.getElementById('muscle-label');
+  if (label) label.style.opacity = '0';
+  selectedMesh = null;
+
+  switch (layer) {
+    case 'muscles':
+      for (const mesh of Object.values(muscleMeshes)) {
+        mesh.visible = true;
+        mesh.material.transparent = false;
+        mesh.material.opacity = 1.0;
+      }
+      if (skeletonGroup) skeletonGroup.visible = false;
+      bloomPass.strength = 0.25;
+      break;
+
+    case 'xray':
+      for (const mesh of Object.values(muscleMeshes)) {
+        mesh.visible = true;
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0.22;
+        mesh.material.depthWrite = false;
+      }
+      if (skeletonGroup) skeletonGroup.visible = true;
+      bloomPass.strength = 0.45;
+      break;
+
+    case 'skeleton':
+      for (const mesh of Object.values(muscleMeshes)) {
+        mesh.visible = false;
+      }
+      if (skeletonGroup) skeletonGroup.visible = true;
+      bloomPass.strength = 0.55;
+      break;
+  }
+};
+
+window.zoomIn = function() {
+  const dir = new THREE.Vector3().subVectors(controls.target, camera.position).normalize();
+  const np = camera.position.clone().add(dir.multiplyScalar(0.4));
+  if (np.distanceTo(controls.target) >= controls.minDistance) {
+    smoothCamera(np, controls.target.clone(), 350);
+  }
+};
+
+window.zoomOut = function() {
+  const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+  const np = camera.position.clone().add(dir.multiplyScalar(0.4));
+  if (np.distanceTo(controls.target) <= controls.maxDistance) {
+    smoothCamera(np, controls.target.clone(), 350);
+  }
+};
+
+window.focusOnMuscle = function(slug) {
+  const mesh = muscleMeshes[slug];
+  if (!mesh) return;
+  const mb = new THREE.Box3().setFromObject(mesh);
+  const mc = mb.getCenter(new THREE.Vector3());
+  const camDir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+  smoothCamera(mc.clone().add(camDir.multiplyScalar(1.2)), mc, 800);
+  window.highlightMuscle(slug, '#6366F1');
+};
+
+window.getMeshNames = function() {
+  return JSON.stringify(Object.keys(muscleMeshes));
+};
+
+</script>
+</body>
+</html>

@@ -85,6 +85,15 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Redis URL for channel layers and caching
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
+# Cache (used for async builder tasks, etc.)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'TIMEOUT': 1800,  # 30 minutes
+    }
+}
+
 # Django Channels layer configuration
 CHANNEL_LAYERS = {
     'default': {
@@ -253,7 +262,7 @@ STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_PLATFORM_FEE_PERCENT = float(os.getenv('STRIPE_PLATFORM_FEE_PERCENT', '10'))
 
 # Frontend URLs for Stripe redirects
-FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:64630')
 STRIPE_CONNECT_RETURN_URL = os.getenv('STRIPE_CONNECT_RETURN_URL', f'{FRONTEND_URL}/trainer/stripe-connect/return')
 STRIPE_CONNECT_REFRESH_URL = os.getenv('STRIPE_CONNECT_REFRESH_URL', f'{FRONTEND_URL}/trainer/stripe-connect/refresh')
 STRIPE_CHECKOUT_SUCCESS_URL = os.getenv('STRIPE_CHECKOUT_SUCCESS_URL', f'{FRONTEND_URL}/payment/success')

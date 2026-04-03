@@ -1073,11 +1073,10 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
     Raises:
         ValueError: If both AI and deterministic generation fail.
     """
-    from trainer.ai_config import get_ai_config, get_api_key
+    from trainer.ai_config import get_builder_config, get_api_key
     from trainer.ai_chat import get_chat_model
     from workouts.ai_prompts import get_structured_program_generation_prompt
     from langchain_core.messages import HumanMessage
-    from trainer.ai_config import AIModelConfig
 
     # Gather muscle groups and fetch exercise bank
     muscle_groups = _get_all_muscle_groups_for_request(request)
@@ -1109,20 +1108,13 @@ def generate_program_with_ai(request: GenerateProgramRequest) -> GeneratedProgra
         training_days=request.training_days if request.training_days else None,
     )
 
-    # Get AI config — use higher max_tokens for program generation
-    config = get_ai_config()
-    api_key = get_api_key(config.provider)
+    # Use builder config — prioritizes fast models (Gemini Flash / GPT-4o-mini)
+    gen_config = get_builder_config()
+    api_key = get_api_key(gen_config.provider)
 
     if not api_key:
-        logger.warning("No API key configured for %s — falling back to deterministic.", config.provider)
+        logger.warning("No API key configured for %s — falling back to deterministic.", gen_config.provider)
         return generate_program(request)
-
-    gen_config = AIModelConfig(
-        provider=config.provider,
-        model_name=config.model_name,
-        temperature=0.7,
-        max_tokens=4096,
-    )
 
     try:
         llm = get_chat_model(gen_config)

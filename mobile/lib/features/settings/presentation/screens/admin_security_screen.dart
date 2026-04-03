@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../shared/widgets/adaptive/adaptive_bottom_sheet.dart';
-import '../../../../shared/widgets/adaptive/adaptive_dialog.dart';
 import '../../../../shared/widgets/adaptive/adaptive_tappable.dart';
 import '../../../../shared/widgets/adaptive/adaptive_progress_bar.dart';
 import '../../../../shared/widgets/adaptive/adaptive_route.dart';
@@ -43,63 +41,31 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
 
           const SizedBox(height: 24),
 
-          // Two-Factor Authentication
+          // Two-Factor Authentication — Coming Soon
           _buildSectionHeader(theme, 'TWO-FACTOR AUTHENTICATION'),
           const SizedBox(height: 8),
-          _build2FACard(theme),
+          _buildComingSoonCard(
+            theme: theme,
+            icon: Icons.shield_outlined,
+            iconColor: Colors.orange,
+            title: 'Two-Factor Authentication',
+            description: 'Add an extra layer of security to your account. '
+                'Support for authenticator apps and SMS verification is coming soon.',
+          ),
 
           const SizedBox(height: 24),
 
-          // Session Management
+          // Session Management — Coming Soon
           _buildSectionHeader(theme, 'SESSIONS'),
           const SizedBox(height: 8),
-          _buildSettingsTile(
+          _buildComingSoonCard(
             theme: theme,
             icon: Icons.devices,
-            title: context.l10n.settingsActiveSessions,
-            subtitle: context.l10n.settingsManageDevicesLoggedIntoYourAccount,
-            onTap: () => _showActiveSessionsDialog(context),
+            iconColor: theme.colorScheme.primary,
+            title: 'Session Management',
+            description: 'View and manage active sessions across your devices. '
+                'This feature is coming soon.',
           ),
-          const SizedBox(height: 8),
-          _buildSettingsTile(
-            theme: theme,
-            icon: Icons.logout,
-            title: context.l10n.settingsSignOutAllDevices,
-            subtitle: context.l10n.settingsLogOutFromAllOtherDevices,
-            isDestructive: true,
-            onTap: () => _confirmSignOutAll(context),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Login History
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionHeader(theme, 'LOGIN HISTORY'),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: Colors.orange.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  'PREVIEW ONLY',
-                  style: TextStyle(
-                    color: Colors.orange[700],
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          _buildLoginHistoryCard(theme),
         ],
       ),
     );
@@ -180,10 +146,13 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     );
   }
 
-  Widget _build2FACard(ThemeData theme) {
-    // TODO: Implement actual 2FA status check
-    const bool is2FAEnabled = false;
-
+  Widget _buildComingSoonCard({
+    required ThemeData theme,
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -200,14 +169,10 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: (is2FAEnabled ? Colors.green : Colors.orange).withValues(alpha: 0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  is2FAEnabled ? Icons.verified_user : Icons.shield_outlined,
-                  color: is2FAEnabled ? Colors.green : Colors.orange,
-                  size: 22,
-                ),
+                child: Icon(icon, color: iconColor, size: 22),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -215,159 +180,42 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Two-Factor Authentication',
+                      title,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: (is2FAEnabled ? Colors.green : Colors.orange).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            is2FAEnabled ? 'Enabled' : 'Not Enabled',
-                            style: TextStyle(
-                              color: is2FAEnabled ? Colors.green : Colors.orange,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Coming Soon',
+                        style: TextStyle(
+                          color: theme.colorScheme.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            is2FAEnabled
-                ? 'Your account is protected with two-factor authentication.'
-                : 'Add an extra layer of security to your account by enabling two-factor authentication.',
+            description,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _show2FASetupDialog(context, is2FAEnabled),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: is2FAEnabled ? theme.colorScheme.error : theme.colorScheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(is2FAEnabled ? 'Disable 2FA' : 'Enable 2FA'),
-            ),
-          ),
         ],
       ),
     );
-  }
-
-  Widget _buildLoginHistoryCard(ThemeData theme) {
-    // Mock login history
-    final loginHistory = [
-      {'device': 'iPhone 15 Pro', 'location': 'San Francisco, CA', 'time': 'Just now', 'current': true},
-      {'device': 'MacBook Pro', 'location': 'San Francisco, CA', 'time': '2 hours ago', 'current': false},
-      {'device': 'Chrome on Windows', 'location': 'New York, NY', 'time': 'Yesterday', 'current': false},
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Column(
-        children: [
-          ...loginHistory.asMap().entries.map((entry) {
-            final index = entry.key;
-            final login = entry.value;
-            final isCurrent = login['current'] as bool;
-
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _getDeviceIcon(login['device'] as String),
-                        color: theme.hintColor,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  login['device'] as String,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                if (isCurrent) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'Current',
-                                      style: TextStyle(
-                                        color: Colors.green,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${login['location']} • ${login['time']}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.textTheme.bodySmall?.color?.withValues(alpha: 0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (index < loginHistory.length - 1)
-                  Divider(height: 1, color: theme.dividerColor),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  IconData _getDeviceIcon(String device) {
-    if (device.toLowerCase().contains('iphone')) return Icons.phone_iphone;
-    if (device.toLowerCase().contains('macbook')) return Icons.laptop_mac;
-    if (device.toLowerCase().contains('chrome')) return Icons.computer;
-    return Icons.devices;
   }
 
   void _navigateToChangePassword(BuildContext context) {
@@ -378,84 +226,6 @@ class _AdminSecurityScreenState extends ConsumerState<AdminSecurityScreen> {
     );
   }
 
-  void _showActiveSessionsDialog(BuildContext context) {
-    showAdaptiveBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Active Sessions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.phone_iphone),
-                title: const Text('iPhone 15 Pro'),
-                subtitle: Text(context.l10n.settingsCurrentSession),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Active',
-                    style: TextStyle(color: Colors.green, fontSize: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(context.l10n.commonClose),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmSignOutAll(BuildContext context) async {
-    final confirmed = await showAdaptiveConfirmDialog(
-      context: context,
-      title: context.l10n.settingsSignOutAllDevices,
-      message: 'This will sign you out from all devices except this one. You will need to sign in again on other devices.',
-      confirmText: context.l10n.settingsSignOutAll,
-      isDestructive: true,
-    );
-
-    if (confirmed == true && mounted) {
-      showAdaptiveToast(context, message: context.l10n.settingsSignedOutFromAllOtherDevices, type: ToastType.success);
-    }
-  }
-
-  void _show2FASetupDialog(BuildContext context, bool isEnabled) async {
-    final confirmed = await showAdaptiveConfirmDialog(
-      context: context,
-      title: isEnabled ? 'Disable 2FA' : 'Enable 2FA',
-      message: isEnabled
-          ? 'Are you sure you want to disable two-factor authentication? This will make your account less secure.'
-          : 'Two-factor authentication adds an extra layer of security. You will need an authenticator app to complete setup.',
-      confirmText: isEnabled ? 'Disable' : 'Continue',
-      isDestructive: isEnabled,
-    );
-
-    if (confirmed == true && mounted) {
-      showAdaptiveToast(context, message: isEnabled ? '2FA has been disabled.' : '2FA is not yet available. It will be enabled in a future update.', type: isEnabled ? ToastType.warning : ToastType.info);
-    }
-  }
 }
 
 /// Screen to change password

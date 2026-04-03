@@ -124,22 +124,34 @@ class QuickBuildState {
   final bool isLoading;
   final String? error;
   final QuickBuildResult? result;
+  final String? taskId;
+  final String? progressStep;
+  final List<String> completedSteps;
 
   const QuickBuildState({
     this.isLoading = false,
     this.error,
     this.result,
+    this.taskId,
+    this.progressStep,
+    this.completedSteps = const [],
   });
 
   QuickBuildState copyWith({
     bool? isLoading,
     String? error,
     QuickBuildResult? result,
+    String? taskId,
+    String? progressStep,
+    List<String>? completedSteps,
   }) {
     return QuickBuildState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
       result: result ?? this.result,
+      taskId: taskId ?? this.taskId,
+      progressStep: progressStep,
+      completedSteps: completedSteps ?? this.completedSteps,
     );
   }
 }
@@ -151,14 +163,61 @@ class QuickBuildNotifier extends StateNotifier<QuickBuildState> {
 
   Future<void> build(BuilderBrief brief) async {
     state = state.copyWith(isLoading: true, error: null);
-    final result = await _repository.quickBuild(brief);
-    if (result['success'] == true) {
-      state = QuickBuildState(
-        result: result['data'] as QuickBuildResult,
-      );
-    } else {
-      state = QuickBuildState(error: result['error'] as String?);
+
+    // Step 1: Submit the build request
+    final submitResult = await _repository.submitQuickBuild(brief);
+    if (submitResult['success'] != true) {
+      state = QuickBuildState(error: submitResult['error'] as String?);
+      return;
     }
+
+    final taskId = submitResult['task_id'] as String;
+    state = state.copyWith(taskId: taskId, progressStep: 'Submitting...');
+
+    // Step 2: Poll for result
+    await _pollForResult(taskId);
+  }
+
+  Future<void> _pollForResult(String taskId) async {
+    const maxAttempts = 120; // 2 min max
+    const pollInterval = Duration(seconds: 1);
+
+    for (var i = 0; i < maxAttempts; i++) {
+      await Future.delayed(pollInterval);
+
+      // Stop polling if the notifier was disposed
+      if (!mounted) return;
+
+      final statusResult = await _repository.getQuickBuildStatus(taskId);
+      if (!mounted) return;
+
+      if (statusResult['success'] != true) {
+        state = QuickBuildState(error: statusResult['error'] as String?);
+        return;
+      }
+
+      final taskStatus = statusResult['status'] as String;
+
+      if (taskStatus == 'completed') {
+        state = QuickBuildState(
+          result: statusResult['data'] as QuickBuildResult,
+        );
+        return;
+      } else if (taskStatus == 'failed') {
+        state = QuickBuildState(
+          error: statusResult['error'] as String? ?? 'Build failed',
+        );
+        return;
+      }
+
+      // Still running — update progress
+      state = state.copyWith(
+        progressStep: statusResult['progress_step'] as String?,
+        completedSteps: statusResult['completed_steps'] as List<String>? ?? state.completedSteps,
+      );
+    }
+
+    state = const QuickBuildState(error: 'Build timed out. Please try again.');
   }
 
   void reset() {
@@ -231,24 +290,66 @@ class AdvancedBuilderNotifier extends StateNotifier<AdvancedBuilderState> {
     if (state.planId == null) return;
     // Preserve history before setting loading state
     final previousHistory = List<BuilderStepResult>.from(state.stepHistory);
+    final currentStep = state.currentStepResult?.currentStep;
     state = state.copyWith(isLoading: true, error: null);
-    final result = await _repository.builderAdvance(
+
+    // Step 1: Submit advance request
+    final submitResult = await _repository.submitBuilderAdvance(
       state.planId!,
       override: override,
+      currentStep: currentStep,
     );
-    if (result['success'] == true) {
-      final step = result['data'] as BuilderStepResult;
-      state = AdvancedBuilderState(
-        planId: state.planId,
-        currentStepResult: step,
-        stepHistory: [...previousHistory, step],
-      );
-    } else {
+    if (submitResult['success'] != true) {
       state = state.copyWith(
         isLoading: false,
-        error: result['error'] as String?,
+        error: submitResult['error'] as String?,
       );
+      return;
     }
+
+    // Step 2: Poll for result
+    final taskId = submitResult['task_id'] as String;
+    const maxAttempts = 120;
+    const pollInterval = Duration(seconds: 1);
+
+    for (var i = 0; i < maxAttempts; i++) {
+      await Future.delayed(pollInterval);
+      if (!mounted) return;
+
+      final statusResult = await _repository.getBuilderAdvanceStatus(taskId);
+      if (!mounted) return;
+
+      if (statusResult['success'] != true) {
+        state = state.copyWith(
+          isLoading: false,
+          error: statusResult['error'] as String?,
+        );
+        return;
+      }
+
+      final taskStatus = statusResult['status'] as String;
+
+      if (taskStatus == 'completed') {
+        final step = statusResult['data'] as BuilderStepResult;
+        state = AdvancedBuilderState(
+          planId: state.planId,
+          currentStepResult: step,
+          stepHistory: [...previousHistory, step],
+        );
+        return;
+      } else if (taskStatus == 'failed') {
+        state = state.copyWith(
+          isLoading: false,
+          error: statusResult['error'] as String? ?? 'Step failed',
+        );
+        return;
+      }
+    }
+
+    state = state.copyWith(
+      isLoading: false,
+      error: 'Step timed out. Please try again.',
+    );
   }
 
   void goBack() {

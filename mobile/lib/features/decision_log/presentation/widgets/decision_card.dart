@@ -78,7 +78,28 @@ class _DecisionCardState extends State<DecisionCard> {
         if (decision.context.isNotEmpty) ...[
           Text('Context', style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
-          Text(decision.context, style: theme.textTheme.bodySmall),
+          ...decision.context.entries.take(5).map((entry) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${entry.key}: ',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      '${entry.value}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
           const SizedBox(height: 12),
         ],
         if (decision.reasonCodes.isNotEmpty) ...[

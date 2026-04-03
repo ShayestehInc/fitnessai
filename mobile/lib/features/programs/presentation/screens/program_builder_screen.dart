@@ -1829,13 +1829,31 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
   Future<void> _saveProgram() async {
     if (_isSaving) return;
 
+    // Prompt for a program name when creating a new template
+    if (widget.existingProgramId == null && widget.existingTemplateId == null) {
+      final name = await showAdaptiveTextInputDialog(
+        context: context,
+        title: 'Name Your Program',
+        initialValue: _programState.name,
+        placeholder: 'e.g., Full Body 3x/Week',
+      );
+
+      if (name == null || name.isEmpty) return;
+
+      setState(() {
+        _programState = _programState.copyWith(name: name);
+      });
+    }
+
     setState(() => _isSaving = true);
 
     try {
       final apiClient = ref.read(apiClientProvider);
 
       // Build schedule template from the program state using model's toJson()
-      final scheduleTemplate = _programState.weeks.map((week) => week.toJson()).toList();
+      final scheduleTemplate = {
+        'weeks': _programState.weeks.map((week) => week.toJson()).toList(),
+      };
 
       // Case 1: Editing an existing assigned program
       if (widget.existingProgramId != null) {

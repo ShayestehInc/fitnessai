@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/event_model.dart';
 import '../providers/event_provider.dart';
+import '../widgets/place_autocomplete_field.dart';
 import '../../../../core/l10n/l10n_extension.dart';
 
 class TrainerEventFormScreen extends ConsumerStatefulWidget {
@@ -30,6 +31,15 @@ class _TrainerEventFormScreenState
   DateTime _endsAt = DateTime.now().add(const Duration(hours: 2));
   bool _isSubmitting = false;
   bool _isDeleting = false;
+  String _locationAddress = '';
+  double? _locationLat;
+  double? _locationLng;
+
+  // TODO: Move to env / remote config
+  static const _googleApiKey = String.fromEnvironment(
+    'GOOGLE_API_KEY',
+    defaultValue: '',
+  );
 
   bool get _isEditing => widget.eventId != null;
   CommunityEventModel? _existingEvent;
@@ -58,6 +68,9 @@ class _TrainerEventFormScreenState
       _isVirtual = event.isVirtual;
       _startsAt = event.startsAt.toLocal();
       _endsAt = event.endsAt.toLocal();
+      _locationAddress = event.locationAddress;
+      _locationLat = event.locationLat;
+      _locationLng = event.locationLng;
     }
   }
 
@@ -112,6 +125,10 @@ class _TrainerEventFormScreenState
                   if (_isVirtual) ...[
                     const SizedBox(height: 12),
                     _buildMeetingUrlField(),
+                  ],
+                  if (!_isVirtual && _googleApiKey.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildLocationField(),
                   ],
                   const SizedBox(height: 16),
                   _buildMaxAttendeesField(),
@@ -263,6 +280,26 @@ class _TrainerEventFormScreenState
     );
   }
 
+  Widget _buildLocationField() {
+    return PlaceAutocompleteField(
+      apiKey: _googleApiKey,
+      initialAddress: _locationAddress.isNotEmpty ? _locationAddress : null,
+      onPlaceSelected: (result) {
+        setState(() {
+          if (result != null) {
+            _locationAddress = result.address;
+            _locationLat = result.lat;
+            _locationLng = result.lng;
+          } else {
+            _locationAddress = '';
+            _locationLat = null;
+            _locationLng = null;
+          }
+        });
+      },
+    );
+  }
+
   Widget _buildMaxAttendeesField() {
     return TextFormField(
       controller: _maxAttendeesController,
@@ -377,6 +414,8 @@ class _TrainerEventFormScreenState
           ? null
           : int.tryParse(_maxAttendeesController.text.trim());
 
+      final clearLoc = _isVirtual || _locationAddress.isEmpty;
+
       if (_isEditing) {
         await ref.read(trainerEventProvider.notifier).updateEvent(
               widget.eventId!,
@@ -388,6 +427,10 @@ class _TrainerEventFormScreenState
               meetingUrl: _isVirtual ? _meetingUrlController.text.trim() : '',
               maxAttendees: maxAtt,
               clearMaxAttendees: maxAtt == null,
+              locationAddress: clearLoc ? null : _locationAddress,
+              locationLat: clearLoc ? null : _locationLat,
+              locationLng: clearLoc ? null : _locationLng,
+              clearLocation: clearLoc,
             );
       } else {
         await ref.read(trainerEventProvider.notifier).createEvent(
@@ -399,6 +442,9 @@ class _TrainerEventFormScreenState
               meetingUrl:
                   _isVirtual ? _meetingUrlController.text.trim() : '',
               maxAttendees: maxAtt,
+              locationAddress: clearLoc ? '' : _locationAddress,
+              locationLat: clearLoc ? null : _locationLat,
+              locationLng: clearLoc ? null : _locationLng,
             );
       }
 

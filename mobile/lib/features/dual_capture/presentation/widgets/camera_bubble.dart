@@ -1,11 +1,19 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 /// Draggable, resizable camera preview bubble overlay (v6.5 §22).
-/// Used in screen + camera PiP mode.
+/// Used in screen + camera PiP mode. Shows a live camera preview.
 class CameraBubble extends StatefulWidget {
+  final CameraController? cameraController;
   final double initialSize;
+  final VoidCallback? onMinimizeChanged;
 
-  const CameraBubble({super.key, this.initialSize = 120});
+  const CameraBubble({
+    super.key,
+    this.cameraController,
+    this.initialSize = 120,
+    this.onMinimizeChanged,
+  });
 
   @override
   State<CameraBubble> createState() => _CameraBubbleState();
@@ -26,7 +34,10 @@ class _CameraBubbleState extends State<CameraBubble> {
   Widget build(BuildContext context) {
     if (_minimized) {
       return GestureDetector(
-        onTap: () => setState(() => _minimized = false),
+        onTap: () {
+          setState(() => _minimized = false);
+          widget.onMinimizeChanged?.call();
+        },
         child: Container(
           width: 40,
           height: 40,
@@ -51,7 +62,10 @@ class _CameraBubbleState extends State<CameraBubble> {
               : widget.initialSize;
         });
       },
-      onLongPress: () => setState(() => _minimized = true),
+      onLongPress: () {
+        setState(() => _minimized = true);
+        widget.onMinimizeChanged?.call();
+      },
       child: Transform.translate(
         offset: _offset,
         child: Container(
@@ -66,17 +80,8 @@ class _CameraBubbleState extends State<CameraBubble> {
             borderRadius: BorderRadius.circular(_size / 6 - 2),
             child: Stack(
               children: [
-                // Camera preview placeholder
-                Container(
-                  color: Colors.grey[900],
-                  child: const Center(
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Colors.white24,
-                      size: 40,
-                    ),
-                  ),
-                ),
+                // Live camera preview or placeholder
+                _buildPreview(),
                 // Minimize hint
                 Positioned(
                   top: 4,
@@ -97,6 +102,33 @@ class _CameraBubbleState extends State<CameraBubble> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreview() {
+    final controller = widget.cameraController;
+    if (controller != null && controller.value.isInitialized) {
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller.value.previewSize?.height ?? 1,
+            height: controller.value.previewSize?.width ?? 1,
+            child: CameraPreview(controller),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: Icon(
+          Icons.person_rounded,
+          color: Colors.white24,
+          size: 40,
         ),
       ),
     );

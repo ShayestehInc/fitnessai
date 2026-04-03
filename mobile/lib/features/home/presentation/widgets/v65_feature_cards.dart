@@ -170,6 +170,22 @@ class FeedbackHistoryCard extends StatelessWidget {
   }
 }
 
+/// Card linking to Anatomy Map.
+class AnatomyCard extends StatelessWidget {
+  const AnatomyCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const _FeatureNavCard(
+      route: '/anatomy',
+      icon: Icons.accessibility_new_rounded,
+      iconColor: Colors.cyan,
+      title: 'Anatomy Map',
+      subtitle: 'Explore muscles and see training coverage',
+    );
+  }
+}
+
 /// Composite section containing all v6.5 feature navigation cards,
 /// grouped under "Performance" and "AI Tools" headings.
 class V65FeatureSection extends StatelessWidget {
@@ -209,6 +225,11 @@ class V65FeatureSection extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: FeedbackHistoryCard(),
+        ),
+        const SizedBox(height: 8),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: AnatomyCard(),
         ),
 
         // AI Tools section

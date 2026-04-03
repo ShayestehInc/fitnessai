@@ -57,6 +57,8 @@ class ProgramContext with _$ProgramContext {
 
 @freezed
 class ProgramModel with _$ProgramModel {
+  const ProgramModel._();
+
   const factory ProgramModel({
     required int id,
     int? trainee,
@@ -68,7 +70,50 @@ class ProgramModel with _$ProgramModel {
     // Schedule can be a List (from API) or Map (legacy format)
     dynamic schedule,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
+    @JsonKey(name: 'difficulty_level') String? difficultyLevel,
+    @JsonKey(name: 'goal_type') String? goalType,
+    @JsonKey(name: 'duration_weeks') int? durationWeeks,
+    @JsonKey(name: 'image_url') String? imageUrl,
   }) = _ProgramModel;
+
+  /// Current week number based on start date (1-indexed).
+  int get currentWeekNumber {
+    try {
+      final start = DateTime.parse(startDate);
+      final now = DateTime.now();
+      final diff = now.difference(start).inDays;
+      return (diff ~/ 7) + 1;
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  /// Friendly display for difficulty.
+  String get difficultyDisplay {
+    final d = difficultyLevel;
+    if (d == null || d.isEmpty) return 'Intermediate';
+    return d[0].toUpperCase() + d.substring(1);
+  }
+
+  /// Friendly display for goal.
+  String get goalDisplay {
+    final g = goalType;
+    if (g == null || g.isEmpty) return '';
+    return g.replaceAll('_', ' ').split(' ').map(
+      (w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}',
+    ).join(' ');
+  }
+
+  /// Weeks remaining from today.
+  int get weeksRemaining {
+    try {
+      final end = DateTime.parse(endDate);
+      final diff = end.difference(DateTime.now()).inDays;
+      return (diff / 7).ceil().clamp(0, 999);
+    } catch (_) {
+      return 0;
+    }
+  }
 
   factory ProgramModel.fromJson(Map<String, dynamic> json) =>
       _$ProgramModelFromJson(json);

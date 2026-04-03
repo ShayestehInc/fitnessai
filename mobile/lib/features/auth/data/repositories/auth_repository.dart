@@ -172,7 +172,10 @@ class AuthRepository {
   /// Sign in with Google
   Future<Map<String, dynamic>> loginWithGoogle() async {
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(scopes: ['email']);
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email'],
+        clientId: '678085268098-oiujkrm9mavo40jtpgjq9vbu0ki25nl0.apps.googleusercontent.com',
+      );
 
       // Sign out first to ensure account picker shows
       await googleSignIn.signOut();

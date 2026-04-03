@@ -156,7 +156,10 @@ class _WorkoutCalendarScreenState extends ConsumerState<WorkoutCalendarScreen> {
         } else {
           // Trainee viewing own program
           final programsResponse = await apiClient.dio.get(ApiConstants.programs);
-          final programsList = programsResponse.data as List;
+          final programsData = programsResponse.data;
+          final List<dynamic> programsList = programsData is List
+              ? programsData
+              : (programsData is Map ? (programsData['results'] as List<dynamic>? ?? []) : []);
 
           if (programsList.isEmpty) {
             setState(() {

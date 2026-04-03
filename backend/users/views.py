@@ -176,6 +176,7 @@ class GoogleLoginView(APIView):
     Users cannot self-register via social login. An Admin or Trainer must
     first create their account. This endpoint only authenticates existing users.
     """
+    authentication_classes: list[type] = []
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:
@@ -234,6 +235,7 @@ class AppleLoginView(APIView):
     Users cannot self-register via social login. An Admin or Trainer must
     first create their account. This endpoint only authenticates existing users.
     """
+    authentication_classes: list[type] = []
     permission_classes = [AllowAny]
 
     def post(self, request: Request) -> Response:

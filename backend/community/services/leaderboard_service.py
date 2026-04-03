@@ -65,7 +65,7 @@ def compute_leaderboard(
             role=User.Role.TRAINEE,
             is_active=True,
             profile__leaderboard_opt_in=True,
-        ).select_related('profile').only(
+        ).only(
             'id', 'first_name', 'last_name', 'profile_image',
         )
     )
